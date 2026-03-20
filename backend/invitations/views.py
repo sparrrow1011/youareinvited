@@ -104,15 +104,14 @@ class InvitationViewSet(viewsets.ModelViewSet):
         Get invitation statistics.
         """
         try:
-            total = Invitation.objects.count()
-            checked_in = Invitation.objects.filter(checked_in=True).count()
+            qs = Invitation.objects.filter(event__owner=request.user)
+            total = qs.count()
+            checked_in = qs.filter(checked_in=True).count()
         except (OperationalError, ProgrammingError):
             return Response({
-                'total_invitations': 0,
-                'checked_in': 0,
-                'pending': 0,
-                'check_in_rate': 0,
-                'warning': 'Database is not initialized. Run migrations or configure DATABASE_URL.'
+                'total_invitations': 0, 'checked_in': 0,
+                'pending': 0, 'check_in_rate': 0,
+                'warning': 'Database not initialized.'
             }, status=status.HTTP_200_OK)
 
         pending = total - checked_in
