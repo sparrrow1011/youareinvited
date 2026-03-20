@@ -1,0 +1,45 @@
+from rest_framework import serializers
+from .models import Invitation
+
+
+class InvitationSerializer(serializers.ModelSerializer):
+    invitation_url = serializers.SerializerMethodField()
+    whatsapp_share_url = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = Invitation
+        fields = [
+            'id',
+            'name',
+            'seat_number',
+            'tag',
+            'qr_code',
+            'e_invite_image',
+            'checked_in',
+            'checked_in_at',
+            'created_at',
+            'updated_at',
+            'invitation_url',
+            'whatsapp_share_url',
+        ]
+        read_only_fields = ['id', 'qr_code', 'e_invite_image', 'checked_in_at', 'created_at', 'updated_at']
+
+    def get_invitation_url(self, obj):
+        return obj.get_invitation_url()
+    
+    def get_whatsapp_share_url(self, obj):
+        invitation_url = obj.get_invitation_url()
+        message = f"You're invited! 🎉\n\nName: {obj.name}\nSeat: {obj.seat_number}\n\nView your invitation: {invitation_url}"
+        import urllib.parse
+        return f"https://wa.me/?text={urllib.parse.quote(message)}"
+
+
+class InvitationCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Invitation
+        fields = ['name', 'seat_number', 'tag']
+
+
+class CheckInSerializer(serializers.Serializer):
+    checked_in = serializers.BooleanField(read_only=True)
+    checked_in_at = serializers.DateTimeField(read_only=True)
