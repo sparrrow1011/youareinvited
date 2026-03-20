@@ -64,8 +64,6 @@ class Invitation(models.Model):
     event = models.ForeignKey(
         'Event',
         on_delete=models.CASCADE,
-        null=True,
-        blank=True,
         related_name='invitations'
     )
     name = models.CharField(max_length=200)

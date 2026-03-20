@@ -59,3 +59,16 @@ def test_invitation_can_have_event(user, monkeypatch):
     )
     assert invitation.event == event
     assert invitation.event.owner == user
+
+
+@pytest.mark.django_db
+def test_invitation_requires_event():
+    from django.db import IntegrityError
+    from invitations.models import Invitation
+    with pytest.raises((IntegrityError, Exception)):
+        inv = Invitation(
+            name='No Event Person',
+            seat_number='Z9',
+            tag='General',
+        )
+        inv.save()
