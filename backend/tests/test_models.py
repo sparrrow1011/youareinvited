@@ -1,6 +1,6 @@
 import pytest
 from django.contrib.auth.models import User
-from invitations.models import UserProfile, Event
+from invitations.models import UserProfile, Event, Invitation
 
 
 @pytest.mark.django_db
@@ -43,3 +43,19 @@ def test_event_has_template_false_when_zone_missing(user):
     # name_zone and tag_zone not set
     event.save()
     assert event.has_template() is False
+
+
+@pytest.mark.django_db
+def test_invitation_can_have_event(user, monkeypatch):
+    from invitations.models import Event, Invitation
+    monkeypatch.setattr(Invitation, 'generate_qr_code', lambda self: None)
+    monkeypatch.setattr(Invitation, 'generate_e_invite', lambda self: None)
+    event = Event.objects.create(owner=user, name='Wedding', date='2026-06-01')
+    invitation = Invitation.objects.create(
+        name='John Doe',
+        seat_number='A1',
+        tag='VIP',
+        event=event,
+    )
+    assert invitation.event == event
+    assert invitation.event.owner == user

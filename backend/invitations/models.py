@@ -61,6 +61,13 @@ class Event(models.Model):
 
 class Invitation(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    event = models.ForeignKey(
+        'Event',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='invitations'
+    )
     name = models.CharField(max_length=200)
     seat_number = models.CharField(max_length=50)
     tag = models.CharField(max_length=100)
