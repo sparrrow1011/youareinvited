@@ -6,7 +6,7 @@ from django.contrib.auth.models import User
 def test_register_creates_user_and_profile(api_client):
     response = api_client.post('/api/auth/register/', {
         'email': 'new@example.com',
-        'password': 'strongpass123',
+        'password': 'X9mK#vPqL2!',
     }, format='json')
     assert response.status_code == 201
     assert 'access' in response.data
