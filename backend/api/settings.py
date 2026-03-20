@@ -136,9 +136,6 @@ REST_FRAMEWORK = {
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
-    'AUTH_COOKIE': 'access_token',
-    'AUTH_COOKIE_SECURE': not DEBUG,
-    'AUTH_COOKIE_SAMESITE': 'Lax',
 }
 
 # Cloudinary

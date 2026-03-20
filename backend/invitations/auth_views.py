@@ -1,8 +1,13 @@
+from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.validators import validate_email
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
 
@@ -18,9 +23,25 @@ def register(request):
             status=status.HTTP_400_BAD_REQUEST
         )
 
+    try:
+        validate_email(email)
+    except DjangoValidationError:
+        return Response(
+            {'detail': 'Enter a valid email address.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
     if User.objects.filter(email=email).exists():
         return Response(
             {'detail': 'An account with this email already exists.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    try:
+        validate_password(password)
+    except DjangoValidationError as e:
+        return Response(
+            {'detail': e.messages},
             status=status.HTTP_400_BAD_REQUEST
         )
 
@@ -36,7 +57,6 @@ def register(request):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def login(request):
-    from django.contrib.auth import authenticate
     email = request.data.get('email', '').strip().lower()
     password = request.data.get('password', '')
 
@@ -62,6 +82,7 @@ def logout(request):
         if refresh_token:
             token = RefreshToken(refresh_token)
             token.blacklist()
-    except Exception:
+    except TokenError:
+        # Token invalid or already blacklisted — treat as already logged out
         pass
     return Response({'detail': 'Logged out.'})
