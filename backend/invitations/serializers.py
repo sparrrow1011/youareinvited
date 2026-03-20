@@ -43,3 +43,17 @@ class InvitationCreateSerializer(serializers.ModelSerializer):
 class CheckInSerializer(serializers.Serializer):
     checked_in = serializers.BooleanField(read_only=True)
     checked_in_at = serializers.DateTimeField(read_only=True)
+
+
+from .models import Event
+
+
+class EventSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Event
+        fields = [
+            'id', 'owner', 'name', 'date', 'description',
+            'background_image', 'qr_zone', 'name_zone', 'tag_zone',
+            'created_at'
+        ]
+        read_only_fields = ['id', 'owner', 'created_at']

@@ -4,12 +4,13 @@ from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 from django.utils import timezone
 from django.db.utils import OperationalError, ProgrammingError
-from .models import Invitation
+from .models import Invitation, Event
 from .permissions import IsAuthenticatedOrGuestDetail
 from .serializers import (
     InvitationSerializer,
     InvitationCreateSerializer,
-    CheckInSerializer
+    CheckInSerializer,
+    EventSerializer,
 )
 
 
@@ -122,3 +123,16 @@ class InvitationViewSet(viewsets.ModelViewSet):
             'pending': pending,
             'check_in_rate': (checked_in / total * 100) if total > 0 else 0
         })
+
+
+class EventViewSet(viewsets.ModelViewSet):
+    serializer_class = EventSerializer
+
+    def get_queryset(self):
+        return Event.objects.filter(owner=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(owner=self.request.user)
+
+    def get_permissions(self):
+        return [IsAuthenticated()]
