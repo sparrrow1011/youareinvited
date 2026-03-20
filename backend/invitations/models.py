@@ -5,8 +5,29 @@ import qrcode
 from io import BytesIO
 from django.core.files import File
 from PIL import Image, ImageDraw, ImageFont
+from django.contrib.auth.models import User
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
 logger = logging.getLogger(__name__)
+
+
+class UserProfile(models.Model):
+    PLAN_CHOICES = [('free', 'Free'), ('pro', 'Pro')]
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    plan = models.CharField(max_length=10, choices=PLAN_CHOICES, default='free')
+    watermark_override = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.email} ({self.plan})"
+
+
+@receiver(post_save, sender=User)
+def create_user_profile(sender, instance, created, **kwargs):
+    if created:
+        UserProfile.objects.get_or_create(user=instance)
 
 
 class Invitation(models.Model):
