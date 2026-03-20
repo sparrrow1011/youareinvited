@@ -16,7 +16,8 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from django.http import JsonResponse
-from invitations.auth_views import register, login, refresh, logout
+from invitations.auth_views import register, login, logout
+from rest_framework_simplejwt.views import TokenRefreshView
 
 def health_check(_request):
     return JsonResponse({"status": "ok", "service": "you_are_invited_api lrst"})
@@ -27,6 +28,6 @@ urlpatterns = [
     path('api/', include('invitations.urls')),
     path('api/auth/register/', register),
     path('api/auth/login/', login),
-    path('api/auth/refresh/', refresh),
+    path('api/auth/refresh/', TokenRefreshView.as_view()),
     path('api/auth/logout/', logout),
 ]

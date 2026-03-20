@@ -55,13 +55,6 @@ def login(request):
 
 
 @api_view(['POST'])
-@permission_classes([AllowAny])
-def refresh(request):
-    from rest_framework_simplejwt.views import TokenRefreshView
-    return TokenRefreshView.as_view()(request._request)
-
-
-@api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def logout(request):
     try:
