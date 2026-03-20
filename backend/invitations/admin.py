@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Invitation
+from .models import Invitation, UserProfile, Event
 
 
 @admin.register(Invitation)
@@ -48,3 +48,16 @@ class InvitationAdmin(admin.ModelAdmin):
         count = queryset.update(checked_in=False, checked_in_at=None)
         self.message_user(request, f"Undid check-in for {count} invitations.")
     undo_check_in.short_description = "Undo check-in"
+
+
+@admin.register(UserProfile)
+class UserProfileAdmin(admin.ModelAdmin):
+    list_display = ['user', 'plan', 'watermark_override', 'created_at']
+    list_editable = ['plan', 'watermark_override']
+    search_fields = ['user__email']
+
+
+@admin.register(Event)
+class EventAdmin(admin.ModelAdmin):
+    list_display = ['name', 'owner', 'date', 'created_at']
+    search_fields = ['name', 'owner__email']
