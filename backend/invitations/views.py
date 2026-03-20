@@ -17,6 +17,13 @@ class InvitationViewSet(viewsets.ModelViewSet):
     queryset = Invitation.objects.all()
     serializer_class = InvitationSerializer
 
+    def get_queryset(self):
+        if self.action in ('admin_undo_check_in', 'regenerate_images'):
+            return Invitation.objects.all().select_related('event__owner__profile')
+        return Invitation.objects.filter(
+            event__owner=self.request.user
+        ).select_related('event__owner__profile')
+
     def get_permissions(self):
         if self.action in ('retrieve', 'check_in'):
             # Guests can view their invitation and check themselves in
@@ -82,11 +89,11 @@ class InvitationViewSet(viewsets.ModelViewSet):
         Requires Django staff/superuser status.
         """
         invitation = self.get_object()
-
         invitation.generate_qr_code()
-        invitation.generate_e_invite()
+        owner = invitation.event.owner
+        show_watermark = not owner.profile.watermark_override and owner.profile.plan == 'free'
+        invitation.generate_e_invite(show_watermark=show_watermark)
         invitation.save()
-
         serializer = InvitationSerializer(invitation)
         return Response(serializer.data)
 

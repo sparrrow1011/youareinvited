@@ -112,7 +112,7 @@ class Invitation(models.Model):
         self.qr_code.save(filename, File(buffer), save=False)
         buffer.close()
 
-    def generate_e_invite(self):
+    def generate_e_invite(self, show_watermark: bool = True):
         """Generate e-invite image with QR code"""
         # Create a beautiful invitation card
         width, height = 800, 1200
@@ -198,8 +198,11 @@ class Invitation(models.Model):
         scan_width = scan_bbox[2] - scan_bbox[0]
         draw.text(((width - scan_width) / 2, 870), scan_text, fill='#ffffff', font=small_font)
 
-        # Add footer
-        footer_text = "We look forward to celebrating with you!"
+        # Add footer / watermark
+        if show_watermark:
+            footer_text = "Made with YouAreInvited.com"
+        else:
+            footer_text = "We look forward to celebrating with you!"
         footer_bbox = draw.textbbox((0, 0), footer_text, font=small_font)
         footer_width = footer_bbox[2] - footer_bbox[0]
         draw.text(((width - footer_width) / 2, 1050), footer_text, fill='#a8dadc', font=small_font)
@@ -215,13 +218,19 @@ class Invitation(models.Model):
         buffer.close()
 
     def save(self, *args, **kwargs):
-        # Generate QR code if it doesn't exist
         if not self.qr_code:
             self.generate_qr_code()
-        
+
         super().save(*args, **kwargs)
-        
-        # Generate e-invite after saving (so QR code file exists)
+
         if not self.e_invite_image:
-            self.generate_e_invite()
+            show_watermark = True
+            if self.event_id:
+                try:
+                    owner = self.event.owner
+                    profile = owner.profile
+                    show_watermark = not profile.watermark_override and profile.plan == 'free'
+                except Exception:
+                    pass
+            self.generate_e_invite(show_watermark=show_watermark)
             super().save(update_fields=['e_invite_image'])

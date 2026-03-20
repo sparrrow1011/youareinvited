@@ -49,7 +49,7 @@ def test_event_has_template_false_when_zone_missing(user):
 def test_invitation_can_have_event(user, monkeypatch):
     from invitations.models import Event, Invitation
     monkeypatch.setattr(Invitation, 'generate_qr_code', lambda self: None)
-    monkeypatch.setattr(Invitation, 'generate_e_invite', lambda self: None)
+    monkeypatch.setattr(Invitation, 'generate_e_invite', lambda self, **kwargs: None)
     event = Event.objects.create(owner=user, name='Wedding', date='2026-06-01')
     invitation = Invitation.objects.create(
         name='John Doe',
@@ -72,3 +72,31 @@ def test_invitation_requires_event():
             tag='General',
         )
         inv.save()
+
+
+@pytest.mark.django_db
+def test_watermark_shown_for_free_user(user):
+    from invitations.models import Event
+    event = Event.objects.create(owner=user, name='Test', date='2026-06-01')
+    owner = event.owner
+    show = not owner.profile.watermark_override and owner.profile.plan == 'free'
+    assert show is True
+
+
+@pytest.mark.django_db
+def test_watermark_hidden_for_pro_user(user):
+    user.profile.plan = 'pro'
+    user.profile.save()
+    from invitations.models import Event
+    event = Event.objects.create(owner=user, name='Test', date='2026-06-01')
+    owner = event.owner
+    show = not owner.profile.watermark_override and owner.profile.plan == 'free'
+    assert show is False
+
+
+@pytest.mark.django_db
+def test_watermark_override_ignores_plan(user):
+    user.profile.watermark_override = True
+    user.profile.save()
+    show = not user.profile.watermark_override and user.profile.plan == 'free'
+    assert show is False
