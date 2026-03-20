@@ -30,6 +30,35 @@ def create_user_profile(sender, instance, created, **kwargs):
         UserProfile.objects.get_or_create(user=instance)
 
 
+class Event(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='events')
+    name = models.CharField(max_length=200)
+    date = models.DateField()
+    description = models.CharField(max_length=500, blank=True, default='')
+    background_image = models.ImageField(
+        upload_to='event_invitation/templates/', blank=True, null=True
+    )
+    qr_zone = models.JSONField(null=True, blank=True)
+    name_zone = models.JSONField(null=True, blank=True)
+    tag_zone = models.JSONField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.name
+
+    def has_template(self):
+        return bool(
+            self.background_image
+            and self.qr_zone
+            and self.name_zone
+            and self.tag_zone
+        )
+
+
 class Invitation(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=200)
