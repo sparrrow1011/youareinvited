@@ -37,7 +37,7 @@ class InvitationSerializer(serializers.ModelSerializer):
 class InvitationCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Invitation
-        fields = ['name', 'seat_number', 'tag']
+        fields = ['name', 'seat_number', 'tag', 'event']
 
 
 class CheckInSerializer(serializers.Serializer):

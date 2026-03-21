@@ -61,3 +61,19 @@ def test_stats_scoped_to_owner(auth_client, user, other_user, monkeypatch):
     assert response.status_code == 200
     assert response.data['total_invitations'] == 1
     assert response.data['checked_in'] == 0
+
+
+@pytest.mark.django_db
+def test_create_invitation_requires_event(auth_client, user, monkeypatch):
+    from invitations.models import Invitation
+    monkeypatch.setattr(Invitation, 'generate_qr_code', lambda self: None)
+    monkeypatch.setattr(Invitation, 'generate_e_invite', lambda self, **kwargs: None)
+    event = Event.objects.create(owner=user, name='Test', date='2026-06-01')
+    response = auth_client.post('/api/invitations/', {
+        'name': 'Jane Doe',
+        'seat_number': 'B2',
+        'tag': 'Family',
+        'event': str(event.id),
+    }, format='json')
+    assert response.status_code == 201
+    assert response.data['name'] == 'Jane Doe'
