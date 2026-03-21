@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Paths that don't require authentication
-const PUBLIC_PATHS = new Set(['/login', '/logout', '/security/login', '/security/logout']);
+const PUBLIC_PATHS = new Set([
+  '/login', '/logout', '/signup',
+  '/security/login', '/security/logout',
+]);
 
-// Path prefixes accessible without auth (guests viewing their invitation)
 const PUBLIC_PREFIXES = ['/invitation/'];
 
-// Check if path is a public asset (images, fonts, etc.)
 const isPublicAsset = (pathname: string): boolean => {
   if (pathname.startsWith('/_next/')) return true;
   if (pathname.startsWith('/api/auth/')) return true;
@@ -25,35 +25,33 @@ const addSecurityHeaders = (res: NextResponse): NextResponse => {
 export function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
 
-  // Allow public paths and assets
   if (PUBLIC_PATHS.has(pathname) || isPublicAsset(pathname)) {
     return addSecurityHeaders(NextResponse.next());
   }
 
-  // Allow public path prefixes (e.g. guest invitation pages)
   if (PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
     return addSecurityHeaders(NextResponse.next());
   }
 
-  const isAuthed = req.cookies.get('site_auth')?.value === '1';
   const hasSecurityAuth = req.cookies.get('security_auth')?.value === '1';
   const isSecurityPath = pathname.startsWith('/security');
 
-  // Security area has its own independent login flow.
   if (isSecurityPath && !hasSecurityAuth) {
     const securityLoginUrl = new URL('/security/login', req.url);
     securityLoginUrl.searchParams.set('next', `${pathname}${search}`);
     return NextResponse.redirect(securityLoginUrl);
   }
 
-  // Non-security pages use general site login.
-  if (!isSecurityPath && !isAuthed) {
-    const loginUrl = new URL('/login', req.url);
-    loginUrl.searchParams.set('next', `${pathname}${search}`);
-    return NextResponse.redirect(loginUrl);
+  if (!isSecurityPath) {
+    // JWT auth — check for access_token cookie
+    const hasJwt = !!req.cookies.get('access_token')?.value;
+    if (!hasJwt) {
+      const loginUrl = new URL('/login', req.url);
+      loginUrl.searchParams.set('next', `${pathname}${search}`);
+      return NextResponse.redirect(loginUrl);
+    }
   }
 
-  // User is authenticated — apply cache and security headers
   const res = NextResponse.next();
   res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   res.headers.set('Pragma', 'no-cache');
