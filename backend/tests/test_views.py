@@ -77,3 +77,45 @@ def test_create_invitation_requires_event(auth_client, user, monkeypatch):
     }, format='json')
     assert response.status_code == 201
     assert response.data['name'] == 'Jane Doe'
+
+
+import io
+from PIL import Image as PILImage
+
+
+def make_upload_file():
+    img = PILImage.new('RGB', (800, 1200), color='white')
+    buf = io.BytesIO()
+    img.save(buf, format='PNG')
+    buf.seek(0)
+    from django.core.files.uploadedfile import SimpleUploadedFile
+    return SimpleUploadedFile('template.png', buf.read(), content_type='image/png')
+
+
+@pytest.mark.django_db
+def test_upload_template_saves_zones(auth_client, user, monkeypatch):
+    event = Event.objects.create(owner=user, name='Test', date='2026-06-01')
+    # Monkeypatch Cloudinary storage to avoid real uploads
+    monkeypatch.setattr(
+        'cloudinary_storage.storage.MediaCloudinaryStorage.save',
+        lambda self, name, content, max_length=None: f'event_invitation/templates/{name}'
+    )
+    monkeypatch.setattr(
+        'cloudinary_storage.storage.MediaCloudinaryStorage.url',
+        lambda self, name: f'https://res.cloudinary.com/test/{name}'
+    )
+    payload = {
+        'background_image': make_upload_file(),
+        'qr_zone': '{"x_pct": 0.3, "y_pct": 0.4, "w_pct": 0.4, "h_pct": 0.25}',
+        'name_zone': '{"x_pct": 0.1, "y_pct": 0.2, "w_pct": 0.8, "h_pct": 0.1, "font_size": 40, "color": "#fff"}',
+        'tag_zone': '{"x_pct": 0.1, "y_pct": 0.32, "w_pct": 0.8, "h_pct": 0.08, "font_size": 28, "color": "#a8dadc"}',
+    }
+    response = auth_client.patch(
+        f'/api/events/{event.id}/',
+        payload,
+        format='multipart'
+    )
+    assert response.status_code == 200
+    event.refresh_from_db()
+    assert event.qr_zone is not None
+    assert event.qr_zone['x_pct'] == 0.3

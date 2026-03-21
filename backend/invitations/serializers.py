@@ -1,3 +1,4 @@
+import json
 from rest_framework import serializers
 from .models import Invitation
 
@@ -57,3 +58,20 @@ class EventSerializer(serializers.ModelSerializer):
             'created_at'
         ]
         read_only_fields = ['id', 'owner', 'created_at']
+
+    def _parse_zone(self, value):
+        if isinstance(value, str):
+            try:
+                return json.loads(value)
+            except (json.JSONDecodeError, TypeError):
+                return None
+        return value
+
+    def validate_qr_zone(self, value):
+        return self._parse_zone(value)
+
+    def validate_name_zone(self, value):
+        return self._parse_zone(value)
+
+    def validate_tag_zone(self, value):
+        return self._parse_zone(value)
