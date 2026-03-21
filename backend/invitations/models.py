@@ -113,109 +113,163 @@ class Invitation(models.Model):
         buffer.close()
 
     def generate_e_invite(self, show_watermark: bool = True):
-        """Generate e-invite image with QR code"""
-        # Create a beautiful invitation card
+        """Generate e-invite image. Uses uploaded template if available, else dark-theme card."""
+        if self.event_id and self.event.has_template():
+            img = self._generate_from_template(show_watermark)
+        else:
+            img = self._generate_default_card(show_watermark)
+
+        buffer = BytesIO()
+        img.save(buffer, format='PNG')
+        buffer.seek(0)
+        filename = f'invite_{self.id}.png'
+        self.e_invite_image.save(filename, File(buffer), save=False)
+        buffer.close()
+
+    def _generate_from_template(self, show_watermark: bool) -> Image:
+        """Composite guest data onto the organizer's uploaded background image."""
+        import requests as http_requests
+
+        # Load background image from Cloudinary URL
+        bg_url = self.event.background_image.url
+        resp = http_requests.get(bg_url, timeout=10)
+        resp.raise_for_status()
+        bg = Image.open(BytesIO(resp.content)).convert('RGB')
+        width, height = bg.size
+        draw = ImageDraw.Draw(bg)
+
+        def load_font(size):
+            try:
+                return ImageFont.truetype(
+                    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", size
+                )
+            except Exception:
+                return ImageFont.load_default()
+
+        def zone_to_pixels(zone):
+            x = int(zone['x_pct'] * width)
+            y = int(zone['y_pct'] * height)
+            w = int(zone['w_pct'] * width)
+            h = int(zone['h_pct'] * height)
+            return x, y, w, h
+
+        # Draw name
+        nz = self.event.name_zone
+        nx, ny, nw, nh = zone_to_pixels(nz)
+        font_size = int(nz.get('font_size', 40))
+        color = nz.get('color', '#ffffff')
+        font = load_font(font_size)
+        bbox = draw.textbbox((0, 0), self.name, font=font)
+        text_w = bbox[2] - bbox[0]
+        draw.text((nx + (nw - text_w) // 2, ny), self.name, fill=color, font=font)
+
+        # Draw tag
+        tz = self.event.tag_zone
+        tx, ty, tw, th = zone_to_pixels(tz)
+        tag_font_size = int(tz.get('font_size', 28))
+        tag_color = tz.get('color', '#a8dadc')
+        tag_font = load_font(tag_font_size)
+        tag_text = f"Category: {self.tag}"
+        tbbox = draw.textbbox((0, 0), tag_text, font=tag_font)
+        tag_text_w = tbbox[2] - tbbox[0]
+        draw.text((tx + (tw - tag_text_w) // 2, ty), tag_text, fill=tag_color, font=tag_font)
+
+        # Draw QR code — fetch from URL (Cloudinary storage has no .path property)
+        if self.qr_code:
+            try:
+                qz = self.event.qr_zone
+                qx, qy, qw, qh = zone_to_pixels(qz)
+                qr_resp = http_requests.get(self.qr_code.url, timeout=10)
+                qr_resp.raise_for_status()
+                qr_img = Image.open(BytesIO(qr_resp.content)).convert('RGB')
+                qr_img = qr_img.resize((qw, qh))
+                bg.paste(qr_img, (qx, qy))
+            except Exception as e:
+                logger.error("Error placing QR code from template for invitation %s: %s", self.id, e)
+
+        # Watermark
+        if show_watermark:
+            small_font = load_font(16)
+            wm_text = "Made with YouAreInvited.com"
+            wm_bbox = draw.textbbox((0, 0), wm_text, font=small_font)
+            wm_w = wm_bbox[2] - wm_bbox[0]
+            draw.text(
+                ((width - wm_w) // 2, height - 30),
+                wm_text, fill='#ffffff', font=small_font
+            )
+
+        return bg
+
+    def _generate_default_card(self, show_watermark: bool) -> Image:
+        """Generate the original hardcoded dark-theme invitation card."""
         width, height = 800, 1200
         img = Image.new('RGB', (width, height), color='#1a1a2e')
         draw = ImageDraw.Draw(img)
 
-        # Draw decorative border
         border_width = 20
         draw.rectangle(
-            [border_width, border_width, width-border_width, height-border_width],
-            outline='#16213e',
-            width=3
+            [border_width, border_width, width - border_width, height - border_width],
+            outline='#16213e', width=3
         )
-        
-        # Draw inner border with gradient effect
         inner_border = 40
         draw.rectangle(
-            [inner_border, inner_border, width-inner_border, height-inner_border],
-            outline='#0f3460',
-            width=2
+            [inner_border, inner_border, width - inner_border, height - inner_border],
+            outline='#0f3460', width=2
         )
 
-        # Try to use a nice font, fallback to default
         try:
             title_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 48)
             name_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 40)
             detail_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 28)
             small_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 20)
-        except:
-            title_font = ImageFont.load_default()
-            name_font = ImageFont.load_default()
-            detail_font = ImageFont.load_default()
-            small_font = ImageFont.load_default()
+        except Exception:
+            title_font = name_font = detail_font = small_font = ImageFont.load_default()
 
-        # Add title
         title = "YOU'RE INVITED"
         title_bbox = draw.textbbox((0, 0), title, font=title_font)
-        title_width = title_bbox[2] - title_bbox[0]
-        draw.text(((width - title_width) / 2, 100), title, fill='#e94560', font=title_font)
+        draw.text(((width - (title_bbox[2] - title_bbox[0])) / 2, 100), title, fill='#e94560', font=title_font)
 
-        # Add decorative line
-        line_y = 180
-        draw.line([(width/2 - 150, line_y), (width/2 + 150, line_y)], fill='#0f3460', width=2)
+        draw.line([(width / 2 - 150, 180), (width / 2 + 150, 180)], fill='#0f3460', width=2)
 
-        # Add guest name
         name_bbox = draw.textbbox((0, 0), self.name, font=name_font)
-        name_width = name_bbox[2] - name_bbox[0]
-        draw.text(((width - name_width) / 2, 250), self.name, fill='#ffffff', font=name_font)
+        draw.text(((width - (name_bbox[2] - name_bbox[0])) / 2, 250), self.name, fill='#ffffff', font=name_font)
 
-        # Add seat information
         seat_text = f"Seat Number: {self.seat_number}"
         seat_bbox = draw.textbbox((0, 0), seat_text, font=detail_font)
-        seat_width = seat_bbox[2] - seat_bbox[0]
-        draw.text(((width - seat_width) / 2, 330), seat_text, fill='#a8dadc', font=detail_font)
+        draw.text(((width - (seat_bbox[2] - seat_bbox[0])) / 2, 330), seat_text, fill='#a8dadc', font=detail_font)
 
-        # Add tag
         tag_text = f"Category: {self.tag}"
         tag_bbox = draw.textbbox((0, 0), tag_text, font=detail_font)
-        tag_width = tag_bbox[2] - tag_bbox[0]
-        draw.text(((width - tag_width) / 2, 380), tag_text, fill='#a8dadc', font=detail_font)
+        draw.text(((width - (tag_bbox[2] - tag_bbox[0])) / 2, 380), tag_text, fill='#a8dadc', font=detail_font)
 
-        # Add decorative line
-        line_y2 = 450
-        draw.line([(width/2 - 150, line_y2), (width/2 + 150, line_y2)], fill='#0f3460', width=2)
+        draw.line([(width / 2 - 150, 450), (width / 2 + 150, 450)], fill='#0f3460', width=2)
 
-        # Add QR code if it exists
         if self.qr_code:
             try:
-                qr_img = Image.open(self.qr_code.path)
+                # Fetch from URL — Cloudinary storage has no .path property
+                import requests as _req
+                qr_resp = _req.get(self.qr_code.url, timeout=10)
+                qr_resp.raise_for_status()
+                qr_img = Image.open(BytesIO(qr_resp.content))
                 qr_img = qr_img.resize((300, 300))
-                
-                # Create white background for QR
                 qr_bg = Image.new('RGB', (320, 320), 'white')
                 qr_bg.paste(qr_img, (10, 10))
-                
                 img.paste(qr_bg, (240, 520))
             except Exception as e:
-                logger.error("Error adding QR code to e-invite for invitation %s: %s", self.id, e)
+                logger.error("Error adding QR code: %s", e)
 
-        # Add scan instruction
         scan_text = "Scan to view your invitation"
         scan_bbox = draw.textbbox((0, 0), scan_text, font=small_font)
-        scan_width = scan_bbox[2] - scan_bbox[0]
-        draw.text(((width - scan_width) / 2, 870), scan_text, fill='#ffffff', font=small_font)
+        draw.text(((width - (scan_bbox[2] - scan_bbox[0])) / 2, 870), scan_text, fill='#ffffff', font=small_font)
 
-        # Add footer / watermark
         if show_watermark:
             footer_text = "Made with YouAreInvited.com"
         else:
             footer_text = "We look forward to celebrating with you!"
         footer_bbox = draw.textbbox((0, 0), footer_text, font=small_font)
-        footer_width = footer_bbox[2] - footer_bbox[0]
-        draw.text(((width - footer_width) / 2, 1050), footer_text, fill='#a8dadc', font=small_font)
+        draw.text(((width - (footer_bbox[2] - footer_bbox[0])) / 2, 1050), footer_text, fill='#a8dadc', font=small_font)
 
-        # Save to BytesIO
-        buffer = BytesIO()
-        img.save(buffer, format='PNG')
-        buffer.seek(0)
-        
-        # Save to model
-        filename = f'invite_{self.id}.png'
-        self.e_invite_image.save(filename, File(buffer), save=False)
-        buffer.close()
+        return img
 
     def save(self, *args, **kwargs):
         if not self.qr_code:

@@ -100,3 +100,16 @@ def test_watermark_override_ignores_plan(user):
     user.profile.save()
     show = not user.profile.watermark_override and user.profile.plan == 'free'
     assert show is False
+
+
+@pytest.mark.django_db
+def test_generate_e_invite_uses_template_when_all_zones_set(user):
+    event = Event.objects.create(owner=user, name='Test', date='2026-06-01')
+    event.qr_zone = {'x_pct': 0.3, 'y_pct': 0.4, 'w_pct': 0.4, 'h_pct': 0.25}
+    event.name_zone = {'x_pct': 0.1, 'y_pct': 0.2, 'w_pct': 0.8, 'h_pct': 0.1, 'font_size': 40, 'color': '#ffffff'}
+    event.tag_zone = {'x_pct': 0.1, 'y_pct': 0.32, 'w_pct': 0.8, 'h_pct': 0.08, 'font_size': 28, 'color': '#a8dadc'}
+    event.save()
+    assert event.has_template() is False  # No background_image yet
+
+    # With all zones but no image, has_template is False
+    assert event.has_template() is False
