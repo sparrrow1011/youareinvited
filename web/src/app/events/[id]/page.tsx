@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { eventService, invitationService, Event, Invitation, InvitationStats } from '@/lib/api';
+import { eventService, invitationService, api, Event, Invitation, InvitationStats } from '@/lib/api';
+import ZoneEditor, { Zones } from '@/components/ZoneEditor';
 
 export default function EventPage() {
   const { id } = useParams<{ id: string }>();
@@ -15,6 +16,12 @@ export default function EventPage() {
   const [formData, setFormData] = useState({ name: '', seat_number: '', tag: '' });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState('');
+
+  const [showZoneEditor, setShowZoneEditor] = useState(false);
+  const [templateFile, setTemplateFile] = useState<File | null>(null);
+  const [templatePreviewUrl, setTemplatePreviewUrl] = useState<string | null>(null);
+  const [savingTemplate, setSavingTemplate] = useState(false);
+  const [templateSuccess, setTemplateSuccess] = useState('');
 
   const loadData = async () => {
     try {
@@ -70,6 +77,38 @@ export default function EventPage() {
   const handleUndoCheckIn = async (invId: string) => {
     await invitationService.undoCheckIn(invId);
     await loadData();
+  };
+
+  const handleTemplateFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setTemplateFile(file);
+    setTemplatePreviewUrl(URL.createObjectURL(file));
+    setShowZoneEditor(true);
+  };
+
+  const handleZoneSave = async (zones: Zones) => {
+    if (!templateFile) return;
+    setSavingTemplate(true);
+    setTemplateSuccess('');
+    try {
+      const formData = new FormData();
+      formData.append('background_image', templateFile);
+      formData.append('qr_zone', JSON.stringify(zones.qr_zone));
+      formData.append('name_zone', JSON.stringify(zones.name_zone));
+      formData.append('tag_zone', JSON.stringify(zones.tag_zone));
+
+      await api.patch(`/events/${id}/`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setTemplateSuccess('Template saved! New e-invites will use your design.');
+      setShowZoneEditor(false);
+      await loadData();
+    } catch {
+      setError('Failed to save template.');
+    } finally {
+      setSavingTemplate(false);
+    }
   };
 
   if (loading) return <div className="min-h-screen bg-[#1a1a2e] text-white p-8">Loading…</div>;
@@ -143,6 +182,60 @@ export default function EventPage() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* Template section */}
+        <div className="bg-[#16213e] rounded-lg p-6 mb-6">
+          <h2 className="text-lg font-semibold mb-3">Invite Template</h2>
+          {event?.background_image ? (
+            <div className="flex items-center gap-4">
+              <img
+                src={event.background_image}
+                alt="Template preview"
+                className="w-24 h-32 object-cover rounded border border-[#0f3460]"
+              />
+              <div>
+                <p className="text-[#a8dadc] text-sm mb-2">Custom template active</p>
+                <label className="cursor-pointer px-3 py-1 bg-[#0f3460] rounded text-sm hover:bg-opacity-80">
+                  Replace Template
+                  <input type="file" accept="image/*" onChange={handleTemplateFileChange} className="hidden" />
+                </label>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <p className="text-[#a8dadc] text-sm mb-3">
+                Upload your own invite design. We&apos;ll help you mark where the guest name, tag, and QR code go.
+              </p>
+              <label className="cursor-pointer px-4 py-2 bg-[#0f3460] rounded text-sm hover:bg-opacity-80">
+                Upload Invite Graphic
+                <input type="file" accept="image/*" onChange={handleTemplateFileChange} className="hidden" />
+              </label>
+            </div>
+          )}
+          {templateSuccess && <p className="text-green-400 text-sm mt-3">{templateSuccess}</p>}
+        </div>
+
+        {/* Zone editor modal */}
+        {showZoneEditor && templatePreviewUrl && (
+          <div className="fixed inset-0 bg-black bg-opacity-80 flex items-start justify-center z-50 overflow-y-auto p-8">
+            <div className="bg-[#16213e] p-6 rounded-lg w-full max-w-4xl">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold">Mark Template Zones</h2>
+                <button onClick={() => setShowZoneEditor(false)} className="text-gray-400 hover:text-white">✕</button>
+              </div>
+              <ZoneEditor
+                imageUrl={templatePreviewUrl}
+                initialZones={{
+                  qr_zone: event?.qr_zone as any,
+                  name_zone: event?.name_zone as any,
+                  tag_zone: event?.tag_zone as any,
+                }}
+                onSave={handleZoneSave}
+              />
+              {savingTemplate && <p className="text-[#a8dadc] text-sm mt-3">Saving…</p>}
             </div>
           </div>
         )}
