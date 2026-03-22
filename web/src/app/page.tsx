@@ -31,7 +31,7 @@ export default function Home() {
               <div className="flex-1">
                 <p
                   className="text-accent font-bold tracking-widest text-xs uppercase mb-4 animate-fadeUp"
-                  style={{ animationDelay: '0s' }}
+                  style={{ animationDelay: '0s', opacity: 0 }}
                 >
                   YouAreInvited
                 </p>
@@ -60,8 +60,7 @@ export default function Home() {
                   </Link>
                   <Link
                     href="/login"
-                    className="border border-secondary text-light px-8 py-3 rounded-lg text-center hover:border-light transition-all"
-                    style={{ borderColor: '#0f3460' }}
+                    className="border border-[#0f3460] text-light px-8 py-3 rounded-lg text-center hover:border-light transition-all"
                   >
                     Sign In
                   </Link>
@@ -69,6 +68,7 @@ export default function Home() {
               </div>
 
               {/* Right: e-invite card mockup */}
+              {/* E-invite mockup hidden on mobile — landing page is desktop-first for v1 */}
               <div className="hidden md:flex flex-shrink-0 flex-col items-center justify-center bg-secondary rounded-2xl p-8 w-64 shadow-2xl animate-float">
                 <p className="text-accent text-xs font-bold tracking-widest uppercase mb-2">
                   You&apos;re Invited
