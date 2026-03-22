@@ -3,6 +3,7 @@ import os
 import dj_database_url
 from decouple import config
 from datetime import timedelta
+from corsheaders.defaults import default_headers
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -133,7 +134,6 @@ if SUPER_ADMIN_ORIGIN and SUPER_ADMIN_ORIGIN not in CSRF_TRUSTED_ORIGINS:
     CSRF_TRUSTED_ORIGINS = CSRF_TRUSTED_ORIGINS + [SUPER_ADMIN_ORIGIN]
 
 # CORS headers — add custom super-admin token header
-from corsheaders.defaults import default_headers  # noqa: E402
 CORS_ALLOW_HEADERS = list(default_headers) + ['x-super-admin-token']
 
 # Django REST Framework
