@@ -28,7 +28,7 @@ export default function FeatureCards() {
     if (!cards?.length) return;
 
     cards.forEach((card, i) => {
-      card.style.transition = `opacity 0.5s ease ${i * 0.12}s, transform 0.5s ease ${i * 0.12}s`;
+      card.style.transitionDelay = `${i * 0.12}s`;
     });
 
     const observer = new IntersectionObserver(
@@ -55,7 +55,7 @@ export default function FeatureCards() {
         <div
           key={f.title}
           data-reveal
-          className="bg-secondary rounded-xl p-6 opacity-0 translate-y-8"
+          className="bg-secondary rounded-xl p-6 opacity-0 translate-y-8 transition-all duration-500 ease-out"
         >
           <div className="text-3xl mb-3">{f.icon}</div>
           <h3 className="text-white font-bold text-lg mb-2">{f.title}</h3>
