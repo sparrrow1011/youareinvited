@@ -18,6 +18,13 @@ from django.urls import path, include
 from django.http import JsonResponse
 from invitations.auth_views import register, login, logout
 from rest_framework_simplejwt.views import TokenRefreshView
+from invitations.superadmin_views import (
+    superadmin_stats,
+    superadmin_growth,
+    superadmin_users,
+    superadmin_user_detail,
+    superadmin_user_events,
+)
 
 def health_check(_request):
     return JsonResponse({"status": "ok", "service": "you_are_invited_api lrst"})
@@ -30,4 +37,9 @@ urlpatterns = [
     path('api/auth/login/', login),
     path('api/auth/refresh/', TokenRefreshView.as_view()),
     path('api/auth/logout/', logout),
+    path('api/superadmin/stats/', superadmin_stats),
+    path('api/superadmin/growth/', superadmin_growth),
+    path('api/superadmin/users/', superadmin_users),
+    path('api/superadmin/users/<int:user_id>/', superadmin_user_detail),
+    path('api/superadmin/users/<int:user_id>/events/', superadmin_user_events),
 ]
