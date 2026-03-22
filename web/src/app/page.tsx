@@ -1,127 +1,101 @@
-'use client';
-
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { FiUsers, FiCalendar, FiCheckSquare } from 'react-icons/fi';
+import FeatureCards from '@/components/FeatureCards';
+
+// Three.js uses browser APIs — disable SSR
+const ThreeHero = dynamic(() => import('@/components/ThreeHero'), { ssr: false });
 
 export default function Home() {
+  // Authenticated users go straight to their dashboard
+  const cookieStore = cookies();
+  if (cookieStore.get('access_token')?.value) {
+    redirect('/dashboard');
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary via-secondary to-primary">
-      <div className="container mx-auto px-4 py-16">
-        <div className="text-center mb-16">
-          <h1 className="text-5xl md:text-6xl font-bold text-white mb-4">
-            Event Invitation System
-          </h1>
-          <p className="text-xl text-light max-w-2xl mx-auto">
-            Create beautiful digital invitations with QR codes, manage guest lists, and track attendance effortlessly
-          </p>
-        </div>
-
-        <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto mb-16">
-          {/* Admin Card */}
-          <Link href="/admin">
-            <div className="card hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 cursor-pointer bg-white">
-              <div className="flex items-center justify-center w-16 h-16 bg-accent rounded-full mb-4 mx-auto">
-                <FiUsers className="text-3xl text-white" />
-              </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2 text-center">
-                Admin Dashboard
-              </h2>
-              <p className="text-gray-600 text-center">
-                Create and manage invitations, track attendance, and view statistics
-              </p>
-              <div className="mt-6 text-center">
-                <span className="text-accent font-semibold">Access Dashboard →</span>
-              </div>
-            </div>
-          </Link>
-
-          {/* Security Card */}
-          <Link href="/security">
-            <div className="card hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2 cursor-pointer bg-white">
-              <div className="flex items-center justify-center w-16 h-16 bg-blue-600 rounded-full mb-4 mx-auto">
-                <FiCheckSquare className="text-3xl text-white" />
-              </div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-2 text-center">
-                Security Check-In
-              </h2>
-              <p className="text-gray-600 text-center">
-                Scan QR codes and check in guests at the venue entrance
-              </p>
-              <div className="mt-6 text-center">
-                <span className="text-blue-600 font-semibold">Access Security →</span>
-              </div>
-            </div>
-          </Link>
-
-          {/* Guest Info Card */}
-          <div className="card bg-white">
-            <div className="flex items-center justify-center w-16 h-16 bg-purple-500 rounded-full mb-4 mx-auto">
-              <FiCalendar className="text-3xl text-white" />
-            </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2 text-center">
-              Guest Access
-            </h2>
-            <p className="text-gray-600 text-center mb-4">
-              Guests can view their personalized invitation through their unique link or QR code
-            </p>
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <p className="text-sm text-gray-700 text-center">
-                Each invitation has a unique URL like:
-              </p>
-              <code className="block mt-2 text-xs bg-white p-2 rounded text-center break-all">
-                /invitation/[unique-id]
-              </code>
-            </div>
-          </div>
-        </div>
-
-        {/* Features Section */}
-        <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl font-bold text-white text-center mb-10">
-            Key Features
-          </h2>
-          <div className="grid md:grid-cols-3 gap-6">
-            <div className="bg-white bg-opacity-10 backdrop-blur-lg rounded-xl p-6 text-white">
-              <div className="flex items-center justify-center w-12 h-12 bg-accent rounded-lg mb-4">
-                <FiCheckSquare className="text-2xl" />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">QR Code Generation</h3>
-              <p className="text-light text-sm">
-                Automatic QR code creation linking directly to security check-in
-              </p>
-            </div>
-
-            <div className="bg-white bg-opacity-10 backdrop-blur-lg rounded-xl p-6 text-white">
-              <div className="flex items-center justify-center w-12 h-12 bg-green-500 rounded-lg mb-4">
-                <FiUsers className="text-2xl" />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Security Check-In</h3>
-              <p className="text-light text-sm">
-                Security scans QR codes and checks guests in at entrance
-              </p>
-            </div>
-
-            <div className="bg-white bg-opacity-10 backdrop-blur-lg rounded-xl p-6 text-white">
-              <div className="flex items-center justify-center w-12 h-12 bg-blue-500 rounded-lg mb-4">
-                <FiCalendar className="text-2xl" />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Beautiful E-Invites</h3>
-              <p className="text-light text-sm">
-                Shareable invitation images with embedded QR codes for WhatsApp
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* CTA Section */}
-        <div className="text-center mt-16">
-          <Link href="/admin">
-            <button className="btn-primary text-xl px-10 py-4 hover:scale-105 transition-transform">
-              Get Started
-            </button>
-          </Link>
-        </div>
+    <main className="min-h-screen bg-primary relative overflow-hidden">
+      {/* Full-viewport Three.js background */}
+      <div className="fixed inset-0 z-0">
+        <ThreeHero />
       </div>
-    </div>
+
+      <div className="relative z-10 flex flex-col min-h-screen">
+        {/* ── Above the fold: split hero ── */}
+        <section className="flex-1 flex items-center">
+          <div className="max-w-6xl mx-auto px-6 py-16 w-full">
+            <div className="flex items-center gap-12">
+
+              {/* Left: headline + CTAs */}
+              <div className="flex-1">
+                <p
+                  className="text-accent font-bold tracking-widest text-xs uppercase mb-4 animate-fadeUp"
+                  style={{ animationDelay: '0s' }}
+                >
+                  YouAreInvited
+                </p>
+                <h1
+                  className="text-5xl md:text-6xl font-black text-white leading-tight mb-4 animate-fadeUp"
+                  style={{ animationDelay: '0.1s', opacity: 0 }}
+                >
+                  Turn any event into a{' '}
+                  <span className="text-accent">beautiful</span> experience
+                </h1>
+                <p
+                  className="text-light text-lg mb-8 animate-fadeUp"
+                  style={{ animationDelay: '0.2s', opacity: 0 }}
+                >
+                  Upload your design. Add guests. Watch them arrive.
+                </p>
+                <div
+                  className="flex flex-col sm:flex-row gap-4 animate-fadeUp"
+                  style={{ animationDelay: '0.3s', opacity: 0 }}
+                >
+                  <Link
+                    href="/signup"
+                    className="bg-accent text-white font-bold px-8 py-3 rounded-lg text-center hover:bg-opacity-90 transition-all"
+                  >
+                    Get Started Free
+                  </Link>
+                  <Link
+                    href="/login"
+                    className="border border-secondary text-light px-8 py-3 rounded-lg text-center hover:border-light transition-all"
+                    style={{ borderColor: '#0f3460' }}
+                  >
+                    Sign In
+                  </Link>
+                </div>
+              </div>
+
+              {/* Right: e-invite card mockup */}
+              <div className="hidden md:flex flex-shrink-0 flex-col items-center justify-center bg-secondary rounded-2xl p-8 w-64 shadow-2xl animate-float">
+                <p className="text-accent text-xs font-bold tracking-widest uppercase mb-2">
+                  You&apos;re Invited
+                </p>
+                <div className="w-10 h-px mb-3" style={{ background: '#0f3460' }} />
+                <p className="text-white font-bold text-lg mb-1">Sarah Al-Rashid</p>
+                <p className="text-light text-sm mb-4">Seat A-12 · VIP</p>
+                <div className="w-20 h-20 bg-white rounded-lg flex items-center justify-center mb-3">
+                  <span className="text-xs text-gray-400 font-mono text-center leading-tight">
+                    QR<br />CODE
+                  </span>
+                </div>
+                <p className="text-light text-xs">Scan to check in</p>
+              </div>
+
+            </div>
+          </div>
+        </section>
+
+        {/* ── Below the fold: feature cards (scroll-reveal) ── */}
+        <section className="max-w-6xl mx-auto px-6 pb-20 w-full">
+          <h2 className="text-white text-center text-2xl font-bold mb-8">
+            Everything you need for a flawless event
+          </h2>
+          <FeatureCards />
+        </section>
+      </div>
+    </main>
   );
 }
