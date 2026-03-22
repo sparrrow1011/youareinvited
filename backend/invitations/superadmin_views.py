@@ -76,7 +76,8 @@ def superadmin_stats(request):
     total_invitations = Invitation.objects.count()
     total_events = Event.objects.count()
     total_users = User.objects.count()
-    checkin_rate = (checkins_today / total_invitations * 100) if total_invitations > 0 else 0
+    total_checked_in = Invitation.objects.filter(checked_in=True).count()
+    checkin_rate = (total_checked_in / total_invitations * 100) if total_invitations > 0 else 0
 
     return Response({
         'total_users': total_users,
@@ -209,7 +210,7 @@ def superadmin_user_events(request, user_id):
             'name': e.name,
             'date': e.date.isoformat(),
             'invitation_count': e.invitation_count,
-            'has_template': bool(e.background_image),
+            'has_template': e.has_template(),
         }
         for e in events
     ]
