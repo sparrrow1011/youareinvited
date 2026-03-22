@@ -124,6 +124,7 @@ export default function ThreeHero() {
       window.removeEventListener('resize', onResize);
       mount.removeChild(renderer.domElement);
       renderer.dispose();
+      cards.forEach((c) => (c.material as THREE.Material).dispose());
       cardGeo.dispose();
       pGeo.dispose();
       pMat.dispose();
