@@ -27,10 +27,7 @@ export default function FeatureCards() {
     const cards = containerRef.current?.querySelectorAll<HTMLDivElement>('[data-reveal]');
     if (!cards?.length) return;
 
-    // Start hidden
     cards.forEach((card, i) => {
-      card.style.opacity = '0';
-      card.style.transform = 'translateY(32px)';
       card.style.transition = `opacity 0.5s ease ${i * 0.12}s, transform 0.5s ease ${i * 0.12}s`;
     });
 
@@ -58,7 +55,7 @@ export default function FeatureCards() {
         <div
           key={f.title}
           data-reveal
-          className="bg-secondary rounded-xl p-6"
+          className="bg-secondary rounded-xl p-6 opacity-0 translate-y-8"
         >
           <div className="text-3xl mb-3">{f.icon}</div>
           <h3 className="text-white font-bold text-lg mb-2">{f.title}</h3>

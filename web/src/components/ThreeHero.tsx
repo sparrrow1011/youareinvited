@@ -110,18 +110,19 @@ export default function ThreeHero() {
     animate();
 
     // Resize
-    const onResize = () => {
-      const w2 = mount.clientWidth;
-      const h2 = mount.clientHeight;
-      camera.aspect = w2 / h2;
+    const ro = new ResizeObserver(() => {
+      if (!mount) return;
+      const w = mount.clientWidth;
+      const h = mount.clientHeight;
+      renderer.setSize(w, h);
+      camera.aspect = w / h;
       camera.updateProjectionMatrix();
-      renderer.setSize(w2, h2);
-    };
-    window.addEventListener('resize', onResize);
+    });
+    ro.observe(mount);
 
     return () => {
       cancelAnimationFrame(frameId);
-      window.removeEventListener('resize', onResize);
+      ro.disconnect();
       mount.removeChild(renderer.domElement);
       renderer.dispose();
       cards.forEach((c) => (c.material as THREE.Material).dispose());
