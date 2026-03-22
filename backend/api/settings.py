@@ -122,6 +122,20 @@ CSRF_TRUSTED_ORIGINS = config(
     cast=lambda v: [o.strip() for o in v.split(',')]
 )
 
+# Super-admin
+SUPER_ADMIN_SECRET = config('SUPER_ADMIN_SECRET', default='')
+SUPER_ADMIN_ORIGIN = config('SUPER_ADMIN_ORIGIN', default='')
+
+# Extend CORS/CSRF to include the admin Vercel deployment if set
+if SUPER_ADMIN_ORIGIN and SUPER_ADMIN_ORIGIN not in CORS_ALLOWED_ORIGINS:
+    CORS_ALLOWED_ORIGINS = CORS_ALLOWED_ORIGINS + [SUPER_ADMIN_ORIGIN]
+if SUPER_ADMIN_ORIGIN and SUPER_ADMIN_ORIGIN not in CSRF_TRUSTED_ORIGINS:
+    CSRF_TRUSTED_ORIGINS = CSRF_TRUSTED_ORIGINS + [SUPER_ADMIN_ORIGIN]
+
+# CORS headers — add custom super-admin token header
+from corsheaders.defaults import default_headers  # noqa: E402
+CORS_ALLOW_HEADERS = list(default_headers) + ['x-super-admin-token']
+
 # Django REST Framework
 REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
