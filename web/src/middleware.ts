@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const PUBLIC_PATHS = new Set([
-  '/login', '/logout', '/signup',
+  '/', '/login', '/logout', '/signup',
   '/security/login', '/security/logout',
 ]);
 

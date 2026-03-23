@@ -31,11 +31,11 @@ export default function EventPage() {
       ]);
       setEvent(ev);
       // Filter invitations to this event only
-      const eventInvs = invs.filter((inv: any) => inv.event === id);
+      const eventInvs = invs.filter((inv) => inv.event === id);
       setInvitations(eventInvs);
       // Compute per-event stats from the filtered list
       const total = eventInvs.length;
-      const checkedIn = eventInvs.filter((inv: any) => inv.checked_in).length;
+      const checkedIn = eventInvs.filter((inv) => inv.checked_in).length;
       setStats({
         total_invitations: total,
         checked_in: checkedIn,

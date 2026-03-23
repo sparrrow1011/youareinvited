@@ -1,7 +1,8 @@
 import axios from 'axios';
 import { getToken, setToken, clearToken } from './auth';
 
-const DEFAULT_API_BASE_URL = 'https://event-invitation-backend.vercel.app/api';
+// const DEFAULT_API_BASE_URL = 'https://event-invitation-backend.vercel.app/api';
+const DEFAULT_API_BASE_URL = 'http://127.0.0.1:8000/api';
 
 const normalizeApiBaseUrl = (rawUrl?: string): string => {
   const candidate = (rawUrl || DEFAULT_API_BASE_URL).trim();
@@ -135,6 +136,7 @@ export const eventService = {
 
 export interface Invitation {
   id: string;
+  event: string;
   name: string;
   seat_number: string;
   tag: string;
