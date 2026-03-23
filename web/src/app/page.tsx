@@ -300,7 +300,7 @@ export default async function Home() {
 
           {/* Bottom bar */}
           <div className="mt-16 pt-8 border-t border-outline-variant/10 flex flex-col md:flex-row justify-between items-center gap-6">
-            <div className="text-xs text-on-surface-variant">© 2025 YouAreInvited. All Rights Reserved.</div>
+            <div className="text-xs text-on-surface-variant">© {new Date().getFullYear()} YouAreInvited. All Rights Reserved.</div>
             <div className="flex gap-8 text-xs text-on-surface-variant font-medium">
               {['Privacy Policy', 'Terms of Service', 'Cookie Settings'].map((item) => (
                 <a key={item} href="#" className="hover:text-on-lp-background transition-colors">{item}</a>
