@@ -43,8 +43,8 @@ const nextConfig = {
         source: '/media/:path*',
         destination: `${BACKEND_URL}/media/:path*`,
       },
-    ]
+    ];
   },
-}
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;

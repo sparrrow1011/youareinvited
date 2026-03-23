@@ -3,6 +3,7 @@ import os
 import dj_database_url
 from decouple import config
 from datetime import timedelta
+from corsheaders.defaults import default_headers
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -127,6 +128,19 @@ CSRF_TRUSTED_ORIGINS = config(
     default='http://localhost:3000,http://127.0.0.1:3000,https://invitation-system-psi.vercel.app',
     cast=lambda v: [o.strip() for o in v.split(',')]
 )
+
+# Super-admin
+SUPER_ADMIN_SECRET = config('SUPER_ADMIN_SECRET', default='')
+SUPER_ADMIN_ORIGIN = config('SUPER_ADMIN_ORIGIN', default='')
+
+# Extend CORS/CSRF to include the admin Vercel deployment if set
+if SUPER_ADMIN_ORIGIN and SUPER_ADMIN_ORIGIN not in CORS_ALLOWED_ORIGINS:
+    CORS_ALLOWED_ORIGINS = CORS_ALLOWED_ORIGINS + [SUPER_ADMIN_ORIGIN]
+if SUPER_ADMIN_ORIGIN and SUPER_ADMIN_ORIGIN not in CSRF_TRUSTED_ORIGINS:
+    CSRF_TRUSTED_ORIGINS = CSRF_TRUSTED_ORIGINS + [SUPER_ADMIN_ORIGIN]
+
+# CORS headers — add custom super-admin token header
+CORS_ALLOW_HEADERS = list(default_headers) + ['x-super-admin-token']
 
 # Django REST Framework
 REST_FRAMEWORK = {
