@@ -1,4 +1,5 @@
 import pytest
+from django.test import Client
 from django.contrib.auth.models import User
 
 
@@ -14,6 +15,18 @@ def test_register_creates_user_and_profile(api_client):
     user = User.objects.get(email='new@example.com')
     assert hasattr(user, 'profile')
     assert user.profile.plan == 'free'
+
+
+@pytest.mark.django_db
+def test_register_preflight_allows_127_localhost_origin():
+    response = Client().options(
+        '/api/auth/register/',
+        HTTP_ORIGIN='http://127.0.0.1:3000',
+        HTTP_ACCESS_CONTROL_REQUEST_METHOD='POST',
+        HTTP_ACCESS_CONTROL_REQUEST_HEADERS='content-type',
+    )
+    assert response.status_code == 200
+    assert response['access-control-allow-origin'] == 'http://127.0.0.1:3000'
 
 
 @pytest.mark.django_db

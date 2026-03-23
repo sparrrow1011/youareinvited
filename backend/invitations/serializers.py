@@ -4,13 +4,15 @@ from .models import Invitation
 
 
 class InvitationSerializer(serializers.ModelSerializer):
+    event = serializers.UUIDField(source='event_id', read_only=True)
     invitation_url = serializers.SerializerMethodField()
     whatsapp_share_url = serializers.SerializerMethodField()
-    
+
     class Meta:
         model = Invitation
         fields = [
             'id',
+            'event',
             'name',
             'seat_number',
             'tag',
@@ -23,11 +25,14 @@ class InvitationSerializer(serializers.ModelSerializer):
             'invitation_url',
             'whatsapp_share_url',
         ]
-        read_only_fields = ['id', 'qr_code', 'e_invite_image', 'checked_in_at', 'created_at', 'updated_at']
+        read_only_fields = [
+            'id', 'event', 'qr_code', 'e_invite_image',
+            'checked_in_at', 'created_at', 'updated_at',
+        ]
 
     def get_invitation_url(self, obj):
         return obj.get_invitation_url()
-    
+
     def get_whatsapp_share_url(self, obj):
         invitation_url = obj.get_invitation_url()
         message = f"You're invited! 🎉\n\nName: {obj.name}\nSeat: {obj.seat_number}\n\nView your invitation: {invitation_url}"

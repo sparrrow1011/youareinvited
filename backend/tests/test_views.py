@@ -1,5 +1,6 @@
 import pytest
 from django.contrib.auth.models import User
+from django.test import override_settings
 from invitations.models import Event
 
 
@@ -45,6 +46,7 @@ def test_invitation_list_scoped_to_owner(auth_client, user, other_user, monkeypa
     names = [inv['name'] for inv in response.data]
     assert 'My Guest' in names
     assert 'Their Guest' not in names
+    assert response.data[0]['event'] == str(event1.id)
 
 
 @pytest.mark.django_db
@@ -77,6 +79,7 @@ def test_create_invitation_requires_event(auth_client, user, monkeypatch):
     }, format='json')
     assert response.status_code == 201
     assert response.data['name'] == 'Jane Doe'
+    assert response.data['event'] == str(event.id)
 
 
 import io
@@ -119,3 +122,60 @@ def test_upload_template_saves_zones(auth_client, user, monkeypatch):
     event.refresh_from_db()
     assert event.qr_zone is not None
     assert event.qr_zone['x_pct'] == 0.3
+
+
+@pytest.mark.django_db
+def test_upload_template_works_with_local_file_storage(auth_client, user, tmp_path):
+    event = Event.objects.create(owner=user, name='Local Media Event', date='2026-06-01')
+    payload = {
+        'background_image': make_upload_file(),
+        'qr_zone': '{"x_pct": 0.3, "y_pct": 0.4, "w_pct": 0.4, "h_pct": 0.25}',
+        'name_zone': '{"x_pct": 0.1, "y_pct": 0.2, "w_pct": 0.8, "h_pct": 0.1, "font_size": 40, "color": "#fff"}',
+        'tag_zone': '{"x_pct": 0.1, "y_pct": 0.32, "w_pct": 0.8, "h_pct": 0.08, "font_size": 28, "color": "#a8dadc"}',
+    }
+    local_storage = {
+        'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+        'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+    }
+
+    with override_settings(STORAGES=local_storage, MEDIA_ROOT=tmp_path, MEDIA_URL='/media/'):
+        response = auth_client.patch(
+            f'/api/events/{event.id}/',
+            payload,
+            format='multipart'
+        )
+
+    assert response.status_code == 200
+    assert '/media/event_invitation/templates/' in response.data['background_image']
+    event.refresh_from_db()
+    assert event.background_image.name.startswith('event_invitation/templates/')
+
+
+@pytest.mark.django_db
+def test_create_invitation_with_local_template_returns_201(auth_client, user, tmp_path):
+    local_storage = {
+        'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+        'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+    }
+
+    with override_settings(STORAGES=local_storage, MEDIA_ROOT=tmp_path, MEDIA_URL='/media/'):
+        event = Event.objects.create(
+            owner=user,
+            name='Template Event',
+            date='2026-06-01',
+            qr_zone={'x_pct': 0.3, 'y_pct': 0.4, 'w_pct': 0.4, 'h_pct': 0.25},
+            name_zone={'x_pct': 0.1, 'y_pct': 0.2, 'w_pct': 0.8, 'h_pct': 0.1, 'font_size': 40, 'color': '#fff'},
+            tag_zone={'x_pct': 0.1, 'y_pct': 0.32, 'w_pct': 0.8, 'h_pct': 0.08, 'font_size': 28, 'color': '#a8dadc'},
+        )
+        event.background_image.save('template.png', make_upload_file(), save=True)
+
+        response = auth_client.post('/api/invitations/', {
+            'name': 'Jane Doe',
+            'seat_number': 'B2',
+            'tag': 'Family',
+            'event': str(event.id),
+        }, format='json')
+
+    assert response.status_code == 201
+    assert '/media/event_invitation/qr_codes/' in response.data['qr_code']
+    assert '/media/event_invitation/e_invites/' in response.data['e_invite_image']

@@ -13,9 +13,11 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+from django.conf import settings
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, include, re_path
 from django.http import JsonResponse
+from django.views.static import serve
 from invitations.auth_views import register, login, logout
 from rest_framework_simplejwt.views import TokenRefreshView
 
@@ -31,3 +33,8 @@ urlpatterns = [
     path('api/auth/refresh/', TokenRefreshView.as_view()),
     path('api/auth/logout/', logout),
 ]
+
+if not settings.USE_CLOUDINARY_STORAGE and not settings.IS_VERCEL:
+    urlpatterns += [
+        re_path(r'^media/(?P<path>.*)$', serve, {'document_root': settings.MEDIA_ROOT}),
+    ]

@@ -126,15 +126,23 @@ class Invitation(models.Model):
         self.e_invite_image.save(filename, File(buffer), save=False)
         buffer.close()
 
+    @staticmethod
+    def _open_storage_image(field_file) -> Image:
+        """
+        Read an image through Django's storage backend so both local files and
+        remote backends like Cloudinary work without special URL handling.
+        """
+        field_file.open('rb')
+        try:
+            image = Image.open(field_file)
+            image.load()
+        finally:
+            field_file.close()
+        return image
+
     def _generate_from_template(self, show_watermark: bool) -> Image:
         """Composite guest data onto the organizer's uploaded background image."""
-        import requests as http_requests
-
-        # Load background image from Cloudinary URL
-        bg_url = self.event.background_image.url
-        resp = http_requests.get(bg_url, timeout=10)
-        resp.raise_for_status()
-        bg = Image.open(BytesIO(resp.content)).convert('RGB')
+        bg = self._open_storage_image(self.event.background_image).convert('RGB')
         width, height = bg.size
         draw = ImageDraw.Draw(bg)
 
@@ -179,9 +187,7 @@ class Invitation(models.Model):
             try:
                 qz = self.event.qr_zone
                 qx, qy, qw, qh = zone_to_pixels(qz)
-                qr_resp = http_requests.get(self.qr_code.url, timeout=10)
-                qr_resp.raise_for_status()
-                qr_img = Image.open(BytesIO(qr_resp.content)).convert('RGB')
+                qr_img = self._open_storage_image(self.qr_code).convert('RGB')
                 qr_img = qr_img.resize((qw, qh))
                 bg.paste(qr_img, (qx, qy))
             except Exception as e:
@@ -246,11 +252,7 @@ class Invitation(models.Model):
 
         if self.qr_code:
             try:
-                # Fetch from URL — Cloudinary storage has no .path property
-                import requests as _req
-                qr_resp = _req.get(self.qr_code.url, timeout=10)
-                qr_resp.raise_for_status()
-                qr_img = Image.open(BytesIO(qr_resp.content))
+                qr_img = self._open_storage_image(self.qr_code)
                 qr_img = qr_img.resize((300, 300))
                 qr_bg = Image.new('RGB', (320, 320), 'white')
                 qr_bg.paste(qr_img, (10, 10))
