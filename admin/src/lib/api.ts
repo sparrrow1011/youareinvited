@@ -5,11 +5,11 @@ const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_BACKEND_URL,
 });
 
-// Attach the admin token to every request
+// Attach JWT as Bearer token on every request
 api.interceptors.request.use((config) => {
   const token = getAdminToken();
   if (token) {
-    config.headers['X-Super-Admin-Token'] = token;
+    config.headers['Authorization'] = `Bearer ${token}`;
   }
   return config;
 });

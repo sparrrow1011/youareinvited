@@ -1,44 +1,15 @@
-from django.conf import settings
 from django.contrib.auth.models import User
 from django.db.models import Count
 from django.db.models.functions import TruncDate
 from django.utils import timezone
 from datetime import timedelta
 
-from rest_framework.authentication import BaseAuthentication
-from rest_framework.decorators import api_view, authentication_classes, permission_classes
-from rest_framework.exceptions import AuthenticationFailed
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework import status
 
 from invitations.models import Invitation, Event
-
-
-class SuperAdminTokenAuthentication(BaseAuthentication):
-    """
-    Validates the X-Super-Admin-Token request header against SUPER_ADMIN_SECRET.
-    Returns a synthetic user object on success — no real User row required.
-    If the header is absent, returns None (passes to next auth backend).
-    If the header is present but wrong, raises AuthenticationFailed.
-    """
-
-    def authenticate(self, request):
-        token = request.META.get('HTTP_X_SUPER_ADMIN_TOKEN', '')
-        if not token:
-            return None  # Header absent — not our request
-
-        secret = getattr(settings, 'SUPER_ADMIN_SECRET', '')
-        if not secret or token != secret:
-            raise AuthenticationFailed('Invalid super-admin token.')
-
-        # Synthetic user — is_authenticated=True satisfies IsAuthenticated permission
-        user = type('SuperAdminUser', (), {
-            'is_authenticated': True,
-            'is_anonymous': False,
-            'pk': None,
-        })()
-        return (user, None)
 
 
 def _user_dict(user):
@@ -55,13 +26,8 @@ def _user_dict(user):
     }
 
 
-_auth = [SuperAdminTokenAuthentication]
-_perms = [IsAuthenticated]
-
-
 @api_view(['GET'])
-@authentication_classes(_auth)
-@permission_classes(_perms)
+@permission_classes([IsAdminUser])
 def superadmin_stats(request):
     """
     GET /api/superadmin/stats/
@@ -89,8 +55,7 @@ def superadmin_stats(request):
 
 
 @api_view(['GET'])
-@authentication_classes(_auth)
-@permission_classes(_perms)
+@permission_classes([IsAdminUser])
 def superadmin_growth(request):
     """
     GET /api/superadmin/growth/
@@ -127,8 +92,7 @@ def superadmin_growth(request):
 
 
 @api_view(['GET'])
-@authentication_classes(_auth)
-@permission_classes(_perms)
+@permission_classes([IsAdminUser])
 def superadmin_users(request):
     """
     GET /api/superadmin/users/
@@ -147,8 +111,7 @@ def superadmin_users(request):
 
 
 @api_view(['PATCH', 'DELETE'])
-@authentication_classes(_auth)
-@permission_classes(_perms)
+@permission_classes([IsAdminUser])
 def superadmin_user_detail(request, user_id):
     """
     PATCH /api/superadmin/users/{id}/ — update plan and/or watermark_override
@@ -189,8 +152,7 @@ def superadmin_user_detail(request, user_id):
 
 
 @api_view(['GET'])
-@authentication_classes(_auth)
-@permission_classes(_perms)
+@permission_classes([IsAdminUser])
 def superadmin_user_events(request, user_id):
     """
     GET /api/superadmin/users/{id}/events/

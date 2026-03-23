@@ -10,7 +10,7 @@ export function middleware(req: NextRequest) {
   if (PUBLIC_PATHS.has(pathname)) return NextResponse.next();
   if (PUBLIC_PREFIXES.some((p) => pathname.startsWith(p))) return NextResponse.next();
 
-  const hasToken = !!req.cookies.get('admin_token')?.value;
+  const hasToken = !!req.cookies.get('admin_access_token')?.value;
   if (!hasToken) {
     return NextResponse.redirect(new URL('/', req.url));
   }

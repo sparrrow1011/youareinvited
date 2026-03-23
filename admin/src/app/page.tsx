@@ -7,6 +7,7 @@ import dynamic from 'next/dynamic';
 const ThreeHero = dynamic(() => import('@/components/ThreeHero'), { ssr: false });
 
 export default function LoginPage() {
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -20,12 +21,13 @@ export default function LoginPage() {
       const res = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ email, password }),
       });
       if (res.ok) {
         router.push('/dashboard');
       } else {
-        setError('Invalid password.');
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || 'Sign in failed.');
       }
     } catch {
       setError('Connection error. Try again.');
@@ -48,6 +50,19 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit}>
           <div className="mb-4">
+            <label className="block text-light text-sm mb-2">Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full bg-primary border text-white rounded-lg px-4 py-3 focus:outline-none focus:border-accent transition-colors"
+              style={{ borderColor: '#0f3460' }}
+              placeholder="you@youareinvited.com"
+              required
+              autoFocus
+            />
+          </div>
+          <div className="mb-4">
             <label className="block text-light text-sm mb-2">Password</label>
             <input
               type="password"
@@ -56,7 +71,6 @@ export default function LoginPage() {
               className="w-full bg-primary border text-white rounded-lg px-4 py-3 focus:outline-none focus:border-accent transition-colors"
               style={{ borderColor: '#0f3460' }}
               required
-              autoFocus
             />
           </div>
 
