@@ -1,26 +1,7 @@
 'use client';
 
-import { useRef } from 'react';
-import { motion, useScroll, useTransform, MotionValue } from 'framer-motion';
-
-// ── Step opacity helpers ─────────────────────────────────────────────────────
-
-function useStepOpacity(scrollYProgress: MotionValue<number>, index: number) {
-  const band = 1 / 6;
-  const start = index * band;
-  const mid = start + band * 0.3;
-  const midEnd = start + band * 0.7;
-  const end = start + band;
-  return useTransform(scrollYProgress, [start, mid, midEnd, end], [0, 1, 1, 0]);
-}
-
-function useStepY(scrollYProgress: MotionValue<number>, index: number) {
-  const band = 1 / 6;
-  const start = index * band;
-  const mid = start + band * 0.3;
-  const end = start + band;
-  return useTransform(scrollYProgress, [start, mid, end], [20, 0, -20]);
-}
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // ── UI Mock Cards ─────────────────────────────────────────────────────────────
 
@@ -167,106 +148,88 @@ function DashboardCard() {
   );
 }
 
-// ── Step text / card wrappers ────────────────────────────────────────────────
+// ── STEPS defined AFTER all card components ───────────────────────────────────
 
 type StepDef = { number: string; title: string; description: string; ui: React.ReactNode };
 
-function StepText({ step, index, scrollYProgress }: { step: StepDef; index: number; scrollYProgress: MotionValue<number> }) {
-  const opacity = useStepOpacity(scrollYProgress, index);
-  const y = useStepY(scrollYProgress, index);
-  return (
-    <motion.div className="absolute inset-0 flex flex-col justify-center" style={{ opacity, y }}>
-      <span className="text-brand font-label font-bold text-sm tracking-widest mb-3">{step.number}</span>
-      <h3 className="font-headline text-3xl md:text-4xl text-on-lp-background mb-4">{step.title}</h3>
-      <p className="text-on-surface-variant text-lg leading-relaxed max-w-md">{step.description}</p>
-    </motion.div>
-  );
-}
-
-function StepCard({ index, scrollYProgress, children }: { index: number; scrollYProgress: MotionValue<number>; children: React.ReactNode }) {
-  const opacity = useStepOpacity(scrollYProgress, index);
-  const y = useStepY(scrollYProgress, index);
-  return (
-    <motion.div className="absolute inset-0 flex items-center justify-center" style={{ opacity, y }}>
-      {children}
-    </motion.div>
-  );
-}
-
-// ── Progress dots — each dot is its own component so hooks are NOT in a loop ─
-
-function ProgressDot({ index, scrollYProgress }: { index: number; scrollYProgress: MotionValue<number> }) {
-  const opacity = useStepOpacity(scrollYProgress, index);
-  const bg = useTransform(opacity, [0, 1], ['#afb2b6', '#006b5f']);
-  const scale = useTransform(opacity, [0, 1], [1, 1.4]);
-  return <motion.div className="w-2 h-2 rounded-full" style={{ backgroundColor: bg, scale }} />;
-}
-
-function ProgressDots({ scrollYProgress }: { scrollYProgress: MotionValue<number> }) {
-  return (
-    <div className="flex justify-center gap-2 mt-8">
-      {STEPS.map((_, i) => <ProgressDot key={i} index={i} scrollYProgress={scrollYProgress} />)}
-    </div>
-  );
-}
-
-// ── STEPS defined AFTER all card components to avoid forward-reference errors ─
-
 const STEPS: StepDef[] = [
-  { number: '01', title: 'Create Event',       description: "Start with a blank canvas. Name your event, set the date, and you're ready.", ui: <CreateEventCard /> },
-  { number: '02', title: 'Personalize Invite', description: 'Upload your design. Mark where the guest name, tag, and QR code go.',          ui: <PersonalizeCard /> },
+  { number: '01', title: 'Create Event',       description: "Start with a blank canvas. Name your event, set the date, and you're ready.",  ui: <CreateEventCard /> },
+  { number: '02', title: 'Personalize Invite', description: 'Upload your design. Mark where the guest name, tag, and QR code go.',           ui: <PersonalizeCard /> },
   { number: '03', title: 'Generate QR',        description: 'Each guest receives a unique QR code embedded in their personalised invite.',    ui: <QRCard /> },
   { number: '04', title: 'Share',              description: 'Deliver beautiful digital invitations to all 47 guests in one click.',           ui: <ShareCard /> },
-  { number: '05', title: 'Check-in',           description: 'Guests scan at the door. Instant verification, no paper, no queues.',           ui: <CheckInCard /> },
+  { number: '05', title: 'Check-in',           description: 'Guests scan at the door. Instant verification, no paper, no queues.',            ui: <CheckInCard /> },
   { number: '06', title: 'Dashboard',          description: 'Watch attendance roll in. Real-time control for the modern host.',               ui: <DashboardCard /> },
 ];
 
-// ── Main export ───────────────────────────────────────────────────────────────
+// ── Main carousel export ──────────────────────────────────────────────────────
 
 export default function HeroScroll() {
-  const outerRef = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: outerRef,
-    offset: ['start start', 'end end'],
-  });
+  const [active, setActive] = useState(0);
 
-  const headerOpacity = useTransform(scrollYProgress, [0, 0.1], [1, 0]);
-  const auroraOpacity = useTransform(scrollYProgress, [0, 0.5, 1], [1, 0.5, 0]);
+  // Auto-advance every 4 seconds; resets if user clicks a dot
+  useEffect(() => {
+    const t = setInterval(() => setActive(p => (p + 1) % STEPS.length), 4000);
+    return () => clearInterval(t);
+  }, [active]);
 
   return (
-    <div ref={outerRef} className="h-[500vh] relative">
-      <div className="sticky top-0 h-screen overflow-hidden flex items-center">
-        <div className="absolute inset-0 pointer-events-none">
-          <motion.div
-            className="absolute inset-0 bg-gradient-to-br from-brand-container/10 to-secondary-container/10"
-            style={{ opacity: auroraOpacity }}
-          />
+    <section className="py-24 px-6 md:px-12">
+      <div className="max-w-screen-2xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-16">
+          <h2 className="font-headline text-4xl md:text-5xl text-on-lp-background mb-4">How it works</h2>
+          <p className="text-on-surface-variant text-lg">Six steps to a flawless event</p>
         </div>
 
-        <div className="relative w-full max-w-screen-2xl mx-auto px-6 md:px-12">
-          <motion.div className="text-center mb-12" style={{ opacity: headerOpacity }}>
-            <h2 className="font-headline text-4xl md:text-5xl text-on-lp-background mb-4">How it works</h2>
-            <p className="text-on-surface-variant text-lg">Scroll to explore the experience</p>
-          </motion.div>
-
-          <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
-            <div className="relative h-64">
-              {STEPS.map((step, i) => (
-                <StepText key={i} step={step} index={i} scrollYProgress={scrollYProgress} />
-              ))}
-            </div>
-            <div className="relative h-80 lg:h-96">
-              {STEPS.map((step, i) => (
-                <StepCard key={i} index={i} scrollYProgress={scrollYProgress}>
-                  {step.ui}
-                </StepCard>
-              ))}
-            </div>
+        {/* Two-col layout */}
+        <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+          {/* Left: step text */}
+          <div className="relative min-h-[200px] flex items-center">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={active}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ duration: 0.35, ease: 'easeOut' }}
+              >
+                <span className="text-brand font-label font-bold text-sm tracking-widest mb-3 block">{STEPS[active].number}</span>
+                <h3 className="font-headline text-3xl md:text-4xl text-on-lp-background mb-4">{STEPS[active].title}</h3>
+                <p className="text-on-surface-variant text-lg leading-relaxed max-w-md">{STEPS[active].description}</p>
+              </motion.div>
+            </AnimatePresence>
           </div>
 
-          <ProgressDots scrollYProgress={scrollYProgress} />
+          {/* Right: card */}
+          <div className="flex items-center justify-center min-h-[320px]">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={active}
+                initial={{ opacity: 0, scale: 0.96, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.96, y: -20 }}
+                transition={{ duration: 0.35, ease: 'easeOut' }}
+              >
+                {STEPS[active].ui}
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        </div>
+
+        {/* Clickable progress dots */}
+        <div className="flex justify-center gap-3 mt-12">
+          {STEPS.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setActive(i)}
+              aria-label={`Step ${i + 1}`}
+              className={`h-2.5 rounded-full transition-all duration-300 ${
+                i === active ? 'w-8 bg-brand' : 'w-2.5 bg-outline-variant hover:bg-on-surface-variant'
+              }`}
+            />
+          ))}
         </div>
       </div>
-    </div>
+    </section>
   );
 }
