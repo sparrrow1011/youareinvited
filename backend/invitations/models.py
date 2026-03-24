@@ -42,6 +42,7 @@ class Event(models.Model):
     qr_zone = models.JSONField(null=True, blank=True)
     name_zone = models.JSONField(null=True, blank=True)
     tag_zone = models.JSONField(null=True, blank=True)
+    security_pin = models.CharField(max_length=128, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -87,8 +88,9 @@ class Invitation(models.Model):
         return f"https://invitation-system-psi.vercel.app/invitation/{self.id}"
 
     def get_security_checkin_url(self):
-        # Security check-in page (for QR codes)
-        return f"https://invitation-system-psi.vercel.app/security/check-in/{self.id}"
+        base = "https://invitation-system-psi.vercel.app"
+        return f"{base}/security/event/{self.event_id}/checkin?invitation={self.id}"
+
     def generate_qr_code(self):
         """Generate QR code for the invitation - points to security check-in"""
         qr = qrcode.QRCode(
@@ -161,26 +163,39 @@ class Invitation(models.Model):
             h = int(zone['h_pct'] * height)
             return x, y, w, h
 
-        # Draw name
+        def fit_text(text, max_w, max_h):
+            """Return (font, text_w, text_h) auto-sized to fill the zone box."""
+            size = max(max_h, 8)
+            font = load_font(size)
+            bbox = draw.textbbox((0, 0), text, font=font)
+            text_w, text_h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+            if text_w > max_w:
+                size = max(int(size * max_w / text_w * 0.92), 8)
+                font = load_font(size)
+                bbox = draw.textbbox((0, 0), text, font=font)
+                text_w, text_h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+            return font, text_w, text_h
+
+        # Draw name — auto-sized to fill the zone box height
         nz = self.event.name_zone
         nx, ny, nw, nh = zone_to_pixels(nz)
-        font_size = int(nz.get('font_size', 40))
         color = nz.get('color', '#ffffff')
-        font = load_font(font_size)
-        bbox = draw.textbbox((0, 0), self.name, font=font)
-        text_w = bbox[2] - bbox[0]
-        draw.text((nx + (nw - text_w) // 2, ny), self.name, fill=color, font=font)
+        font, text_w, text_h = fit_text(self.name, nw, nh)
+        draw.text(
+            (nx + (nw - text_w) // 2, ny + (nh - text_h) // 2),
+            self.name, fill=color, font=font,
+        )
 
-        # Draw tag
+        # Draw tag — auto-sized to fill the zone box height
         tz = self.event.tag_zone
         tx, ty, tw, th = zone_to_pixels(tz)
-        tag_font_size = int(tz.get('font_size', 28))
         tag_color = tz.get('color', '#a8dadc')
-        tag_font = load_font(tag_font_size)
         tag_text = f"Category: {self.tag}"
-        tbbox = draw.textbbox((0, 0), tag_text, font=tag_font)
-        tag_text_w = tbbox[2] - tbbox[0]
-        draw.text((tx + (tw - tag_text_w) // 2, ty), tag_text, fill=tag_color, font=tag_font)
+        tag_font, tag_text_w, tag_text_h = fit_text(tag_text, tw, th)
+        draw.text(
+            (tx + (tw - tag_text_w) // 2, ty + (th - tag_text_h) // 2),
+            tag_text, fill=tag_color, font=tag_font,
+        )
 
         # Draw QR code — fetch from URL (Cloudinary storage has no .path property)
         if self.qr_code:
