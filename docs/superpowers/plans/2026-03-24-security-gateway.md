@@ -527,8 +527,8 @@ def test_check_in_unauthenticated_without_token_returns_401(api_client, user, ev
 
 
 @pytest.mark.django_db
-def test_check_in_with_wrong_event_token_returns_403(api_client, user, event_with_pin, invitation_for_event):
-    other_user = User.objects.create_user(username='other@x.com', email='other@x.com', password='pass')
+def test_check_in_with_wrong_event_token_returns_403(api_client, user, other_user, event_with_pin, invitation_for_event):
+    # Token is scoped to other_user's event, but invitation belongs to user's event
     other_event = Event.objects.create(owner=other_user, name='Other', date='2026-07-01')
     token = make_security_token(other_event.id, other_user.id)
     response = api_client.post(
@@ -1510,8 +1510,6 @@ const handleCopyStaffLink = () => {
   });
 };
 ```
-
-Also check if the event has an existing PIN on load — add to the existing `loadEvent` / data-fetching logic. The API doesn't return the raw PIN but returns whether one is set via `set_security_pin`. For now, assume `securityPinSet` defaults to `false` and updates when the organizer saves a new one. (A future enhancement can add a `has_security_pin` field to `EventSerializer`.)
 
 - [ ] **Step 3: Verify build passes**
 
