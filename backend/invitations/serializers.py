@@ -54,15 +54,24 @@ class CheckInSerializer(serializers.Serializer):
 from .models import Event
 
 
+class SetSecurityPinSerializer(serializers.Serializer):
+    pin = serializers.RegexField(r'^\d{4,6}$', allow_null=True)
+
+
 class EventSerializer(serializers.ModelSerializer):
+    has_security_pin = serializers.SerializerMethodField()
+
     class Meta:
         model = Event
         fields = [
             'id', 'owner', 'name', 'date', 'description',
             'background_image', 'qr_zone', 'name_zone', 'tag_zone',
-            'created_at'
+            'created_at', 'has_security_pin'
         ]
         read_only_fields = ['id', 'owner', 'created_at']
+
+    def get_has_security_pin(self, obj):
+        return obj.security_pin is not None
 
     def _parse_zone(self, value):
         if isinstance(value, str):

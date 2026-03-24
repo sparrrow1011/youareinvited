@@ -1,10 +1,63 @@
 import pytest
 from invitations.models import Event, Invitation
+from invitations.serializers import EventSerializer, SetSecurityPinSerializer
 
 @pytest.mark.django_db
 def test_event_has_security_pin_field(user):
     event = Event.objects.create(owner=user, name="Test Event", date="2025-12-01")
     assert event.security_pin is None  # null by default
+
+
+def test_set_security_pin_serializer_valid():
+    s = SetSecurityPinSerializer(data={"pin": "1234"})
+    assert s.is_valid()
+
+
+def test_set_security_pin_serializer_rejects_non_numeric():
+    s = SetSecurityPinSerializer(data={"pin": "abcd"})
+    assert not s.is_valid()
+
+
+def test_set_security_pin_serializer_rejects_too_short():
+    s = SetSecurityPinSerializer(data={"pin": "123"})
+    assert not s.is_valid()
+
+
+def test_set_security_pin_serializer_rejects_too_long():
+    s = SetSecurityPinSerializer(data={"pin": "1234567"})
+    assert not s.is_valid()
+
+
+def test_set_security_pin_serializer_accepts_null():
+    s = SetSecurityPinSerializer(data={"pin": None})
+    assert s.is_valid()
+
+
+def test_set_security_pin_serializer_rejects_empty_string():
+    s = SetSecurityPinSerializer(data={"pin": ""})
+    assert not s.is_valid()
+
+
+def test_set_security_pin_serializer_rejects_missing_pin():
+    s = SetSecurityPinSerializer(data={})
+    assert not s.is_valid()
+
+
+@pytest.mark.django_db
+def test_event_serializer_has_security_pin_field(user):
+    event = Event.objects.create(owner=user, name="Test Event", date="2025-12-01")
+    data = EventSerializer(event).data
+    assert "has_security_pin" in data
+    assert data["has_security_pin"] is False
+
+
+@pytest.mark.django_db
+def test_event_serializer_has_security_pin_true_when_set(user):
+    from django.contrib.auth.hashers import make_password
+    event = Event.objects.create(owner=user, name="Test Event", date="2025-12-01",
+                                  security_pin=make_password("1234"))
+    data = EventSerializer(event).data
+    assert data["has_security_pin"] is True
 
 
 @pytest.mark.django_db
