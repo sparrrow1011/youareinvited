@@ -185,44 +185,36 @@ Frontend will run at `http://localhost:3000`
 
 ### Backend Configuration
 
-Edit `backend/invitation_backend/settings.py`:
+Set these env vars in the `backend` Vercel project:
 
-```python
-# For production, change:
-DEBUG = False
-SECRET_KEY = 'your-secret-key-here'
-ALLOWED_HOSTS = ['yourdomain.com']
-
-# Configure CORS for production:
-CORS_ALLOWED_ORIGINS = [
-    "https://yourdomain.com",
-]
-
-# Use PostgreSQL:
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'your_db_name',
-        'USER': 'your_db_user',
-        'PASSWORD': 'your_db_password',
-        'HOST': 'localhost',
-        'PORT': '5432',
-    }
-}
+```env
+SECRET_KEY=your-secret-key-here
+DEBUG=False
+BACKEND_URL=https://backend.v0.youare-invited.com
+ALLOWED_HOSTS=127.0.0.1,localhost,.vercel.app,backend.v0.youare-invited.com
+CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,https://www.youare-invited.com
+CSRF_TRUSTED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,https://www.youare-invited.com
+DATABASE_URL=postgresql://user:password@host:5432/dbname
 ```
 
 ### Frontend Configuration
 
-Create `.env.local` in frontend directory:
+Create `.env.local` in `web/` for local development:
 
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:8000/api
+BACKEND_URL=http://127.0.0.1:8000
 ```
 
 For production:
+
 ```env
-NEXT_PUBLIC_API_URL=https://api.yourdomain.com/api
+BACKEND_URL=https://backend.v0.youare-invited.com
 ```
+
+Leave `NEXT_PUBLIC_API_URL` unset in production. The browser should call
+`https://www.youare-invited.com/api/...`, and the web Vercel project will rewrite
+that to `BACKEND_URL` server-side. Seeing the web-domain `/api/...` request in
+DevTools is expected.
 
 ## Customization
 

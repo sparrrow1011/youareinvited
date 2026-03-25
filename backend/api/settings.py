@@ -152,7 +152,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = config(
     'CORS_ALLOWED_ORIGINS',
-    default='http://localhost:3000,http://127.0.0.1:3000,https://invitation-system-psi.vercel.app',
+    default='http://localhost:3000,http://127.0.0.1:3000,https://www.youare-invited.com',
     cast=split_csv,
 )
 CORS_ALLOWED_ORIGIN_REGEXES = [
@@ -164,7 +164,7 @@ CORS_ALLOW_CREDENTIALS = True
 # CSRF
 CSRF_TRUSTED_ORIGINS = config(
     'CSRF_TRUSTED_ORIGINS',
-    default='http://localhost:3000,http://127.0.0.1:3000,https://invitation-system-psi.vercel.app',
+    default='http://localhost:3000,http://127.0.0.1:3000,https://www.youare-invited.com',
     cast=split_csv,
 )
 
