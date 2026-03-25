@@ -37,7 +37,7 @@ class InvitationViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action in ('retrieve', 'check_in'):
-            # Guests can view their invitation and check themselves in
+            # Guests can view their invitation; check_in handles its own auth logic
             return []
         if self.action in ('admin_undo_check_in', 'regenerate_images'):
             # Only Django admin/staff users
@@ -57,13 +57,33 @@ class InvitationViewSet(viewsets.ModelViewSet):
         response_serializer = InvitationSerializer(invitation)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
-    @action(detail=True, methods=['post'])
+    @action(detail=True, methods=['post'], permission_classes=[])
     def check_in(self, request, pk=None):
         """
-        Check in a guest. Once checked in, cannot be undone by the guest.
+        Check in a guest. Requires either a valid X-Security-Token header
+        (scoped to the invitation's event) or an authenticated organizer who
+        owns the event. Once checked in, cannot be undone by the guest.
         Only admin can undo via the admin panel.
         """
-        invitation = self.get_object()
+        invitation = get_object_or_404(Invitation, pk=pk)
+        token = request.headers.get('X-Security-Token')
+
+        if token:
+            try:
+                payload = signing.loads(token, salt='security-checkin', max_age=SECURITY_TOKEN_MAX_AGE)
+            except signing.SignatureExpired:
+                return Response({'detail': 'Security session expired. Please re-enter PIN.'}, status=status.HTTP_401_UNAUTHORIZED)
+            except signing.BadSignature:
+                return Response({'detail': 'Invalid security token.'}, status=status.HTTP_401_UNAUTHORIZED)
+            if str(payload['event_id']) != str(invitation.event_id):
+                return Response({'detail': 'Token scoped to wrong event.'}, status=status.HTTP_403_FORBIDDEN)
+            # organizer_id is included in the token payload for audit purposes
+            # but is not enforced here — event_id scope is the security boundary
+        elif request.user and request.user.is_authenticated:
+            if invitation.event.owner != request.user:
+                return Response({'detail': 'Not your event.'}, status=status.HTTP_403_FORBIDDEN)
+        else:
+            return Response({'detail': 'Authentication required.'}, status=status.HTTP_401_UNAUTHORIZED)
 
         if invitation.checked_in:
             return Response(

@@ -166,3 +166,94 @@ def test_set_security_pin_requires_auth(api_client, user):
     response = api_client.post(f"/api/events/{event.id}/set_security_pin/",
                                 {"pin": "1234"}, format="json")
     assert response.status_code == 401
+
+# ── InvitationViewSet: check_in ────────────────────────────────────────────────
+
+@pytest.mark.django_db
+def test_check_in_with_valid_security_token(api_client, user):
+    from django.core import signing
+    event = Event.objects.create(owner=user, name="Gala", date="2025-12-01")
+    invitation = Invitation.objects.create(event=event, name="Alice", seat_number="A1", tag="VIP")
+    token = signing.dumps({"event_id": str(event.id), "organizer_id": user.id},
+                           salt="security-checkin")
+    response = api_client.post(f"/api/invitations/{invitation.id}/check_in/",
+                                HTTP_X_SECURITY_TOKEN=token)
+    assert response.status_code == 200
+    assert response.data["checked_in"] is True
+
+@pytest.mark.django_db
+def test_check_in_with_organizer_auth(auth_client, user):
+    event = Event.objects.create(owner=user, name="Gala", date="2025-12-01")
+    invitation = Invitation.objects.create(event=event, name="Alice", seat_number="A1", tag="VIP")
+    response = auth_client.post(f"/api/invitations/{invitation.id}/check_in/")
+    assert response.status_code == 200
+    assert response.data["checked_in"] is True
+
+@pytest.mark.django_db
+def test_check_in_without_auth_returns_401(api_client, user):
+    event = Event.objects.create(owner=user, name="Gala", date="2025-12-01")
+    invitation = Invitation.objects.create(event=event, name="Alice", seat_number="A1", tag="VIP")
+    response = api_client.post(f"/api/invitations/{invitation.id}/check_in/")
+    assert response.status_code == 401
+
+@pytest.mark.django_db
+def test_check_in_with_wrong_event_token_returns_403(api_client, user, other_user):
+    from django.core import signing
+    event_a = Event.objects.create(owner=user, name="Event A", date="2025-12-01")
+    event_b = Event.objects.create(owner=other_user, name="Event B", date="2025-12-01")
+    invitation = Invitation.objects.create(event=event_a, name="Alice", seat_number="A1", tag="VIP")
+    # Token scoped to event_b, but invitation belongs to event_a
+    token = signing.dumps({"event_id": str(event_b.id), "organizer_id": other_user.id},
+                           salt="security-checkin")
+    response = api_client.post(f"/api/invitations/{invitation.id}/check_in/",
+                                HTTP_X_SECURITY_TOKEN=token)
+    assert response.status_code == 403
+
+@pytest.mark.django_db
+def test_check_in_with_expired_token_returns_401(api_client, user):
+    from django.core import signing
+    event = Event.objects.create(owner=user, name="Gala", date="2025-12-01")
+    invitation = Invitation.objects.create(event=event, name="Alice", seat_number="A1", tag="VIP")
+    # Sign with a very old timestamp by monkeypatching time — or use a bad signature
+    bad_token = "this.is.not.a.valid.token"
+    response = api_client.post(f"/api/invitations/{invitation.id}/check_in/",
+                                HTTP_X_SECURITY_TOKEN=bad_token)
+    assert response.status_code == 401
+
+@pytest.mark.django_db
+def test_check_in_organizer_cannot_check_in_other_organizers_guest(auth_client, user, other_user):
+    event = Event.objects.create(owner=other_user, name="Other Event", date="2025-12-01")
+    invitation = Invitation.objects.create(event=event, name="Alice", seat_number="A1", tag="VIP")
+    response = auth_client.post(f"/api/invitations/{invitation.id}/check_in/")
+    assert response.status_code == 403
+
+@pytest.mark.django_db
+def test_check_in_returns_400_if_already_checked_in(api_client, user):
+    from django.core import signing
+    event = Event.objects.create(owner=user, name="Gala", date="2025-12-01")
+    invitation = Invitation.objects.create(event=event, name="Alice", seat_number="A1", tag="VIP")
+    token = signing.dumps({"event_id": str(event.id), "organizer_id": user.id},
+                           salt="security-checkin")
+    # First check-in
+    api_client.post(f"/api/invitations/{invitation.id}/check_in/",
+                     HTTP_X_SECURITY_TOKEN=token)
+    # Second check-in — should return 400
+    response = api_client.post(f"/api/invitations/{invitation.id}/check_in/",
+                                HTTP_X_SECURITY_TOKEN=token)
+    assert response.status_code == 400
+
+
+@pytest.mark.django_db
+def test_check_in_with_signature_expired_returns_401(api_client, user, monkeypatch):
+    from django.core import signing
+    event = Event.objects.create(owner=user, name="Gala", date="2025-12-01")
+    invitation = Invitation.objects.create(event=event, name="Alice", seat_number="A1", tag="VIP")
+
+    def mock_loads(*args, **kwargs):
+        raise signing.SignatureExpired("expired")
+
+    monkeypatch.setattr(signing, "loads", mock_loads)
+    response = api_client.post(f"/api/invitations/{invitation.id}/check_in/",
+                                HTTP_X_SECURITY_TOKEN="any.token.value")
+    assert response.status_code == 401
+    assert "expired" in response.data["detail"].lower()
