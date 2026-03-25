@@ -139,8 +139,7 @@ if SUPER_ADMIN_ORIGIN and SUPER_ADMIN_ORIGIN not in CORS_ALLOWED_ORIGINS:
 if SUPER_ADMIN_ORIGIN and SUPER_ADMIN_ORIGIN not in CSRF_TRUSTED_ORIGINS:
     CSRF_TRUSTED_ORIGINS = CSRF_TRUSTED_ORIGINS + [SUPER_ADMIN_ORIGIN]
 
-# CORS headers — add custom super-admin token header
-CORS_ALLOW_HEADERS = list(default_headers) + ['x-super-admin-token']
+CORS_ALLOW_HEADERS = list(default_headers) + ['X-Security-Token']
 
 # Django REST Framework
 REST_FRAMEWORK = {
@@ -151,6 +150,12 @@ REST_FRAMEWORK = {
         'rest_framework_simplejwt.authentication.JWTAuthentication',
         'rest_framework.authentication.SessionAuthentication',
     ],
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '10/min',
+    },
 }
 
 SIMPLE_JWT = {

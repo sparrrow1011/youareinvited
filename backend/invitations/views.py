@@ -1,7 +1,14 @@
+import csv
+import io
+
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
+from rest_framework.throttling import AnonRateThrottle
+from django.contrib.auth.hashers import make_password, check_password
+from django.core import signing
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.db.utils import OperationalError, ProgrammingError
 from .models import Invitation, Event
@@ -11,7 +18,10 @@ from .serializers import (
     InvitationCreateSerializer,
     CheckInSerializer,
     EventSerializer,
+    SetSecurityPinSerializer,
 )
+
+SECURITY_TOKEN_MAX_AGE = 43200  # 12 hours in seconds
 
 
 class InvitationViewSet(viewsets.ModelViewSet):
@@ -98,6 +108,56 @@ class InvitationViewSet(viewsets.ModelViewSet):
         serializer = InvitationSerializer(invitation)
         return Response(serializer.data)
 
+    @action(detail=False, methods=['post'])
+    def bulk_import(self, request):
+        """
+        POST /api/invitations/bulk_import/
+        Accepts a multipart form with:
+          - event: event UUID
+          - file: CSV with columns name, seat_number, tag
+        Returns { created: N, errors: [...] }
+        """
+        event_id = request.data.get('event')
+        csv_file = request.FILES.get('file')
+
+        if not event_id or not csv_file:
+            return Response(
+                {'detail': 'Both event and file are required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            event = Event.objects.get(pk=event_id, owner=request.user)
+        except Event.DoesNotExist:
+            return Response({'detail': 'Event not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            text = csv_file.read().decode('utf-8-sig')  # utf-8-sig strips BOM from Excel exports
+        except UnicodeDecodeError:
+            return Response({'detail': 'File must be UTF-8 encoded.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        reader = csv.DictReader(io.StringIO(text))
+        required = {'name', 'seat_number', 'tag'}
+        if not required.issubset({c.strip().lower() for c in (reader.fieldnames or [])}):
+            return Response(
+                {'detail': f'CSV must have columns: {", ".join(sorted(required))}'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        created = 0
+        errors = []
+        for i, row in enumerate(reader, start=2):  # row 1 is header
+            name = row.get('name', '').strip()
+            seat = row.get('seat_number', '').strip()
+            tag = row.get('tag', '').strip()
+            if not name or not seat or not tag:
+                errors.append(f'Row {i}: name, seat_number, and tag are all required.')
+                continue
+            Invitation.objects.create(event=event, name=name, seat_number=seat, tag=tag)
+            created += 1
+
+        return Response({'created': created, 'errors': errors}, status=status.HTTP_201_CREATED)
+
     @action(detail=False, methods=['get'])
     def stats(self, request):
         """
@@ -134,4 +194,47 @@ class EventViewSet(viewsets.ModelViewSet):
         serializer.save(owner=self.request.user)
 
     def get_permissions(self):
+        if self.action in ('public_info', 'verify_security_pin'):
+            return []
         return [IsAuthenticated()]
+
+    @action(detail=True, methods=['get'], permission_classes=[], authentication_classes=[])
+    def public_info(self, request, pk=None):
+        event = get_object_or_404(Event, pk=pk)
+        return Response({
+            'id': str(event.id),
+            'name': event.name,
+            'date': str(event.date),
+        })
+
+    @action(detail=True, methods=['post'], permission_classes=[], authentication_classes=[],
+            throttle_classes=[AnonRateThrottle])
+    def verify_security_pin(self, request, pk=None):
+        event = get_object_or_404(Event, pk=pk)
+        if event.security_pin is None:
+            return Response({'detail': 'No security PIN configured for this event.'}, status=status.HTTP_403_FORBIDDEN)
+        pin = request.data.get('pin')
+        if pin is None:
+            return Response({'detail': 'pin is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not check_password(pin, event.security_pin):
+            return Response({'detail': 'Invalid PIN.'}, status=status.HTTP_401_UNAUTHORIZED)
+        token = signing.dumps(
+            {'event_id': str(event.id), 'organizer_id': event.owner_id},
+            salt='security-checkin'
+        )
+        return Response({'token': token})
+
+    @action(detail=True, methods=['post'])
+    def set_security_pin(self, request, pk=None):
+        event = self.get_object()  # uses scoped queryset (owner=request.user)
+        serializer = SetSecurityPinSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        pin = serializer.validated_data['pin']
+        if pin is None:
+            event.security_pin = None
+            event.save()
+            return Response({'security_pin_set': False})
+        event.security_pin = make_password(pin)
+        event.save()
+        return Response({'security_pin_set': True})
