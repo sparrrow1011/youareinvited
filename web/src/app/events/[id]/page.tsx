@@ -308,6 +308,14 @@ export default function EventPage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <a
+              href="/guest-import-template.csv"
+              download="guest-import-template.csv"
+              className="flex items-center gap-2 px-4 py-2 bg-surface-container rounded-full text-sm font-medium text-on-surface hover:bg-surface-container-high transition-colors border border-outline-variant/20"
+            >
+              <span className="material-symbols-outlined text-sm">download</span>
+              Template
+            </a>
             <label className="cursor-pointer flex items-center gap-2 px-4 py-2 bg-surface-container rounded-full text-sm font-medium text-on-surface hover:bg-surface-container-high transition-colors border border-outline-variant/20">
               <span className="material-symbols-outlined text-sm">upload_file</span>
               Import CSV
