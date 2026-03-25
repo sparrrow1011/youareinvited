@@ -179,3 +179,48 @@ def test_create_invitation_with_local_template_returns_201(auth_client, user, tm
     assert response.status_code == 201
     assert '/media/event_invitation/qr_codes/' in response.data['qr_code']
     assert '/media/event_invitation/e_invites/' in response.data['e_invite_image']
+
+
+@pytest.mark.django_db
+def test_bulk_import_accepts_blank_seat_and_tag(auth_client, user, monkeypatch):
+    """seat_number and tag are optional — blank values must be accepted."""
+    from invitations.models import Invitation
+    monkeypatch.setattr(Invitation, 'generate_qr_code', lambda self: None)
+    monkeypatch.setattr(Invitation, 'generate_e_invite', lambda self, **kwargs: None)
+    event = Event.objects.create(owner=user, name="Test Event", date="2025-12-01")
+    csv_content = "name,seat_number,tag\nAlice,,\nBob,B-1,\n"
+    csv_file = io.BytesIO(csv_content.encode())
+    csv_file.name = "guests.csv"
+    response = auth_client.post(
+        "/api/invitations/bulk_import/",
+        {"event": str(event.id), "file": csv_file},
+        format="multipart",
+    )
+    assert response.status_code == 201
+    assert response.data["created"] == 2
+    assert response.data["errors"] == []
+    # Verify blank fields are stored as empty strings, not None
+    alice = Invitation.objects.get(event=event, name="Alice")
+    assert alice.seat_number == ""
+    assert alice.tag == ""
+
+
+@pytest.mark.django_db
+def test_bulk_import_still_rejects_blank_name(auth_client, user, monkeypatch):
+    """name is still required — a row with a blank name must produce an error."""
+    from invitations.models import Invitation
+    monkeypatch.setattr(Invitation, 'generate_qr_code', lambda self: None)
+    monkeypatch.setattr(Invitation, 'generate_e_invite', lambda self, **kwargs: None)
+    event = Event.objects.create(owner=user, name="Test Event", date="2025-12-01")
+    csv_content = "name,seat_number,tag\n,A-1,VIP\n"
+    csv_file = io.BytesIO(csv_content.encode())
+    csv_file.name = "guests.csv"
+    response = auth_client.post(
+        "/api/invitations/bulk_import/",
+        {"event": str(event.id), "file": csv_file},
+        format="multipart",
+    )
+    assert response.status_code == 201
+    assert response.data["created"] == 0
+    assert len(response.data["errors"]) == 1
+    assert "name is required" in response.data["errors"][0].lower()

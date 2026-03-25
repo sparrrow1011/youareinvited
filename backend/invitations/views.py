@@ -170,8 +170,8 @@ class InvitationViewSet(viewsets.ModelViewSet):
             name = row.get('name', '').strip()
             seat = row.get('seat_number', '').strip()
             tag = row.get('tag', '').strip()
-            if not name or not seat or not tag:
-                errors.append(f'Row {i}: name, seat_number, and tag are all required.')
+            if not name:
+                errors.append(f'Row {i}: name is required.')
                 continue
             Invitation.objects.create(event=event, name=name, seat_number=seat, tag=tag)
             created += 1
