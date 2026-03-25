@@ -4,8 +4,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-
 interface Guest {
   id: string;
   name: string;
@@ -55,7 +53,7 @@ function CheckInContent() {
     setGuestError(null);
     setGuest(null);
     try {
-      const res = await fetch(`${BACKEND_URL}/api/invitations/${id}/`);
+      const res = await fetch(`/api/invitations/${id}/`);
       if (res.status === 404) {
         setGuestError('Invitation not found.');
         return;
@@ -77,7 +75,7 @@ function CheckInContent() {
     setCheckingIn(true);
     setCheckInError(null);
     try {
-      const res = await fetch(`${BACKEND_URL}/api/invitations/${guest.id}/check_in/`, {
+      const res = await fetch(`/api/invitations/${guest.id}/check_in/`, {
         method: 'POST',
         headers: { 'X-Security-Token': token },
       });

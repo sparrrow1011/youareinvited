@@ -1,11 +1,18 @@
 import axios from 'axios';
 import { getToken, setToken, clearToken } from './auth';
 
-// const DEFAULT_API_BASE_URL = 'https://event-invitation-backend.vercel.app/api';
-const DEFAULT_API_BASE_URL = 'http://127.0.0.1:8000/api';
+const LOCAL_BACKEND_URL = 'http://127.0.0.1:8000';
+const DEFAULT_API_BASE_URL =
+  typeof window === 'undefined'
+    ? `${(process.env.BACKEND_URL || LOCAL_BACKEND_URL).replace(/\/$/, '')}/api`
+    : '/api';
 
 const normalizeApiBaseUrl = (rawUrl?: string): string => {
   const candidate = (rawUrl || DEFAULT_API_BASE_URL).trim();
+
+  if (candidate.startsWith('/')) {
+    return candidate.replace(/\/$/, '');
+  }
 
   try {
     const parsed = new URL(candidate);
@@ -26,10 +33,17 @@ const normalizeApiBaseUrl = (rawUrl?: string): string => {
 
 const API_BASE_URL = normalizeApiBaseUrl(process.env.NEXT_PUBLIC_API_URL);
 const API_ORIGIN = (() => {
+  if (API_BASE_URL.startsWith('/')) {
+    if (typeof window !== 'undefined') {
+      return window.location.origin;
+    }
+    return (process.env.BACKEND_URL || LOCAL_BACKEND_URL).replace(/\/$/, '');
+  }
+
   try {
     return new URL(API_BASE_URL).origin;
   } catch {
-    return 'https://event-invitation-backend.vercel.app';
+    return (process.env.BACKEND_URL || LOCAL_BACKEND_URL).replace(/\/$/, '');
   }
 })();
 
@@ -40,6 +54,7 @@ export const resolveMediaUrl = (pathOrUrl?: string | null): string => {
   if (/^https?:\/\//i.test(value)) return value;
 
   const normalizedPath = value.startsWith('/') ? value : `/${value}`;
+  if (API_BASE_URL.startsWith('/')) return normalizedPath;
   return `${API_ORIGIN}${normalizedPath}`;
 };
 
@@ -142,6 +157,7 @@ export interface Event {
   name_zone: Record<string, number | string> | null;
   tag_zone: Record<string, number | string> | null;
   has_security_pin: boolean;
+  whatsapp_message_template: string;
   created_at: string;
 }
 
@@ -271,7 +287,9 @@ export const invitationService = {
     const form = new FormData();
     form.append('event', eventId);
     form.append('file', file);
-    const response = await api.post('/invitations/bulk_import/', form);
+    const response = await api.post('/invitations/bulk_import/', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return response.data;
   },
 };

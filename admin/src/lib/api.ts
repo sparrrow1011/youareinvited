@@ -2,7 +2,7 @@ import axios from 'axios';
 import { getAdminToken } from './auth';
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_BACKEND_URL,
+  baseURL: '/api',
 });
 
 // Attach JWT as Bearer token on every request

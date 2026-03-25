@@ -34,9 +34,23 @@ class InvitationSerializer(serializers.ModelSerializer):
         return obj.get_invitation_url()
 
     def get_whatsapp_share_url(self, obj):
-        invitation_url = obj.get_invitation_url()
-        message = f"You're invited! 🎉\n\nName: {obj.name}\nSeat: {obj.seat_number}\n\nView your invitation: {invitation_url}"
         import urllib.parse
+        invitation_url = obj.get_invitation_url()
+        template = obj.event.whatsapp_message_template if obj.event_id else ''
+        if template:
+            message = (
+                template
+                .replace('{{name}}', obj.name)
+                .replace('{{seat_number}}', obj.seat_number)
+                .replace('{{tag}}', obj.tag)
+                .replace('{{link}}', invitation_url)
+            )
+        else:
+            message = (
+                f"You're invited! 🎉\n\n"
+                f"Name: {obj.name}\nSeat: {obj.seat_number}\n\n"
+                f"View your invitation: {invitation_url}"
+            )
         return f"https://wa.me/?text={urllib.parse.quote(message)}"
 
 
@@ -66,7 +80,7 @@ class EventSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'owner', 'name', 'date', 'description',
             'background_image', 'qr_zone', 'name_zone', 'tag_zone',
-            'created_at', 'has_security_pin'
+            'created_at', 'has_security_pin', 'whatsapp_message_template',
         ]
         read_only_fields = ['id', 'owner', 'created_at']
 

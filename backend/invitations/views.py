@@ -57,6 +57,15 @@ class InvitationViewSet(viewsets.ModelViewSet):
         response_serializer = InvitationSerializer(invitation)
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
+    def retrieve(self, request, *args, **kwargs):
+        """
+        Public endpoint — any guest can view their invitation by ID.
+        Bypasses the owner-scoped queryset used for organizer actions.
+        """
+        invitation = get_object_or_404(Invitation, pk=kwargs['pk'])
+        serializer = self.get_serializer(invitation)
+        return Response(serializer.data)
+
     @action(detail=True, methods=['post'], permission_classes=[])
     def check_in(self, request, pk=None):
         """

@@ -3,8 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-
 export default function SecurityPinPage() {
   const params = useParams();
   const router = useRouter();
@@ -17,7 +15,7 @@ export default function SecurityPinPage() {
   const [fetchError, setFetchError] = useState(false);
 
   useEffect(() => {
-    fetch(`${BACKEND_URL}/api/events/${eventId}/public_info/`)
+    fetch(`/api/events/${eventId}/public_info/`)
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
       .then(data => setEventName(data.name))
       .catch(() => setFetchError(true));
@@ -29,7 +27,7 @@ export default function SecurityPinPage() {
     setError(null);
 
     try {
-      const res = await fetch(`${BACKEND_URL}/api/events/${eventId}/verify_security_pin/`, {
+      const res = await fetch(`/api/events/${eventId}/verify_security_pin/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pin }),
