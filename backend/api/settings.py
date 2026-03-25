@@ -181,12 +181,16 @@ SIMPLE_JWT = {
 }
 
 # Media storage
+CLOUDINARY_URL = config('CLOUDINARY_URL', default='').strip()
 CLOUDINARY_STORAGE = {
     'CLOUD_NAME': config('CLOUDINARY_CLOUD_NAME', default=''),
     'API_KEY': config('CLOUDINARY_API_KEY', default=''),
     'API_SECRET': config('CLOUDINARY_API_SECRET', default=''),
+    'SECURE': True,
 }
-USE_CLOUDINARY_STORAGE = all(CLOUDINARY_STORAGE.values())
+USE_CLOUDINARY_STORAGE = bool(CLOUDINARY_URL) or all(
+    CLOUDINARY_STORAGE[key] for key in ('CLOUD_NAME', 'API_KEY', 'API_SECRET')
+)
 
 STORAGES = {
     'default': {
