@@ -39,6 +39,11 @@ export default function EventPage() {
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [templateSuccess, setTemplateSuccess] = useState('');
 
+  const [securityPinSet, setSecurityPinSet] = useState(false);
+  const [securityPin, setSecurityPin] = useState('');
+  const [savingPin, setSavingPin] = useState(false);
+  const [pinSaveStatus, setPinSaveStatus] = useState<'idle' | 'saved' | 'cleared' | 'error'>('idle');
+
   const loadData = async () => {
     try {
       const [ev, invs] = await Promise.all([
@@ -46,6 +51,7 @@ export default function EventPage() {
         invitationService.getAll(),
       ]);
       setEvent(ev);
+      setSecurityPinSet(Boolean(ev.has_security_pin));
       const eventInvs = invs.filter((inv) => inv.event === id);
       setInvitations(eventInvs);
       const total = eventInvs.length;
@@ -160,6 +166,43 @@ export default function EventPage() {
     } finally {
       setSavingTemplate(false);
     }
+  };
+
+  const handleSavePin = async () => {
+    if (!event || securityPin.length < 4) return;
+    setSavingPin(true);
+    setPinSaveStatus('idle');
+    try {
+      await eventService.setSecurityPin(event.id, securityPin);
+      setSecurityPinSet(true);
+      setSecurityPin('');
+      setPinSaveStatus('saved');
+    } catch {
+      setPinSaveStatus('error');
+    } finally {
+      setSavingPin(false);
+    }
+  };
+
+  const handleClearPin = async () => {
+    if (!event) return;
+    setSavingPin(true);
+    setPinSaveStatus('idle');
+    try {
+      await eventService.setSecurityPin(event.id, null);
+      setSecurityPinSet(false);
+      setPinSaveStatus('cleared');
+    } catch {
+      setPinSaveStatus('error');
+    } finally {
+      setSavingPin(false);
+    }
+  };
+
+  const handleCopyStaffLink = () => {
+    const url = `${window.location.origin}/security/event/${event?.id}`;
+    navigator.clipboard.writeText(url);
+    setPinSaveStatus('idle'); // just reuse for feedback if needed
   };
 
   const openAddForm = () => {
@@ -468,6 +511,79 @@ export default function EventPage() {
                     {templateSuccess}
                   </p>
                 )}
+              </div>
+
+              {/* Security card */}
+              <div className="bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-xl p-6">
+                <div className="flex items-center gap-2 mb-5">
+                  <div className="w-8 h-8 rounded-xl bg-brand-container/40 flex items-center justify-center">
+                    <span className="material-symbols-outlined text-brand text-base" style={{ fontVariationSettings: "'FILL' 1" }}>security</span>
+                  </div>
+                  <p className="text-xs font-label font-semibold text-brand uppercase tracking-widest">Security PIN</p>
+                </div>
+
+                {securityPinSet ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-2xl px-4 py-3">
+                      <span className="material-symbols-outlined text-green-600 text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>lock</span>
+                      <div>
+                        <p className="text-sm font-semibold text-green-700">PIN Active</p>
+                        <p className="text-xs text-green-600">••••</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleClearPin}
+                      disabled={savingPin}
+                      className="w-full h-10 rounded-full border border-outline-variant/30 text-sm text-on-surface-variant hover:border-red-300 hover:text-red-600 disabled:opacity-50 transition-all"
+                    >
+                      {savingPin ? 'Clearing…' : 'Clear PIN'}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <input
+                      type="password"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={securityPin}
+                      onChange={e => setSecurityPin(e.target.value.replace(/\D/g, ''))}
+                      placeholder="4–6 digit PIN"
+                      className="w-full h-10 rounded-2xl bg-surface-container border border-outline-variant/30 px-4 text-center text-base font-semibold tracking-widest text-on-lp-background focus:outline-none focus:ring-2 focus:ring-brand/40 transition-all"
+                      disabled={savingPin}
+                    />
+                    <button
+                      onClick={handleSavePin}
+                      disabled={savingPin || securityPin.length < 4}
+                      className="w-full h-10 rounded-full bg-brand text-white text-sm font-semibold hover:bg-brand/90 disabled:opacity-50 transition-all"
+                    >
+                      {savingPin ? 'Saving…' : 'Save PIN'}
+                    </button>
+                  </div>
+                )}
+
+                {pinSaveStatus === 'saved' && (
+                  <p className="text-xs text-green-600 text-center mt-3 flex items-center justify-center gap-1">
+                    <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                    PIN saved
+                  </p>
+                )}
+                {pinSaveStatus === 'cleared' && (
+                  <p className="text-xs text-on-surface-variant text-center mt-3">PIN cleared</p>
+                )}
+                {pinSaveStatus === 'error' && (
+                  <p className="text-xs text-red-600 text-center mt-3">Something went wrong</p>
+                )}
+
+                <div className="mt-5 pt-4 border-t border-outline-variant/20">
+                  <p className="text-xs text-on-surface-variant mb-3">Share this link + PIN with your security team</p>
+                  <button
+                    onClick={handleCopyStaffLink}
+                    className="w-full h-10 rounded-full border border-brand/30 text-brand text-sm font-semibold hover:bg-brand-container/20 transition-all flex items-center justify-center gap-2"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">link</span>
+                    Copy Staff Link
+                  </button>
+                </div>
               </div>
 
               {/* Event info card */}

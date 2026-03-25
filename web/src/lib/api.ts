@@ -50,14 +50,57 @@ export const api = axios.create({
   },
 });
 
+const AUTH_FREE_PATHS = ['/auth/login/', '/auth/register/', '/auth/refresh/'];
+
+const isAuthFreePath = (url?: string): boolean => {
+  if (!url) return false;
+  return AUTH_FREE_PATHS.some((path) => url.includes(path));
+};
+
+const isExpiredToken = (token: string): boolean => {
+  try {
+    const [, payload] = token.split('.');
+    if (!payload) return true;
+
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized.padEnd(
+      normalized.length + ((4 - (normalized.length % 4)) % 4),
+      '='
+    );
+    const decoded = JSON.parse(atob(padded)) as { exp?: number };
+
+    if (typeof decoded.exp !== 'number') return true;
+    return decoded.exp * 1000 <= Date.now();
+  } catch {
+    return true;
+  }
+};
+
 // Attach JWT to every request
 api.interceptors.request.use((config) => {
   const token = getToken();
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  if (!token || isAuthFreePath(config.url)) {
+    return config;
   }
+
+  if (isExpiredToken(token)) {
+    clearToken();
+    return config;
+  }
+
+  config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401 && error.response?.data?.code === 'token_not_valid') {
+      clearToken();
+    }
+    return Promise.reject(error);
+  }
+);
 
 // Auth service
 export interface AuthTokens {
@@ -98,6 +141,7 @@ export interface Event {
   qr_zone: Record<string, number> | null;
   name_zone: Record<string, number | string> | null;
   tag_zone: Record<string, number | string> | null;
+  has_security_pin: boolean;
   created_at: string;
 }
 
@@ -132,6 +176,9 @@ export const eventService = {
   delete: async (id: string): Promise<void> => {
     await api.delete(`/events/${id}/`);
   },
+
+  setSecurityPin: (id: string, pin: string | null) =>
+    api.post(`/events/${id}/set_security_pin/`, { pin }),
 };
 
 export interface Invitation {
@@ -194,8 +241,10 @@ export const invitationService = {
   },
 
   // Check in guest
-  checkIn: async (id: string): Promise<Invitation> => {
-    const response = await api.post<Invitation>(`/invitations/${id}/check_in/`);
+  checkIn: async (id: string, securityToken?: string): Promise<Invitation> => {
+    const response = await api.post<Invitation>(`/invitations/${id}/check_in/`, {}, {
+      headers: securityToken ? { 'X-Security-Token': securityToken } : {},
+    });
     return response.data;
   },
 
@@ -214,6 +263,15 @@ export const invitationService = {
   // Get stats
   getStats: async (): Promise<InvitationStats> => {
     const response = await api.get<InvitationStats>('/invitations/stats/');
+    return response.data;
+  },
+
+  // Bulk import from CSV
+  bulkImport: async (eventId: string, file: File): Promise<{ created: number; errors: string[] }> => {
+    const form = new FormData();
+    form.append('event', eventId);
+    form.append('file', file);
+    const response = await api.post('/invitations/bulk_import/', form);
     return response.data;
   },
 };
