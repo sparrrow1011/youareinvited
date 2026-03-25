@@ -2,13 +2,23 @@ import axios from 'axios';
 import { getToken, setToken, clearToken } from './auth';
 
 const LOCAL_BACKEND_URL = 'http://127.0.0.1:8000';
-const DEFAULT_API_BASE_URL =
-  typeof window === 'undefined'
-    ? `${(process.env.BACKEND_URL || LOCAL_BACKEND_URL).replace(/\/$/, '')}/api`
-    : '/api';
+const PRODUCTION_DIRECT_API_BASE_URL = 'https://backend.v0.youare-invited.com/api';
+const DIRECT_BROWSER_API_HOSTS = new Set(['youare-invited.com', 'www.youare-invited.com']);
+
+const getDefaultApiBaseUrl = (): string => {
+  if (typeof window === 'undefined') {
+    return `${(process.env.BACKEND_URL || LOCAL_BACKEND_URL).replace(/\/$/, '')}/api`;
+  }
+
+  if (DIRECT_BROWSER_API_HOSTS.has(window.location.hostname)) {
+    return PRODUCTION_DIRECT_API_BASE_URL;
+  }
+
+  return '/api';
+};
 
 const normalizeApiBaseUrl = (rawUrl?: string): string => {
-  const candidate = (rawUrl || DEFAULT_API_BASE_URL).trim();
+  const candidate = (rawUrl || getDefaultApiBaseUrl()).trim();
 
   if (candidate.startsWith('/')) {
     return candidate.replace(/\/$/, '');
@@ -27,7 +37,7 @@ const normalizeApiBaseUrl = (rawUrl?: string): string => {
 
     return parsed.toString().replace(/\/$/, '');
   } catch {
-    return DEFAULT_API_BASE_URL;
+    return getDefaultApiBaseUrl();
   }
 };
 
