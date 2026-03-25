@@ -2,10 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const PUBLIC_PATHS = new Set([
   '/', '/login', '/logout', '/signup',
-  '/security/login', '/security/logout',
 ]);
 
-const PUBLIC_PREFIXES = ['/invitation/'];
+const PUBLIC_PREFIXES = ['/invitation/', '/security/event/'];
 
 const isPublicAsset = (pathname: string): boolean => {
   if (pathname.startsWith('/_next/')) return true;
@@ -29,20 +28,22 @@ export function middleware(req: NextRequest) {
     return addSecurityHeaders(NextResponse.next());
   }
 
+  // Per-event checkin guard: must run before the public-prefix early return
+  const isCheckinPath = /^\/security\/event\/[^/]+\/checkin/.test(pathname);
+  if (isCheckinPath) {
+    const hasToken = !!req.cookies.get('security_token')?.value;
+    if (!hasToken) {
+      // redirect to PIN page — strip /checkin suffix
+      const pinPage = pathname.replace(/\/checkin.*$/, '');
+      return NextResponse.redirect(new URL(pinPage, req.url));
+    }
+  }
+
   if (PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
     return addSecurityHeaders(NextResponse.next());
   }
 
-  const hasSecurityAuth = req.cookies.get('security_auth')?.value === '1';
-  const isSecurityPath = pathname.startsWith('/security');
-
-  if (isSecurityPath && !hasSecurityAuth) {
-    const securityLoginUrl = new URL('/security/login', req.url);
-    securityLoginUrl.searchParams.set('next', `${pathname}${search}`);
-    return NextResponse.redirect(securityLoginUrl);
-  }
-
-  if (!isSecurityPath) {
+  if (!pathname.startsWith('/security/')) {
     // JWT auth — check for access_token cookie
     const hasJwt = !!req.cookies.get('access_token')?.value;
     if (!hasJwt) {
