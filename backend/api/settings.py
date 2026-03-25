@@ -1,11 +1,29 @@
 from pathlib import Path
 import os
+from urllib.parse import urlparse
 import dj_database_url
 from decouple import config
 from datetime import timedelta
 from corsheaders.defaults import default_headers
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+
+def split_csv(value):
+    return [item.strip() for item in value.split(',') if item.strip()]
+
+
+def append_unique(values, candidate):
+    if candidate and candidate not in values:
+        return values + [candidate]
+    return values
+
+
+def host_from_url(value):
+    if not value:
+        return ''
+    parsed = urlparse(value if '://' in value else f'https://{value}')
+    return parsed.hostname or ''
 
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-me-in-production')
 
@@ -14,10 +32,14 @@ DEBUG = config('DEBUG', default='False', cast=bool)
 ALLOWED_HOSTS = config(
     'ALLOWED_HOSTS',
     default='127.0.0.1,localhost,.vercel.app',
-    cast=lambda v: [h.strip() for h in v.split(',')]
+    cast=split_csv,
 )
 
 IS_VERCEL = bool(os.getenv('VERCEL'))
+BACKEND_URL = config('BACKEND_URL', default='').strip()
+
+for host in (host_from_url(os.getenv('VERCEL_URL', '')), host_from_url(BACKEND_URL)):
+    ALLOWED_HOSTS = append_unique(ALLOWED_HOSTS, host)
 
 # Application definition
 
@@ -131,7 +153,7 @@ CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGINS = config(
     'CORS_ALLOWED_ORIGINS',
     default='http://localhost:3000,http://127.0.0.1:3000,https://invitation-system-psi.vercel.app',
-    cast=lambda v: [o.strip() for o in v.split(',')]
+    cast=split_csv,
 )
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r'^http://localhost:\d+$',
@@ -143,7 +165,7 @@ CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = config(
     'CSRF_TRUSTED_ORIGINS',
     default='http://localhost:3000,http://127.0.0.1:3000,https://invitation-system-psi.vercel.app',
-    cast=lambda v: [o.strip() for o in v.split(',')]
+    cast=split_csv,
 )
 
 # Super-admin
