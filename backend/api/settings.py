@@ -37,6 +37,7 @@ ALLOWED_HOSTS = config(
 
 IS_VERCEL = bool(os.getenv('VERCEL'))
 BACKEND_URL = config('BACKEND_URL', default='').strip()
+FRONTEND_URL = config('FRONTEND_URL', default='https://www.youare-invited.com').strip().rstrip('/')
 
 for host in (host_from_url(os.getenv('VERCEL_URL', '')), host_from_url(BACKEND_URL)):
     ALLOWED_HOSTS = append_unique(ALLOWED_HOSTS, host)

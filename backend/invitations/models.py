@@ -3,6 +3,7 @@ import uuid
 import logging
 import qrcode
 from io import BytesIO
+from django.conf import settings
 from django.core.files import File
 from PIL import Image, ImageDraw, ImageFont
 from django.contrib.auth.models import User
@@ -86,11 +87,10 @@ class Invitation(models.Model):
 
     def get_invitation_url(self):
         # Guest view page
-        return f"https://invitation-system-psi.vercel.app/invitation/{self.id}"
+        return f"{settings.FRONTEND_URL}/invitation/{self.id}"
 
     def get_security_checkin_url(self):
-        base = "https://invitation-system-psi.vercel.app"
-        return f"{base}/security/event/{self.event_id}/checkin?invitation={self.id}"
+        return f"{settings.FRONTEND_URL}/security/event/{self.event_id}/checkin?invitation={self.id}"
 
     def generate_qr_code(self):
         """Generate QR code for the invitation - points to security check-in"""
