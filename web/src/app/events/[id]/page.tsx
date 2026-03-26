@@ -31,6 +31,7 @@ export default function EventPage() {
   const [formData, setFormData] = useState({ name: '', seat_number: '', tag: '' });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [savingGuest, setSavingGuest] = useState(false);
 
   const [showCsvModal, setShowCsvModal] = useState(false);
   const [csvFile, setCsvFile] = useState<File | null>(null);
@@ -85,6 +86,7 @@ export default function EventPage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSavingGuest(true);
     try {
       if (editingId) {
         await invitationService.update(editingId, formData);
@@ -97,6 +99,8 @@ export default function EventPage() {
       await loadData();
     } catch {
       setError('Failed to save invitation.');
+    } finally {
+      setSavingGuest(false);
     }
   };
 
@@ -807,16 +811,26 @@ export default function EventPage() {
                     value={(formData as any)[key]}
                     onChange={(e) => setFormData({ ...formData, [key]: e.target.value })}
                     required
+                    disabled={savingGuest}
                     placeholder={placeholder}
                     className="w-full px-4 py-3 rounded-2xl bg-surface-container border border-outline-variant/20 text-on-surface placeholder:text-on-surface-variant/50 outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand/40 transition-all text-sm"
                   />
                 </div>
               ))}
               <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                <button type="submit" className="flex-1 py-3 bg-brand text-white rounded-full font-semibold text-sm hover:bg-brand-dim transition-colors shadow-md shadow-brand/20">
-                  {editingId ? 'Save Changes' : 'Add Guest'}
+                <button
+                  type="submit"
+                  disabled={savingGuest}
+                  className="flex-1 py-3 bg-brand text-white rounded-full font-semibold text-sm hover:bg-brand-dim disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-md shadow-brand/20"
+                >
+                  {savingGuest ? (editingId ? 'Saving…' : 'Adding…') : (editingId ? 'Save Changes' : 'Add Guest')}
                 </button>
-                <button type="button" onClick={() => setShowForm(false)} className="flex-1 py-3 bg-surface-container rounded-full text-sm font-medium text-on-surface hover:bg-surface-container-high transition-colors">
+                <button
+                  type="button"
+                  onClick={() => setShowForm(false)}
+                  disabled={savingGuest}
+                  className="flex-1 py-3 bg-surface-container rounded-full text-sm font-medium text-on-surface hover:bg-surface-container-high disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
                   Cancel
                 </button>
               </div>

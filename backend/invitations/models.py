@@ -236,7 +236,7 @@ class Invitation(models.Model):
 
         def fit_text(text, max_w, max_h, scale=1.0):
             """Return (font, text_w, text_h) auto-sized to fill the zone box."""
-            size = max(int(max_h * scale), 8)
+            size = max(int(max_h * scale), 22)
             font = load_font(size)
             bbox = draw.textbbox((0, 0), text, font=font)
             text_w, text_h = bbox[2] - bbox[0], bbox[3] - bbox[1]
