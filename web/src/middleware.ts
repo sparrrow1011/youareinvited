@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isExpiredJwt } from '@/lib/jwt';
 
 const PUBLIC_PATHS = new Set([
   '/', '/login', '/logout', '/signup',
 ]);
 
 const PUBLIC_PREFIXES = ['/invitation/', '/security/event/'];
+const PUBLIC_API_PATTERNS = [
+  /^\/api\/events\/[^/]+\/public_info\/?$/,
+  /^\/api\/events\/[^/]+\/verify_security_pin\/?$/,
+];
 
 const isPublicAsset = (pathname: string): boolean => {
   if (pathname.startsWith('/_next/')) return true;
@@ -23,8 +28,23 @@ const addSecurityHeaders = (res: NextResponse): NextResponse => {
 
 export function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
+  const jwt = req.cookies.get('access_token')?.value;
+  const hasExpiredJwt = !!jwt && isExpiredJwt(jwt);
+
+  const buildExpiredSessionRedirect = (): NextResponse => {
+    const loginUrl = new URL('/login', req.url);
+    loginUrl.searchParams.set('reason', 'session-expired');
+    loginUrl.searchParams.set('next', `${pathname}${search}`);
+    const res = NextResponse.redirect(loginUrl);
+    res.cookies.delete('access_token');
+    return addSecurityHeaders(res);
+  };
 
   if (PUBLIC_PATHS.has(pathname) || isPublicAsset(pathname)) {
+    return addSecurityHeaders(NextResponse.next());
+  }
+
+  if (PUBLIC_API_PATTERNS.some((pattern) => pattern.test(pathname))) {
     return addSecurityHeaders(NextResponse.next());
   }
 
@@ -45,8 +65,11 @@ export function middleware(req: NextRequest) {
 
   if (!pathname.startsWith('/security/')) {
     // JWT auth — check for access_token cookie
-    const hasJwt = !!req.cookies.get('access_token')?.value;
-    if (!hasJwt) {
+    if (hasExpiredJwt) {
+      return buildExpiredSessionRedirect();
+    }
+
+    if (!jwt) {
       const loginUrl = new URL('/login', req.url);
       loginUrl.searchParams.set('next', `${pathname}${search}`);
       return NextResponse.redirect(loginUrl);

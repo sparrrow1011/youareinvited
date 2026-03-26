@@ -31,10 +31,13 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = resolveNextPath(searchParams.get('next'));
+  const reason = searchParams.get('reason');
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = useState(
+    reason === 'session-expired' ? 'Your session expired. Sign in again.' : ''
+  );
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {

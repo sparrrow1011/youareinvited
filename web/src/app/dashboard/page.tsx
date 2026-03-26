@@ -7,7 +7,7 @@ import { eventService, authService, invitationService, Event, InvitationStats, A
 
 const NAV_LINKS = [
   { icon: 'dashboard', label: 'Dashboard', href: '/dashboard', active: true },
-  { icon: 'group', label: 'Guest List', href: '#' },
+  // { icon: 'group', label: 'Guest List', href: '#' },
   { icon: 'brush', label: 'Design Studio', href: '/events/new' },
   { icon: 'card_giftcard', label: 'Registry', href: '#' },
   { icon: 'leaderboard', label: 'Analytics', href: '/analytics' },
@@ -93,43 +93,43 @@ export default function DashboardPage() {
   const notifications: DashboardNotification[] = loading ? [] : [
     events.length === 0
       ? {
-          id: 'first-event',
-          icon: 'celebration',
-          title: 'Create your first event',
-          detail: 'Set up an event to start inviting guests and tracking check-ins.',
-        }
+        id: 'first-event',
+        icon: 'celebration',
+        title: 'Create your first event',
+        detail: 'Set up an event to start inviting guests and tracking check-ins.',
+      }
       : {
-          id: 'active-events',
-          icon: 'event_note',
-          title: `${events.length} active event${events.length === 1 ? '' : 's'}`,
-          detail: 'Open an event to manage templates, guests, and check-in access.',
-        },
+        id: 'active-events',
+        icon: 'event_note',
+        title: `${events.length} active event${events.length === 1 ? '' : 's'}`,
+        detail: 'Open an event to manage templates, guests, and check-in access.',
+      },
     (stats?.pending ?? 0) > 0
       ? {
-          id: 'pending-guests',
-          icon: 'schedule',
-          title: `${stats?.pending ?? 0} guest${stats?.pending === 1 ? '' : 's'} pending`,
-          detail: 'Keep monitoring arrivals or share reminder links with guests.',
-        }
+        id: 'pending-guests',
+        icon: 'schedule',
+        title: `${stats?.pending ?? 0} guest${stats?.pending === 1 ? '' : 's'} pending`,
+        detail: 'Keep monitoring arrivals or share reminder links with guests.',
+      }
       : {
-          id: 'all-clear',
-          icon: 'task_alt',
-          title: 'No pending arrivals',
-          detail: 'Everyone is checked in or you have not added any guests yet.',
-        },
+        id: 'all-clear',
+        icon: 'task_alt',
+        title: 'No pending arrivals',
+        detail: 'Everyone is checked in or you have not added any guests yet.',
+      },
     (stats?.checked_in ?? 0) > 0
       ? {
-          id: 'check-in-rate',
-          icon: 'how_to_reg',
-          title: `${stats?.checked_in ?? 0} guest${stats?.checked_in === 1 ? '' : 's'} checked in`,
-          detail: `Current check-in rate is ${Math.round(stats?.check_in_rate ?? 0)}%.`,
-        }
+        id: 'check-in-rate',
+        icon: 'how_to_reg',
+        title: `${stats?.checked_in ?? 0} guest${stats?.checked_in === 1 ? '' : 's'} checked in`,
+        detail: `Current check-in rate is ${Math.round(stats?.check_in_rate ?? 0)}%.`,
+      }
       : {
-          id: 'share-invites',
-          icon: 'share',
-          title: 'Share your invites',
-          detail: 'Guests can only access their QR codes after you send the invitation links.',
-        },
+        id: 'share-invites',
+        icon: 'share',
+        title: 'Share your invites',
+        detail: 'Guests can only access their QR codes after you send the invitation links.',
+      },
   ];
 
   return (
@@ -176,11 +176,10 @@ export default function DashboardPage() {
             <Link
               key={label}
               href={href}
-              className={`py-3 pl-8 flex items-center gap-3 transition-all ${
-                active
+              className={`py-3 pl-8 flex items-center gap-3 transition-all ${active
                   ? 'text-brand font-bold bg-white rounded-r-full'
                   : 'text-on-surface-variant hover:translate-x-1 hover:text-brand'
-              }`}
+                }`}
             >
               <span
                 className="material-symbols-outlined"
@@ -352,11 +351,10 @@ export default function DashboardPage() {
                 <Link
                   key={label}
                   href={href}
-                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold border transition-colors ${
-                    active
+                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold border transition-colors ${active
                       ? 'bg-brand text-white border-brand shadow-lg shadow-brand/15'
                       : 'bg-white/70 text-on-surface-variant border-outline-variant/10'
-                  }`}
+                    }`}
                 >
                   <span
                     className="material-symbols-outlined text-base"
@@ -469,10 +467,22 @@ export default function DashboardPage() {
                   className="group relative bg-surface-container-lowest rounded-[2rem] overflow-hidden shadow-[0_12px_40px_rgba(47,51,54,0.03)] transition-all hover:shadow-[0_20px_60px_rgba(47,51,54,0.06)]"
                 >
                   <div className="flex flex-col md:flex-row">
-                    {/* Gradient image placeholder */}
-                    <div
-                      className={`md:w-2/5 h-48 md:h-auto min-h-[160px] bg-gradient-to-br ${EVENT_GRADIENTS[idx % EVENT_GRADIENTS.length]}`}
-                    />
+                    <div className="md:w-2/5 h-48 md:h-auto min-h-[160px] relative overflow-hidden bg-surface-container">
+                      {event.background_image ? (
+                        <>
+                          <img
+                            src={resolveMediaUrl(event.background_image)}
+                            alt={`${event.name} template preview`}
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-on-lp-background/20 to-transparent" />
+                        </>
+                      ) : (
+                        <div
+                          className={`w-full h-full bg-gradient-to-br ${EVENT_GRADIENTS[idx % EVENT_GRADIENTS.length]}`}
+                        />
+                      )}
+                    </div>
                     <div className="md:w-3/5 p-5 sm:p-8 flex flex-col justify-between">
                       <div>
                         <div className="mb-4">

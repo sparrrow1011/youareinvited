@@ -3,14 +3,15 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import NavBar from '@/components/NavBar';
+import { isExpiredJwt } from '@/lib/jwt';
 
 const HeroScroll = dynamic(() => import('@/components/HeroScroll'), { ssr: false });
 
 export default async function Home() {
-  // Redirect authenticated users to dashboard
+  // Redirect authenticated users to dashboard when the cookie still holds a live JWT.
   const cookieStore = cookies();
-  const token = cookieStore.get('access_token');
-  if (token?.value) redirect('/dashboard');
+  const token = cookieStore.get('access_token')?.value;
+  if (token && !isExpiredJwt(token)) redirect('/dashboard');
 
   return (
     <div className="bg-lp-background text-on-lp-background font-body overflow-x-hidden">

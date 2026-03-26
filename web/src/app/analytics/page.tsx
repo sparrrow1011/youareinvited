@@ -13,7 +13,7 @@ import {
 
 const NAV_LINKS = [
   { icon: 'dashboard', label: 'Dashboard', href: '/dashboard' },
-  { icon: 'group', label: 'Guest List', href: '#' },
+  // { icon: 'group', label: 'Guest List', href: '#' },
   { icon: 'brush', label: 'Design Studio', href: '/events/new' },
   { icon: 'card_giftcard', label: 'Registry', href: '#' },
   { icon: 'leaderboard', label: 'Analytics', href: '/analytics', active: true },
@@ -195,11 +195,10 @@ export default function AnalyticsPage() {
             <Link
               key={label}
               href={href}
-              className={`py-3 pl-8 flex items-center gap-3 transition-all ${
-                active
+              className={`py-3 pl-8 flex items-center gap-3 transition-all ${active
                   ? 'text-brand font-bold bg-white rounded-r-full'
                   : 'text-on-surface-variant hover:translate-x-1 hover:text-brand'
-              }`}
+                }`}
             >
               <span
                 className="material-symbols-outlined"
@@ -317,11 +316,10 @@ export default function AnalyticsPage() {
                 <Link
                   key={label}
                   href={href}
-                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold border transition-colors ${
-                    active
+                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold border transition-colors ${active
                       ? 'bg-brand text-white border-brand shadow-lg shadow-brand/15'
                       : 'bg-white/70 text-on-surface-variant border-outline-variant/10'
-                  }`}
+                    }`}
                 >
                   <span
                     className="material-symbols-outlined text-base"

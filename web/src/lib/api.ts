@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { getToken, setToken, clearToken } from './auth';
+import { isExpiredJwt } from './jwt';
 
 const LOCAL_BACKEND_URL = 'http://127.0.0.1:8000';
 const PRODUCTION_DIRECT_API_BASE_URL = 'https://backend.v0.youare-invited.com/api';
@@ -81,29 +82,21 @@ export const api = axios.create({
 });
 
 const AUTH_FREE_PATHS = ['/auth/login/', '/auth/register/', '/auth/refresh/'];
+let hasRedirectedForExpiredSession = false;
 
 const isAuthFreePath = (url?: string): boolean => {
   if (!url) return false;
   return AUTH_FREE_PATHS.some((path) => url.includes(path));
 };
 
-const isExpiredToken = (token: string): boolean => {
-  try {
-    const [, payload] = token.split('.');
-    if (!payload) return true;
-
-    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
-    const padded = normalized.padEnd(
-      normalized.length + ((4 - (normalized.length % 4)) % 4),
-      '='
-    );
-    const decoded = JSON.parse(atob(padded)) as { exp?: number };
-
-    if (typeof decoded.exp !== 'number') return true;
-    return decoded.exp * 1000 <= Date.now();
-  } catch {
-    return true;
+const redirectToSessionExpiredLogin = (): void => {
+  if (typeof window === 'undefined' || hasRedirectedForExpiredSession) {
+    return;
   }
+
+  hasRedirectedForExpiredSession = true;
+  const next = encodeURIComponent(`${window.location.pathname}${window.location.search}`);
+  window.location.href = `/login?reason=session-expired&next=${next}`;
 };
 
 // Attach JWT to every request
@@ -113,9 +106,10 @@ api.interceptors.request.use((config) => {
     return config;
   }
 
-  if (isExpiredToken(token)) {
+  if (isExpiredJwt(token)) {
     clearToken();
-    return config;
+    redirectToSessionExpiredLogin();
+    return Promise.reject(new axios.CanceledError('Session expired.'));
   }
 
   config.headers.Authorization = `Bearer ${token}`;
@@ -125,8 +119,12 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 && error.response?.data?.code === 'token_not_valid') {
+    if (
+      error.response?.status === 401 &&
+      !isAuthFreePath(error.config?.url)
+    ) {
       clearToken();
+      redirectToSessionExpiredLogin();
     }
     return Promise.reject(error);
   }
