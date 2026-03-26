@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import { buildApiUrl, resolveMediaUrl } from '@/lib/api';
@@ -21,6 +21,39 @@ interface PublicEventInfo {
   show_event_branding: boolean;
 }
 
+type DetectedBarcode = { rawValue?: string };
+type BarcodeDetectorInstance = {
+  detect: (source: ImageBitmapSource) => Promise<DetectedBarcode[]>;
+};
+type BarcodeDetectorCtor = new (options?: { formats?: string[] }) => BarcodeDetectorInstance;
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const extractInvitationId = (value: string): string | null => {
+  const trimmed = value.trim();
+  if (UUID_PATTERN.test(trimmed)) {
+    return trimmed;
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    const invitationId = parsed.searchParams.get('invitation');
+    if (invitationId && UUID_PATTERN.test(invitationId)) {
+      return invitationId;
+    }
+
+    const invitationMatch = parsed.pathname.match(/\/invitation\/([0-9a-f-]+)/i);
+    if (invitationMatch && UUID_PATTERN.test(invitationMatch[1])) {
+      return invitationMatch[1];
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+};
+
 // ── Inner component that uses useSearchParams ──────────────────────────────────
 function CheckInContent() {
   const params = useParams();
@@ -37,6 +70,15 @@ function CheckInContent() {
   const [guestError, setGuestError] = useState<string | null>(null);
   const [checkingIn, setCheckingIn] = useState(false);
   const [checkInError, setCheckInError] = useState<string | null>(null);
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [scannerSupported, setScannerSupported] = useState(true);
+  const [scannerStarting, setScannerStarting] = useState(false);
+  const [scannerError, setScannerError] = useState<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const detectorRef = useRef<BarcodeDetectorInstance | null>(null);
+  const scanFrameRef = useRef<number | null>(null);
+  const scanPendingRef = useRef(false);
 
   // Read token from sessionStorage on mount
   useEffect(() => {
@@ -64,6 +106,24 @@ function CheckInContent() {
     }
   }, [invitationParam, token]);
 
+  const stopScanner = useCallback(() => {
+    if (scanFrameRef.current !== null) {
+      cancelAnimationFrame(scanFrameRef.current);
+      scanFrameRef.current = null;
+    }
+    scanPendingRef.current = false;
+    detectorRef.current = null;
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    setScannerOpen(false);
+    setScannerStarting(false);
+  }, []);
+
   const loadGuest = useCallback(async (id: string) => {
     setGuestLoading(true);
     setGuestError(null);
@@ -85,6 +145,105 @@ function CheckInContent() {
       setGuestLoading(false);
     }
   }, []);
+
+  const scanForQrCode = useCallback(() => {
+    if (!videoRef.current || !detectorRef.current) {
+      return;
+    }
+
+    const scan = async () => {
+      if (!videoRef.current || !detectorRef.current) {
+        return;
+      }
+
+      if (videoRef.current.readyState >= 2 && !scanPendingRef.current) {
+        scanPendingRef.current = true;
+        try {
+          const barcodes = await detectorRef.current.detect(videoRef.current);
+          const match = barcodes
+            .map((barcode) => barcode.rawValue || '')
+            .map(extractInvitationId)
+            .find((candidate): candidate is string => !!candidate);
+
+          if (match) {
+            setInvitationInput(match);
+            setScannerError(null);
+            stopScanner();
+            loadGuest(match);
+            return;
+          }
+        } catch {
+          setScannerError('Could not read the QR code. Try moving closer or improving lighting.');
+        } finally {
+          scanPendingRef.current = false;
+        }
+      }
+
+      scanFrameRef.current = requestAnimationFrame(scan);
+    };
+
+    scanFrameRef.current = requestAnimationFrame(scan);
+  }, [loadGuest, stopScanner]);
+
+  const startScanner = useCallback(async () => {
+    setScannerError(null);
+    setScannerStarting(true);
+
+    if (
+      typeof window === 'undefined' ||
+      !navigator.mediaDevices?.getUserMedia
+    ) {
+      setScannerSupported(false);
+      setScannerStarting(false);
+      setScannerError('This browser does not support camera access for scanning.');
+      return;
+    }
+
+    const BarcodeDetectorApi = (
+      window as Window & { BarcodeDetector?: BarcodeDetectorCtor }
+    ).BarcodeDetector;
+
+    if (!BarcodeDetectorApi) {
+      setScannerSupported(false);
+      setScannerStarting(false);
+      setScannerError('QR scanning is not supported in this browser. Paste the invitation ID instead.');
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: 'environment' },
+        },
+        audio: false,
+      });
+
+      streamRef.current = stream;
+      detectorRef.current = new BarcodeDetectorApi({ formats: ['qr_code'] });
+      setScannerSupported(true);
+      setScannerOpen(true);
+      setScannerStarting(false);
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+
+      scanForQrCode();
+    } catch (error) {
+      setScannerStarting(false);
+      const message =
+        error instanceof DOMException && error.name === 'NotAllowedError'
+          ? 'Camera permission was denied. Allow camera access to scan QR codes.'
+          : 'Could not start the camera. Check permissions and try again.';
+      setScannerError(message);
+      stopScanner();
+    }
+  }, [scanForQrCode, stopScanner]);
+
+  useEffect(() => {
+    return () => stopScanner();
+  }, [stopScanner]);
 
   const handleCheckIn = async () => {
     if (!guest || !token) return;
@@ -122,6 +281,7 @@ function CheckInContent() {
   };
 
   const handleLogout = async () => {
+    stopScanner();
     sessionStorage.removeItem(`security_token_${eventId}`);
     await fetch('/api/auth/security/logout', {
       method: 'POST',
@@ -239,10 +399,58 @@ function CheckInContent() {
               ) : 'Load'}
             </button>
           </div>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => {
+                if (scannerOpen) {
+                  stopScanner();
+                  return;
+                }
+                startScanner();
+              }}
+              disabled={scannerStarting}
+              className="inline-flex items-center gap-2 rounded-full border border-outline-variant/30 bg-white/80 px-4 py-2 text-sm font-semibold text-on-surface hover:border-brand/30 hover:text-brand disabled:opacity-50 transition-colors"
+            >
+              <span className="material-symbols-outlined text-[18px]">
+                {scannerOpen ? 'videocam_off' : 'qr_code_scanner'}
+              </span>
+              {scannerStarting ? 'Starting camera…' : scannerOpen ? 'Stop Scanner' : 'Scan QR Code'}
+            </button>
+            {!scannerSupported && (
+              <p className="text-xs text-on-surface-variant">
+                QR scanning is not supported in this browser.
+              </p>
+            )}
+          </div>
+          {scannerOpen && (
+            <div className="mt-4 rounded-3xl border border-outline-variant/20 bg-on-lp-background p-3 text-white">
+              <div className="relative overflow-hidden rounded-2xl bg-black">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  muted
+                  playsInline
+                  className="h-72 w-full object-cover"
+                />
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                  <div className="h-44 w-44 rounded-[2rem] border-2 border-white/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.28)]" />
+                </div>
+              </div>
+              <p className="mt-3 text-xs text-white/75">
+                Align the guest QR code inside the frame. We will load the invitation automatically.
+              </p>
+            </div>
+          )}
           {guestError && (
             <p className="text-sm text-red-600 mt-2 flex items-center gap-1.5">
               <span className="material-symbols-outlined text-[16px]">error</span>
               {guestError}
+            </p>
+          )}
+          {scannerError && (
+            <p className="text-sm text-red-600 mt-2 flex items-center gap-1.5">
+              <span className="material-symbols-outlined text-[16px]">camera</span>
+              {scannerError}
             </p>
           )}
         </div>
