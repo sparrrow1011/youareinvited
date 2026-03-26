@@ -23,6 +23,10 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'res.cloudinary.com',
       },
+      {
+        protocol: 'https',
+        hostname: 'youareinvited-media.s3.amazonaws.com',
+      },
     ],
   },
   async redirects() {
