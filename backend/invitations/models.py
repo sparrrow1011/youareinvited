@@ -234,14 +234,16 @@ class Invitation(models.Model):
             h = int(zone['h_pct'] * height)
             return x, y, w, h
 
-        def fit_text(text, max_w, max_h):
+        def fit_text(text, max_w, max_h, scale=1.0):
             """Return (font, text_w, text_h) auto-sized to fill the zone box."""
-            size = max(max_h, 8)
+            size = max(int(max_h * scale), 8)
             font = load_font(size)
             bbox = draw.textbbox((0, 0), text, font=font)
             text_w, text_h = bbox[2] - bbox[0], bbox[3] - bbox[1]
-            if text_w > max_w:
-                size = max(int(size * max_w / text_w * 0.92), 8)
+            if text_w > max_w or text_h > max_h:
+                width_ratio = max_w / text_w if text_w else 1
+                height_ratio = max_h / text_h if text_h else 1
+                size = max(int(size * min(width_ratio, height_ratio) * 0.98), 8)
                 font = load_font(size)
                 bbox = draw.textbbox((0, 0), text, font=font)
                 text_w, text_h = bbox[2] - bbox[0], bbox[3] - bbox[1]
@@ -251,7 +253,7 @@ class Invitation(models.Model):
         nz = self.event.name_zone
         nx, ny, nw, nh = zone_to_pixels(nz)
         color = nz.get('color', '#ffffff')
-        font, text_w, text_h = fit_text(self.name, nw, nh)
+        font, text_w, text_h = fit_text(self.name, nw, nh, scale=1.2)
         draw.text(
             (nx + (nw - text_w) // 2, ny + (nh - text_h) // 2),
             self.name, fill=color, font=font,
@@ -262,7 +264,7 @@ class Invitation(models.Model):
         tx, ty, tw, th = zone_to_pixels(tz)
         tag_color = tz.get('color', '#a8dadc')
         tag_text = f"Category: {self.tag}"
-        tag_font, tag_text_w, tag_text_h = fit_text(tag_text, tw, th)
+        tag_font, tag_text_w, tag_text_h = fit_text(tag_text, tw, th, scale=1.14)
         draw.text(
             (tx + (tw - tag_text_w) // 2, ty + (th - tag_text_h) // 2),
             tag_text, fill=tag_color, font=tag_font,
@@ -312,11 +314,12 @@ class Invitation(models.Model):
 
         try:
             title_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 48)
-            name_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 40)
+            name_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 52)
             detail_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 28)
+            tag_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 34)
             small_font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 20)
         except Exception:
-            title_font = name_font = detail_font = small_font = ImageFont.load_default()
+            title_font = name_font = detail_font = tag_font = small_font = ImageFont.load_default()
 
         title = "YOU'RE INVITED"
         title_bbox = draw.textbbox((0, 0), title, font=title_font)
@@ -329,11 +332,11 @@ class Invitation(models.Model):
 
         seat_text = f"Seat Number: {self.seat_number}"
         seat_bbox = draw.textbbox((0, 0), seat_text, font=detail_font)
-        draw.text(((width - (seat_bbox[2] - seat_bbox[0])) / 2, 330), seat_text, fill='#a8dadc', font=detail_font)
+        draw.text(((width - (seat_bbox[2] - seat_bbox[0])) / 2, 345), seat_text, fill='#a8dadc', font=detail_font)
 
         tag_text = f"Category: {self.tag}"
-        tag_bbox = draw.textbbox((0, 0), tag_text, font=detail_font)
-        draw.text(((width - (tag_bbox[2] - tag_bbox[0])) / 2, 380), tag_text, fill='#a8dadc', font=detail_font)
+        tag_bbox = draw.textbbox((0, 0), tag_text, font=tag_font)
+        draw.text(((width - (tag_bbox[2] - tag_bbox[0])) / 2, 402), tag_text, fill='#a8dadc', font=tag_font)
 
         draw.line([(width / 2 - 150, 450), (width / 2 + 150, 450)], fill='#0f3460', width=2)
 
