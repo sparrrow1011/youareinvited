@@ -1,6 +1,10 @@
+from datetime import date
+
 import pytest
 from django.test import Client
 from django.contrib.auth.models import User
+
+from invitations.models import Event, Invitation
 
 
 @pytest.mark.django_db
@@ -73,3 +77,105 @@ def test_logout_blacklists_refresh_token(api_client, user):
     # Attempt to refresh with the blacklisted token — should fail
     refresh_response = api_client.post('/api/auth/refresh/', {'refresh': refresh_token}, format='json')
     assert refresh_response.status_code == 401
+
+
+@pytest.mark.django_db
+def test_me_returns_authenticated_user(auth_client, user):
+    user.first_name = 'Ada'
+    user.last_name = 'Lovelace'
+    user.profile.plan = 'pro'
+    user.profile.brand_name = 'Starlight Studio'
+    user.profile.show_branding_on_event_surfaces = True
+    user.save()
+    user.profile.save()
+
+    response = auth_client.get('/api/auth/me/')
+
+    assert response.status_code == 200
+    assert response.data['email'] == 'testuser@example.com'
+    assert response.data['username'] == 'testuser@example.com'
+    assert response.data['display_name'] == 'Ada Lovelace'
+    assert response.data['avatar_initial'] == 'T'
+    assert response.data['plan'] == 'pro'
+    assert response.data['brand_name'] == 'Starlight Studio'
+    assert response.data['show_event_branding'] is True
+
+
+@pytest.mark.django_db
+def test_me_requires_authentication(api_client):
+    response = api_client.get('/api/auth/me/')
+    assert response.status_code == 401
+
+
+@pytest.mark.django_db
+def test_account_settings_returns_profile_state(auth_client, user):
+    user.profile.brand_name = 'Starlight Events'
+    user.profile.default_whatsapp_message_template = 'Hello {{name}}'
+    user.profile.show_branding_on_event_surfaces = True
+    user.profile.watermark_override = True
+    user.profile.save()
+
+    response = auth_client.get('/api/auth/settings/')
+
+    assert response.status_code == 200
+    assert response.data['brand_name'] == 'Starlight Events'
+    assert response.data['default_whatsapp_message_template'] == 'Hello {{name}}'
+    assert response.data['show_event_branding'] is True
+    assert response.data['watermark_override'] is True
+
+
+@pytest.mark.django_db
+def test_account_settings_patch_updates_user_profile_and_password(auth_client, user):
+    response = auth_client.patch('/api/auth/settings/', {
+        'display_name': 'Nova Curator',
+        'brand_name': 'Golden Hour Studio',
+        'show_event_branding': True,
+        'default_whatsapp_message_template': 'See you soon, {{name}}',
+        'current_password': 'testpassword123',
+        'new_password': 'NewPass#12345',
+    }, format='json')
+
+    assert response.status_code == 200
+
+    user.refresh_from_db()
+    user.profile.refresh_from_db()
+    assert user.first_name == 'Nova'
+    assert user.last_name == 'Curator'
+    assert user.profile.brand_name == 'Golden Hour Studio'
+    assert user.profile.show_branding_on_event_surfaces is True
+    assert user.profile.default_whatsapp_message_template == 'See you soon, {{name}}'
+    assert user.check_password('NewPass#12345')
+
+
+@pytest.mark.django_db
+def test_account_settings_rejects_watermark_override_patch(auth_client):
+    response = auth_client.patch('/api/auth/settings/', {
+        'watermark_override': True,
+    }, format='json')
+
+    assert response.status_code == 400
+    assert response.data['watermark_override'] == ['Watermark access is controlled by superadmin.']
+
+
+@pytest.mark.django_db
+def test_export_account_data_returns_events_and_invitations(auth_client, user):
+    event = Event.objects.create(owner=user, name='Moonlight Gala', date=date(2026, 4, 1))
+    Invitation.objects.create(event=event, name='Ada', seat_number='A1', tag='VIP')
+
+    response = auth_client.get('/api/auth/export/')
+
+    assert response.status_code == 200
+    assert response.data['account']['email'] == 'testuser@example.com'
+    assert len(response.data['events']) == 1
+    assert len(response.data['invitations']) == 1
+    assert 'attachment;' in response['Content-Disposition']
+
+
+@pytest.mark.django_db
+def test_delete_account_removes_authenticated_user(auth_client, user):
+    response = auth_client.delete('/api/auth/delete/', {
+        'password': 'testpassword123',
+    }, format='json')
+
+    assert response.status_code == 204
+    assert not User.objects.filter(pk=user.pk).exists()

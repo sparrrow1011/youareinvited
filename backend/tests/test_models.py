@@ -12,13 +12,28 @@ def test_userprofile_created_on_user_creation():
     )
     assert hasattr(user, 'profile')
     assert user.profile.plan == 'free'
+    assert user.profile.show_branding_on_event_surfaces is False
     assert user.profile.watermark_override is False
 
 
 @pytest.mark.django_db
 def test_userprofile_defaults_to_free_plan(user):
     assert user.profile.plan == 'free'
+    assert user.profile.show_branding_on_event_surfaces is False
     assert user.profile.watermark_override is False
+
+
+@pytest.mark.django_db
+def test_userprofile_uses_event_branding_only_with_toggle_and_brand(user):
+    assert user.profile.uses_event_branding() is False
+
+    user.profile.brand_name = 'Golden Hour'
+    user.profile.save()
+    assert user.profile.uses_event_branding() is False
+
+    user.profile.show_branding_on_event_surfaces = True
+    user.profile.save()
+    assert user.profile.uses_event_branding() is True
 
 
 @pytest.mark.django_db
@@ -59,6 +74,54 @@ def test_invitation_can_have_event(user, monkeypatch):
     )
     assert invitation.event == event
     assert invitation.event.owner == user
+
+
+@pytest.mark.django_db
+def test_invitation_record_view_updates_counts_and_timestamps(user, monkeypatch):
+    monkeypatch.setattr(Invitation, 'generate_qr_code', lambda self: None)
+    monkeypatch.setattr(Invitation, 'generate_e_invite', lambda self, **kwargs: None)
+    event = Event.objects.create(owner=user, name='Analytics Event', date='2026-06-01')
+    invitation = Invitation.objects.create(
+        name='View Guest',
+        seat_number='A2',
+        tag='VIP',
+        event=event,
+    )
+
+    invitation.record_view()
+    invitation.refresh_from_db()
+    first_viewed_at = invitation.first_viewed_at
+
+    assert invitation.view_count == 1
+    assert invitation.first_viewed_at is not None
+    assert invitation.last_viewed_at is not None
+
+    invitation.record_view()
+    invitation.refresh_from_db()
+
+    assert invitation.view_count == 2
+    assert invitation.first_viewed_at == first_viewed_at
+    assert invitation.last_viewed_at >= first_viewed_at
+
+
+@pytest.mark.django_db
+def test_invitation_record_share_tracks_whatsapp_and_link(user, monkeypatch):
+    monkeypatch.setattr(Invitation, 'generate_qr_code', lambda self: None)
+    monkeypatch.setattr(Invitation, 'generate_e_invite', lambda self, **kwargs: None)
+    event = Event.objects.create(owner=user, name='Share Event', date='2026-06-01')
+    invitation = Invitation.objects.create(
+        name='Share Guest',
+        seat_number='B4',
+        tag='Friends',
+        event=event,
+    )
+
+    invitation.record_share('whatsapp')
+    invitation.record_share('link')
+    invitation.refresh_from_db()
+
+    assert invitation.whatsapp_share_count == 1
+    assert invitation.link_share_count == 1
 
 
 @pytest.mark.django_db

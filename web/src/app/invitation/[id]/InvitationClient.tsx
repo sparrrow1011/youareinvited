@@ -7,9 +7,10 @@ import Image from 'next/image';
 export default function InvitationClient({ id }: { id: string }) {
   const [invitation, setInvitation] = useState<Invitation | null>(null);
   const [loading, setLoading] = useState(true);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    invitationService.getById(id)
+    invitationService.getById(id, { trackView: true })
       .then(setInvitation)
       .catch(() => {/* stay null */})
       .finally(() => setLoading(false));
@@ -17,7 +18,21 @@ export default function InvitationClient({ id }: { id: string }) {
 
   const handleShareWhatsApp = () => {
     if (!invitation) return;
+    invitationService.trackShare(invitation.id, 'whatsapp').catch(() => undefined);
     window.open(invitation.whatsapp_share_url, '_blank');
+  };
+
+  const handleCopyLink = async () => {
+    if (!invitation) return;
+
+    try {
+      await navigator.clipboard.writeText(invitation.invitation_url);
+      setCopied(true);
+      invitationService.trackShare(invitation.id, 'link').catch(() => undefined);
+      window.setTimeout(() => setCopied(false), 2200);
+    } catch {
+      setCopied(false);
+    }
   };
 
   const handleDownloadInvite = () => {
@@ -50,9 +65,9 @@ export default function InvitationClient({ id }: { id: string }) {
   // ── Not found ──────────────────────────────────────────────────────────────
   if (!invitation) {
     return (
-      <div className="min-h-screen bg-lp-background flex items-center justify-center px-6">
+      <div className="min-h-screen bg-lp-background flex items-center justify-center px-4 sm:px-6">
         <Aurora />
-        <div className="bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-2xl p-10 max-w-sm w-full text-center">
+        <div className="bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-2xl p-6 sm:p-10 max-w-sm w-full text-center">
           <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-5">
             <span className="material-symbols-outlined text-red-400 text-3xl">sentiment_dissatisfied</span>
           </div>
@@ -66,20 +81,40 @@ export default function InvitationClient({ id }: { id: string }) {
   }
 
   const checkedIn = invitation.checked_in;
+  const showEventBranding = invitation.show_event_branding;
+  const publicBrandName = invitation.brand_name?.trim() || '';
+  const publicBrandLogoUrl = resolveMediaUrl(invitation.brand_logo_url);
+  const publicBrandLabel = publicBrandName || invitation.event_name || 'Event Host';
 
   return (
     <div className="min-h-screen bg-lp-background">
       <Aurora />
 
       {/* ── Top wordmark ──────────────────────────────────────────────────── */}
-      <header className="flex justify-center pt-8 pb-0">
-        <span className="font-headline italic text-brand text-xl tracking-tight select-none">
-          youareinvited
-        </span>
+      <header className="flex justify-center pt-6 sm:pt-8 pb-0 px-4">
+        {showEventBranding ? (
+          <div className="inline-flex items-center gap-3 rounded-full border border-white/50 bg-white/75 px-4 py-2 shadow-sm backdrop-blur-xl">
+            {publicBrandLogoUrl && (
+              <img
+                src={publicBrandLogoUrl}
+                alt={`${publicBrandLabel} logo`}
+                className="h-9 w-9 rounded-2xl object-cover border border-white/60 bg-white"
+              />
+            )}
+            <div className="text-left">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-on-surface-variant">Presented by</p>
+              <p className="text-sm font-semibold text-on-lp-background">{publicBrandLabel}</p>
+            </div>
+          </div>
+        ) : (
+          <span className="font-headline italic text-brand text-xl tracking-tight select-none">
+            youareinvited
+          </span>
+        )}
       </header>
 
       {/* ── Main content ──────────────────────────────────────────────────── */}
-      <main className="flex flex-col items-center px-5 py-10 gap-5 max-w-lg mx-auto">
+      <main className="flex flex-col items-center px-4 sm:px-5 py-8 sm:py-10 gap-5 max-w-lg mx-auto">
 
         {/* E-invite image — hero */}
         {invitation.e_invite_image && (
@@ -96,11 +131,11 @@ export default function InvitationClient({ id }: { id: string }) {
         )}
 
         {/* Guest details card */}
-        <div className="w-full bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-xl p-6">
+        <div className="w-full bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-xl p-5 sm:p-6">
           {/* Name */}
           <div className="mb-5 text-center">
             <p className="text-xs font-label font-semibold text-brand uppercase tracking-widest mb-1">Guest</p>
-            <h1 className="font-headline text-3xl text-on-lp-background">{invitation.name}</h1>
+            <h1 className="font-headline text-2xl sm:text-3xl text-on-lp-background">{invitation.name}</h1>
           </div>
 
           {/* Seat + Tag badges */}
@@ -149,7 +184,7 @@ export default function InvitationClient({ id }: { id: string }) {
 
         {/* QR code card */}
         {invitation.qr_code && (
-          <div className="w-full bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-xl p-6">
+          <div className="w-full bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-xl p-5 sm:p-6">
             <p className="text-xs font-label font-semibold text-brand uppercase tracking-widest mb-4 text-center">Your QR Code</p>
             <div className="flex justify-center">
               <div className="bg-white rounded-2xl p-4 shadow-md border border-outline-variant/20">
@@ -168,7 +203,7 @@ export default function InvitationClient({ id }: { id: string }) {
         )}
 
         {/* Action buttons */}
-        <div className="w-full grid grid-cols-2 gap-3">
+        <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-3">
           <button
             onClick={handleShareWhatsApp}
             className="flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#1ebe5c] active:bg-[#19a850] text-white font-semibold text-sm py-3 px-4 rounded-2xl transition-colors shadow-md"
@@ -178,6 +213,15 @@ export default function InvitationClient({ id }: { id: string }) {
               <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
             </svg>
             WhatsApp
+          </button>
+          <button
+            onClick={handleCopyLink}
+            className="flex items-center justify-center gap-2 bg-brand hover:bg-brand-dim active:bg-brand/90 text-white font-semibold text-sm py-3 px-4 rounded-2xl transition-colors shadow-md"
+          >
+            <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+              {copied ? 'check' : 'link'}
+            </span>
+            {copied ? 'Copied' : 'Copy Link'}
           </button>
           <button
             onClick={handleDownloadInvite}
@@ -191,7 +235,12 @@ export default function InvitationClient({ id }: { id: string }) {
       </main>
 
       {/* ── Footer ────────────────────────────────────────────────────────── */}
-      <footer className="text-center pb-10 px-6">
+      <footer className="text-center pb-8 sm:pb-10 px-4 sm:px-6">
+        {showEventBranding && (
+          <p className="text-xs text-on-surface-variant mb-1">
+            Hosted by <span className="font-semibold text-on-lp-background">{publicBrandLabel}</span>
+          </p>
+        )}
         <p className="text-xs text-on-surface-variant">
           Powered by <span className="font-semibold text-brand">youareinvited</span>
         </p>

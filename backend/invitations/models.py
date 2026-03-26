@@ -1,10 +1,13 @@
 from django.db import models
+from django.db.models import F
 import uuid
 import logging
 import qrcode
 from io import BytesIO
 from django.conf import settings
 from django.core.files import File
+from django.utils.text import slugify
+from django.utils import timezone
 from PIL import Image, ImageDraw, ImageFont
 from django.contrib.auth.models import User
 from django.db.models.signals import post_save
@@ -13,16 +16,53 @@ from django.dispatch import receiver
 logger = logging.getLogger(__name__)
 
 
+def user_brand_logo_path(instance, filename):
+    ext = filename.rsplit('.', 1)[-1] if '.' in filename else 'png'
+    username = instance.user.username.split('@', 1)[0] if instance.user.username else str(instance.user_id)
+    return f"{slugify(username) or instance.user_id}/profile/brand-logo.{ext}"
+
+
+def _safe_username(user):
+    """Return a slugified, filesystem-safe version of the username."""
+    raw = user.username.split('@', 1)[0] if user.username else str(user.pk)
+    return slugify(raw) or str(user.pk)
+
+
+def event_template_path(instance, filename):
+    ext = filename.rsplit('.', 1)[-1] if '.' in filename else 'jpg'
+    return f"{_safe_username(instance.owner)}/{slugify(instance.name)}/template/background.{ext}"
+
+
+def invitation_qr_path(instance, filename):
+    owner = instance.event.owner
+    return f"{_safe_username(owner)}/{slugify(instance.event.name)}/qr/{instance.id}.png"
+
+
+def invitation_einvite_path(instance, filename):
+    owner = instance.event.owner
+    return f"{_safe_username(owner)}/{slugify(instance.event.name)}/invites/{instance.id}.png"
+
+
 class UserProfile(models.Model):
     PLAN_CHOICES = [('free', 'Free'), ('pro', 'Pro')]
 
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     plan = models.CharField(max_length=10, choices=PLAN_CHOICES, default='free')
+    brand_name = models.CharField(max_length=120, blank=True, default='')
+    brand_logo = models.ImageField(upload_to=user_brand_logo_path, blank=True, null=True)
+    show_branding_on_event_surfaces = models.BooleanField(default=False)
     watermark_override = models.BooleanField(default=False)
+    default_whatsapp_message_template = models.CharField(max_length=500, blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.user.email} ({self.plan})"
+
+    def has_brand_identity(self):
+        return bool(self.brand_name.strip() or self.brand_logo)
+
+    def uses_event_branding(self):
+        return self.show_branding_on_event_surfaces and self.has_brand_identity()
 
 
 @receiver(post_save, sender=User)
@@ -38,7 +78,7 @@ class Event(models.Model):
     date = models.DateField()
     description = models.CharField(max_length=500, blank=True, default='')
     background_image = models.ImageField(
-        upload_to='event_invitation/templates/', blank=True, null=True
+        upload_to=event_template_path, blank=True, null=True
     )
     qr_zone = models.JSONField(null=True, blank=True)
     name_zone = models.JSONField(null=True, blank=True)
@@ -72,8 +112,13 @@ class Invitation(models.Model):
     name = models.CharField(max_length=200)
     seat_number = models.CharField(max_length=50)
     tag = models.CharField(max_length=100)
-    qr_code = models.ImageField(upload_to='event_invitation/qr_codes/', blank=True)
-    e_invite_image = models.ImageField(upload_to='event_invitation/e_invites/', blank=True)
+    qr_code = models.ImageField(upload_to=invitation_qr_path, blank=True)
+    e_invite_image = models.ImageField(upload_to=invitation_einvite_path, blank=True)
+    view_count = models.PositiveIntegerField(default=0)
+    first_viewed_at = models.DateTimeField(null=True, blank=True)
+    last_viewed_at = models.DateTimeField(null=True, blank=True)
+    whatsapp_share_count = models.PositiveIntegerField(default=0)
+    link_share_count = models.PositiveIntegerField(default=0)
     checked_in = models.BooleanField(default=False)
     checked_in_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -81,6 +126,11 @@ class Invitation(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['event', 'checked_in']),
+            models.Index(fields=['event', 'first_viewed_at']),
+            models.Index(fields=['event', 'checked_in_at']),
+        ]
 
     def __str__(self):
         return f"{self.name} - Seat {self.seat_number}"
@@ -114,6 +164,26 @@ class Invitation(models.Model):
         filename = f'qr_{self.id}.png'
         self.qr_code.save(filename, File(buffer), save=False)
         buffer.close()
+
+    def record_view(self):
+        now = timezone.now()
+        updates = {
+            'view_count': F('view_count') + 1,
+            'last_viewed_at': now,
+        }
+        if not self.first_viewed_at:
+            updates['first_viewed_at'] = now
+
+        type(self).objects.filter(pk=self.pk).update(**updates)
+        self.refresh_from_db(fields=['view_count', 'first_viewed_at', 'last_viewed_at'])
+
+    def record_share(self, channel: str):
+        if channel not in {'whatsapp', 'link'}:
+            raise ValueError('Unsupported share channel.')
+
+        share_field = 'whatsapp_share_count' if channel == 'whatsapp' else 'link_share_count'
+        type(self).objects.filter(pk=self.pk).update(**{share_field: F(share_field) + 1})
+        self.refresh_from_db(fields=[share_field])
 
     def generate_e_invite(self, show_watermark: bool = True):
         """Generate e-invite image. Uses uploaded template if available, else dark-theme card."""
@@ -227,6 +297,7 @@ class Invitation(models.Model):
         width, height = 800, 1200
         img = Image.new('RGB', (width, height), color='#1a1a2e')
         draw = ImageDraw.Draw(img)
+        profile = getattr(getattr(self.event, 'owner', None), 'profile', None) if self.event_id else None
 
         border_width = 20
         draw.rectangle(
@@ -279,6 +350,60 @@ class Invitation(models.Model):
         scan_text = "Scan to view your invitation"
         scan_bbox = draw.textbbox((0, 0), scan_text, font=small_font)
         draw.text(((width - (scan_bbox[2] - scan_bbox[0])) / 2, 870), scan_text, fill='#ffffff', font=small_font)
+
+        if profile and profile.uses_event_branding():
+            brand_name = profile.brand_name.strip()
+            badge_y = 935
+            badge_h = 78
+            logo_size = 44
+            gap = 16
+            horizontal_padding = 22
+            text_w = 0
+            logo_img = None
+
+            if profile.brand_logo:
+                try:
+                    logo_img = self._open_storage_image(profile.brand_logo).convert('RGBA')
+                    logo_img.thumbnail((logo_size, logo_size))
+                except Exception as e:
+                    logger.error("Error loading organizer brand logo for invitation %s: %s", self.id, e)
+                    logo_img = None
+
+            if brand_name:
+                brand_bbox = draw.textbbox((0, 0), brand_name, font=small_font)
+                text_w = brand_bbox[2] - brand_bbox[0]
+
+            content_w = text_w
+            if logo_img:
+                content_w += logo_img.width
+            if logo_img and brand_name:
+                content_w += gap
+
+            badge_w = max(content_w + horizontal_padding * 2, 160)
+            badge_x = int((width - badge_w) / 2)
+            draw.rounded_rectangle(
+                [badge_x, badge_y, badge_x + badge_w, badge_y + badge_h],
+                radius=28,
+                fill='#16213e',
+                outline='#2b4672',
+                width=2,
+            )
+
+            content_x = badge_x + int((badge_w - content_w) / 2)
+            if logo_img:
+                logo_y = badge_y + int((badge_h - logo_img.height) / 2)
+                img.paste(logo_img, (content_x, logo_y), logo_img)
+                content_x += logo_img.width + (gap if brand_name else 0)
+
+            if brand_name:
+                text_bbox = draw.textbbox((0, 0), brand_name, font=small_font)
+                text_h = text_bbox[3] - text_bbox[1]
+                draw.text(
+                    (content_x, badge_y + int((badge_h - text_h) / 2)),
+                    brand_name,
+                    fill='#f3f6fb',
+                    font=small_font,
+                )
 
         if show_watermark:
             footer_text = "Made with YouAreInvited.com"

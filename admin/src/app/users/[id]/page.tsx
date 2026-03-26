@@ -14,6 +14,7 @@ export default function UserDetailPage() {
   const [events, setEvents] = useState<UserEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
   const [editPlan, setEditPlan] = useState<'free' | 'pro'>('free');
   const [editWatermark, setEditWatermark] = useState(false);
   const [confirmEmail, setConfirmEmail] = useState('');
@@ -33,6 +34,7 @@ export default function UserDetailPage() {
         }
         setEvents(ev);
       })
+      .catch(() => setError('Could not load this user. Check the admin backend URL and staff authentication.'))
       .finally(() => setLoading(false));
   }, [id]);
 
@@ -87,6 +89,12 @@ export default function UserDetailPage() {
             {user.plan.toUpperCase()}
           </span>
         </div>
+
+        {error && (
+          <div className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+            {error}
+          </div>
+        )}
 
         {/* Edit section */}
         <div className="bg-secondary rounded-xl p-6 mb-6">

@@ -3,16 +3,41 @@ from rest_framework import serializers
 from .models import Invitation
 
 
+def _public_brand_payload(profile):
+    if not profile or not profile.uses_event_branding():
+        return {
+            'show_event_branding': False,
+            'brand_name': '',
+            'brand_logo_url': None,
+        }
+
+    try:
+        brand_logo_url = profile.brand_logo.url if profile.brand_logo else None
+    except ValueError:
+        brand_logo_url = None
+
+    return {
+        'show_event_branding': True,
+        'brand_name': profile.brand_name,
+        'brand_logo_url': brand_logo_url,
+    }
+
+
 class InvitationSerializer(serializers.ModelSerializer):
     event = serializers.UUIDField(source='event_id', read_only=True)
+    event_name = serializers.CharField(source='event.name', read_only=True)
     invitation_url = serializers.SerializerMethodField()
     whatsapp_share_url = serializers.SerializerMethodField()
+    brand_name = serializers.SerializerMethodField()
+    brand_logo_url = serializers.SerializerMethodField()
+    show_event_branding = serializers.SerializerMethodField()
 
     class Meta:
         model = Invitation
         fields = [
             'id',
             'event',
+            'event_name',
             'name',
             'seat_number',
             'tag',
@@ -24,6 +49,9 @@ class InvitationSerializer(serializers.ModelSerializer):
             'updated_at',
             'invitation_url',
             'whatsapp_share_url',
+            'brand_name',
+            'brand_logo_url',
+            'show_event_branding',
         ]
         read_only_fields = [
             'id', 'event', 'qr_code', 'e_invite_image',
@@ -37,21 +65,41 @@ class InvitationSerializer(serializers.ModelSerializer):
         import urllib.parse
         invitation_url = obj.get_invitation_url()
         template = obj.event.whatsapp_message_template if obj.event_id else ''
+        profile = getattr(obj.event.owner, 'profile', None) if obj.event_id else None
+        brand_payload = _public_brand_payload(profile)
         if template:
             message = (
                 template
+                .replace('{{brand_name}}', brand_payload['brand_name'])
                 .replace('{{name}}', obj.name)
                 .replace('{{seat_number}}', obj.seat_number)
                 .replace('{{tag}}', obj.tag)
                 .replace('{{link}}', invitation_url)
             )
         else:
+            greeting = (
+                f"{brand_payload['brand_name']} invited you! 🎉"
+                if brand_payload['show_event_branding'] and brand_payload['brand_name']
+                else "You're invited! 🎉"
+            )
             message = (
-                f"You're invited! 🎉\n\n"
+                f"{greeting}\n\n"
                 f"Name: {obj.name}\nSeat: {obj.seat_number}\n\n"
                 f"View your invitation: {invitation_url}"
             )
         return f"https://wa.me/?text={urllib.parse.quote(message)}"
+
+    def get_brand_name(self, obj):
+        profile = getattr(obj.event.owner, 'profile', None) if obj.event_id else None
+        return _public_brand_payload(profile)['brand_name']
+
+    def get_brand_logo_url(self, obj):
+        profile = getattr(obj.event.owner, 'profile', None) if obj.event_id else None
+        return _public_brand_payload(profile)['brand_logo_url']
+
+    def get_show_event_branding(self, obj):
+        profile = getattr(obj.event.owner, 'profile', None) if obj.event_id else None
+        return _public_brand_payload(profile)['show_event_branding']
 
 
 class InvitationCreateSerializer(serializers.ModelSerializer):

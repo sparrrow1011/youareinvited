@@ -1,7 +1,8 @@
 import pytest
 from django.contrib.auth.models import User
 from django.test import override_settings
-from invitations.models import Event
+from django.utils import timezone
+from invitations.models import Event, Invitation
 
 
 @pytest.mark.django_db
@@ -67,7 +68,6 @@ def test_stats_scoped_to_owner(auth_client, user, other_user, monkeypatch):
 
 @pytest.mark.django_db
 def test_create_invitation_requires_event(auth_client, user, monkeypatch):
-    from invitations.models import Invitation
     monkeypatch.setattr(Invitation, 'generate_qr_code', lambda self: None)
     monkeypatch.setattr(Invitation, 'generate_e_invite', lambda self, **kwargs: None)
     event = Event.objects.create(owner=user, name='Test', date='2026-06-01')
@@ -96,28 +96,25 @@ def make_upload_file():
 
 
 @pytest.mark.django_db
-def test_upload_template_saves_zones(auth_client, user, monkeypatch):
+def test_upload_template_saves_zones(auth_client, user, tmp_path):
+    """Template upload saves zone JSON — uses local filesystem storage."""
     event = Event.objects.create(owner=user, name='Test', date='2026-06-01')
-    # Monkeypatch Cloudinary storage to avoid real uploads
-    monkeypatch.setattr(
-        'cloudinary_storage.storage.MediaCloudinaryStorage.save',
-        lambda self, name, content, max_length=None: f'event_invitation/templates/{name}'
-    )
-    monkeypatch.setattr(
-        'cloudinary_storage.storage.MediaCloudinaryStorage.url',
-        lambda self, name: f'https://res.cloudinary.com/test/{name}'
-    )
+    local_storage = {
+        'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+        'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+    }
     payload = {
         'background_image': make_upload_file(),
         'qr_zone': '{"x_pct": 0.3, "y_pct": 0.4, "w_pct": 0.4, "h_pct": 0.25}',
         'name_zone': '{"x_pct": 0.1, "y_pct": 0.2, "w_pct": 0.8, "h_pct": 0.1, "font_size": 40, "color": "#fff"}',
         'tag_zone': '{"x_pct": 0.1, "y_pct": 0.32, "w_pct": 0.8, "h_pct": 0.08, "font_size": 28, "color": "#a8dadc"}',
     }
-    response = auth_client.patch(
-        f'/api/events/{event.id}/',
-        payload,
-        format='multipart'
-    )
+    with override_settings(STORAGES=local_storage, MEDIA_ROOT=tmp_path, MEDIA_URL='/media/'):
+        response = auth_client.patch(
+            f'/api/events/{event.id}/',
+            payload,
+            format='multipart'
+        )
     assert response.status_code == 200
     event.refresh_from_db()
     assert event.qr_zone is not None
@@ -126,6 +123,7 @@ def test_upload_template_saves_zones(auth_client, user, monkeypatch):
 
 @pytest.mark.django_db
 def test_upload_template_works_with_local_file_storage(auth_client, user, tmp_path):
+    """Template upload stores file at username/event-slug/template/ path."""
     event = Event.objects.create(owner=user, name='Local Media Event', date='2026-06-01')
     payload = {
         'background_image': make_upload_file(),
@@ -145,14 +143,40 @@ def test_upload_template_works_with_local_file_storage(auth_client, user, tmp_pa
             format='multipart'
         )
 
+    from django.utils.text import slugify
+    safe_username = slugify(user.username.split('@', 1)[0])
     assert response.status_code == 200
-    assert '/media/event_invitation/templates/' in response.data['background_image']
     event.refresh_from_db()
-    assert event.background_image.name.startswith('event_invitation/templates/')
+    # Path follows safe-username/event-slug/template/ structure
+    assert f'{safe_username}/' in event.background_image.name
+    assert '/template/' in event.background_image.name
+
+
+@pytest.mark.django_db
+def test_upload_template_returns_400_on_vercel_without_s3(auth_client, user):
+    """Template upload on Vercel without S3 returns 400."""
+    event = Event.objects.create(owner=user, name='Vercel Event', date='2026-06-01')
+    payload = {
+        'background_image': make_upload_file(),
+        'qr_zone': '{"x_pct": 0.3, "y_pct": 0.4, "w_pct": 0.4, "h_pct": 0.25}',
+        'name_zone': '{"x_pct": 0.1, "y_pct": 0.2, "w_pct": 0.8, "h_pct": 0.1, "font_size": 40, "color": "#fff"}',
+        'tag_zone': '{"x_pct": 0.1, "y_pct": 0.32, "w_pct": 0.8, "h_pct": 0.08, "font_size": 28, "color": "#a8dadc"}',
+    }
+
+    with override_settings(IS_VERCEL=True, USE_S3_STORAGE=False):
+        response = auth_client.patch(
+            f'/api/events/{event.id}/',
+            payload,
+            format='multipart'
+        )
+
+    assert response.status_code == 400
+    assert 'S3' in response.data['detail']
 
 
 @pytest.mark.django_db
 def test_create_invitation_with_local_template_returns_201(auth_client, user, tmp_path):
+    """Creating an invitation generates QR and e-invite at the S3-style path structure."""
     local_storage = {
         'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
         'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
@@ -176,9 +200,31 @@ def test_create_invitation_with_local_template_returns_201(auth_client, user, tm
             'event': str(event.id),
         }, format='json')
 
+    from django.utils.text import slugify
+    safe_username = slugify(user.username.split('@', 1)[0])
     assert response.status_code == 201
-    assert '/media/event_invitation/qr_codes/' in response.data['qr_code']
-    assert '/media/event_invitation/e_invites/' in response.data['e_invite_image']
+    # Paths follow safe-username/event-slug/qr/ and /invites/ structure
+    assert f'/media/{safe_username}/' in response.data['qr_code']
+    assert '/qr/' in response.data['qr_code']
+    assert f'/media/{safe_username}/' in response.data['e_invite_image']
+    assert '/invites/' in response.data['e_invite_image']
+
+
+@pytest.mark.django_db
+def test_create_invitation_returns_400_on_vercel_without_s3(auth_client, user):
+    """Creating an invitation on Vercel without S3 configured returns 400."""
+    event = Event.objects.create(owner=user, name='Needs Media Storage', date='2026-06-01')
+
+    with override_settings(IS_VERCEL=True, USE_S3_STORAGE=False):
+        response = auth_client.post('/api/invitations/', {
+            'name': 'Jane Doe',
+            'seat_number': 'B2',
+            'tag': 'Family',
+            'event': str(event.id),
+        }, format='json')
+
+    assert response.status_code == 400
+    assert 'S3' in response.data['detail']
 
 
 @pytest.mark.django_db
@@ -224,3 +270,133 @@ def test_bulk_import_still_rejects_blank_name(auth_client, user, monkeypatch):
     assert response.data["created"] == 0
     assert len(response.data["errors"]) == 1
     assert "name is required" in response.data["errors"][0].lower()
+
+
+@pytest.mark.django_db
+def test_public_event_info_includes_brand_only_when_enabled(api_client, user):
+    user.profile.brand_name = 'Golden Hour Studio'
+    user.profile.show_branding_on_event_surfaces = True
+    user.profile.save()
+    event = Event.objects.create(owner=user, name='Public Event', date='2026-07-01')
+
+    response = api_client.get(f'/api/events/{event.id}/public_info/')
+
+    assert response.status_code == 200
+    assert response.data['brand_name'] == 'Golden Hour Studio'
+    assert response.data['show_event_branding'] is True
+
+
+@pytest.mark.django_db
+def test_public_invitation_hides_brand_when_disabled(api_client, user, monkeypatch):
+    user.profile.brand_name = 'Golden Hour Studio'
+    user.profile.show_branding_on_event_surfaces = False
+    user.profile.save()
+    monkeypatch.setattr(Invitation, 'generate_qr_code', lambda self: None)
+    monkeypatch.setattr(Invitation, 'generate_e_invite', lambda self, **kwargs: None)
+    event = Event.objects.create(owner=user, name='Hidden Brand Event', date='2026-06-01')
+    invitation = Invitation.objects.create(name='Guest', seat_number='A1', tag='VIP', event=event)
+
+    response = api_client.get(f'/api/invitations/{invitation.id}/')
+
+    assert response.status_code == 200
+    assert response.data['show_event_branding'] is False
+    assert response.data['brand_name'] == ''
+
+
+@pytest.mark.django_db
+def test_public_invitation_tracks_views_only_when_requested(api_client, user, monkeypatch):
+    monkeypatch.setattr(Invitation, 'generate_qr_code', lambda self: None)
+    monkeypatch.setattr(Invitation, 'generate_e_invite', lambda self, **kwargs: None)
+    event = Event.objects.create(owner=user, name='View Event', date='2026-06-01')
+    invitation = Invitation.objects.create(name='Viewed Guest', seat_number='A1', tag='VIP', event=event)
+
+    api_client.get(f'/api/invitations/{invitation.id}/')
+    invitation.refresh_from_db()
+    assert invitation.view_count == 0
+
+    response = api_client.get(f'/api/invitations/{invitation.id}/?track_view=1')
+    invitation.refresh_from_db()
+
+    assert response.status_code == 200
+    assert invitation.view_count == 1
+    assert invitation.first_viewed_at is not None
+    assert invitation.last_viewed_at is not None
+
+
+@pytest.mark.django_db
+def test_track_share_updates_channel_counts(api_client, user, monkeypatch):
+    monkeypatch.setattr(Invitation, 'generate_qr_code', lambda self: None)
+    monkeypatch.setattr(Invitation, 'generate_e_invite', lambda self, **kwargs: None)
+    event = Event.objects.create(owner=user, name='Share Event', date='2026-06-01')
+    invitation = Invitation.objects.create(name='Shared Guest', seat_number='A3', tag='VIP', event=event)
+
+    response = api_client.post(
+        f'/api/invitations/{invitation.id}/track_share/',
+        {'channel': 'whatsapp'},
+        format='json',
+    )
+
+    assert response.status_code == 200
+    invitation.refresh_from_db()
+    assert invitation.whatsapp_share_count == 1
+    assert invitation.link_share_count == 0
+
+
+@pytest.mark.django_db
+def test_analytics_returns_core_metrics(auth_client, user, monkeypatch):
+    monkeypatch.setattr(Invitation, 'generate_qr_code', lambda self: None)
+    monkeypatch.setattr(Invitation, 'generate_e_invite', lambda self, **kwargs: None)
+    primary_event = Event.objects.create(owner=user, name='Primary Event', date='2026-06-01')
+    secondary_event = Event.objects.create(owner=user, name='Secondary Event', date='2026-07-01')
+
+    first = Invitation.objects.create(name='Ada', seat_number='A1', tag='VIP', event=primary_event)
+    second = Invitation.objects.create(name='Ben', seat_number='A2', tag='', event=primary_event)
+    third = Invitation.objects.create(name='Cleo', seat_number='B1', tag='General', event=secondary_event)
+
+    now = timezone.now()
+    Invitation.objects.filter(pk=first.pk).update(
+        view_count=2,
+        first_viewed_at=now,
+        last_viewed_at=now,
+        whatsapp_share_count=1,
+        checked_in=True,
+        checked_in_at=now,
+    )
+    Invitation.objects.filter(pk=second.pk).update(
+        view_count=1,
+        first_viewed_at=now,
+        last_viewed_at=now,
+        link_share_count=2,
+    )
+
+    response = auth_client.get('/api/invitations/analytics/')
+
+    assert response.status_code == 200
+    assert response.data['totals']['invitations_sent'] == 3
+    assert response.data['totals']['invitation_opens'] == 3
+    assert response.data['totals']['viewed_invitations'] == 2
+    assert response.data['totals']['whatsapp_shares'] == 1
+    assert response.data['totals']['link_shares'] == 2
+    assert response.data['totals']['checked_in'] == 1
+    assert response.data['totals']['pending'] == 2
+    assert response.data['funnel']['created'] == 3
+    assert response.data['funnel']['viewed'] == 2
+    assert response.data['funnel']['arrived'] == 1
+    assert response.data['event_comparison'][0]['event_name'] == 'Primary Event'
+    assert any(row['tag'] == 'VIP' for row in response.data['tag_breakdown'])
+    assert any(row['tag'] == 'Uncategorized' for row in response.data['tag_breakdown'])
+
+
+@pytest.mark.django_db
+def test_analytics_export_returns_csv(auth_client, user, monkeypatch):
+    monkeypatch.setattr(Invitation, 'generate_qr_code', lambda self: None)
+    monkeypatch.setattr(Invitation, 'generate_e_invite', lambda self, **kwargs: None)
+    event = Event.objects.create(owner=user, name='CSV Event', date='2026-06-01')
+    Invitation.objects.create(name='Dana', seat_number='C1', tag='VIP', event=event)
+
+    response = auth_client.get('/api/invitations/analytics/export/')
+
+    assert response.status_code == 200
+    assert response['Content-Type'].startswith('text/csv')
+    assert 'attachment;' in response['Content-Disposition']
+    assert 'Event Comparison' in response.content.decode('utf-8')

@@ -54,8 +54,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'invitations',
-    'cloudinary_storage',
-    'cloudinary',
+    'storages',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
 ]
@@ -203,23 +202,30 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
 }
 
-# Media storage
-CLOUDINARY_URL = config('CLOUDINARY_URL', default='').strip()
-CLOUDINARY_STORAGE = {
-    'CLOUD_NAME': config('CLOUDINARY_CLOUD_NAME', default=''),
-    'API_KEY': config('CLOUDINARY_API_KEY', default=''),
-    'API_SECRET': config('CLOUDINARY_API_SECRET', default=''),
-    'SECURE': True,
-}
-USE_CLOUDINARY_STORAGE = bool(CLOUDINARY_URL) or all(
-    CLOUDINARY_STORAGE[key] for key in ('CLOUD_NAME', 'API_KEY', 'API_SECRET')
-)
+# Media storage — AWS S3
+AWS_ACCESS_KEY_ID = config('AWS_ACCESS_KEY_ID', default='').strip()
+AWS_SECRET_ACCESS_KEY = config('AWS_SECRET_ACCESS_KEY', default='').strip()
+AWS_STORAGE_BUCKET_NAME = config('AWS_STORAGE_BUCKET_NAME', default='').strip()
+AWS_S3_REGION_NAME = config('AWS_S3_REGION_NAME', default='us-east-1').strip()
+# Optional: custom domain / CloudFront CDN URL (no trailing slash)
+AWS_S3_CUSTOM_DOMAIN = config('AWS_S3_CUSTOM_DOMAIN', default='').strip()
+
+USE_S3_STORAGE = bool(AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY and AWS_STORAGE_BUCKET_NAME)
+
+if USE_S3_STORAGE:
+    # Files are served publicly — disable query-string authentication
+    AWS_QUERYSTRING_AUTH = False
+    # Overwrite existing files at the same path (templates + invite images are deterministic)
+    AWS_S3_FILE_OVERWRITE = True
+    AWS_S3_OBJECT_PARAMETERS = {'CacheControl': 'max-age=86400'}
+    _s3_domain = AWS_S3_CUSTOM_DOMAIN or f"{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com"
+    MEDIA_URL = f"https://{_s3_domain}/"
 
 STORAGES = {
     'default': {
         'BACKEND': (
-            'cloudinary_storage.storage.MediaCloudinaryStorage'
-            if USE_CLOUDINARY_STORAGE
+            'storages.backends.s3boto3.S3Boto3Storage'
+            if USE_S3_STORAGE
             else 'django.core.files.storage.FileSystemStorage'
         ),
     },

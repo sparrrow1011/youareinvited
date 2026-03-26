@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
+import { resolveMediaUrl } from '@/lib/api';
 
 interface Guest {
   id: string;
@@ -13,6 +14,13 @@ interface Guest {
   checked_in_at: string | null;
 }
 
+interface PublicEventInfo {
+  name: string;
+  brand_name: string;
+  brand_logo_url: string | null;
+  show_event_branding: boolean;
+}
+
 // ── Inner component that uses useSearchParams ──────────────────────────────────
 function CheckInContent() {
   const params = useParams();
@@ -21,6 +29,7 @@ function CheckInContent() {
   const eventId = params.id as string;
 
   const [token, setToken] = useState<string | null>(null);
+  const [eventInfo, setEventInfo] = useState<PublicEventInfo | null>(null);
   const [sessionExpired, setSessionExpired] = useState(false);
   const [invitationInput, setInvitationInput] = useState('');
   const [guest, setGuest] = useState<Guest | null>(null);
@@ -38,6 +47,13 @@ function CheckInContent() {
     }
     setToken(stored);
   }, [eventId, router]);
+
+  useEffect(() => {
+    fetch(`/api/events/${eventId}/public_info/`)
+      .then((response) => response.ok ? response.json() : Promise.reject(response.status))
+      .then((data) => setEventInfo(data))
+      .catch(() => setEventInfo(null));
+  }, [eventId]);
 
   // Auto-load guest from ?invitation= param
   const invitationParam = searchParams.get('invitation');
@@ -127,9 +143,9 @@ function CheckInContent() {
   // ── Session expired screen ───────────────────────────────────────────────────
   if (sessionExpired) {
     return (
-      <div className="min-h-screen bg-lp-background flex items-center justify-center px-6">
+      <div className="min-h-screen bg-lp-background flex items-center justify-center px-4 sm:px-6">
         <Aurora />
-        <div className="bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-2xl p-10 max-w-sm w-full text-center">
+        <div className="bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-2xl p-6 sm:p-10 max-w-sm w-full text-center">
           <div className="w-14 h-14 rounded-2xl bg-amber-50 flex items-center justify-center mx-auto mb-5">
             <span className="material-symbols-outlined text-amber-500 text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>schedule</span>
           </div>
@@ -149,48 +165,74 @@ function CheckInContent() {
     );
   }
 
+  const showEventBranding = eventInfo?.show_event_branding;
+  const publicBrandName = eventInfo?.brand_name?.trim() || '';
+  const publicBrandLogoUrl = resolveMediaUrl(eventInfo?.brand_logo_url);
+  const publicBrandLabel = publicBrandName || eventInfo?.name || 'Event Host';
+
   return (
     <div className="min-h-screen bg-lp-background">
       <Aurora />
 
       {/* Header */}
-      <header className="flex items-center justify-between px-6 pt-8 pb-0 max-w-xl mx-auto">
-        <span className="font-headline italic text-brand text-xl tracking-tight select-none">
-          youareinvited
-        </span>
+      <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 sm:px-6 pt-6 sm:pt-8 pb-0 max-w-xl mx-auto">
+        {showEventBranding ? (
+          <div className="inline-flex items-center gap-3 rounded-full border border-white/50 bg-white/75 px-4 py-2 shadow-sm backdrop-blur-xl">
+            {publicBrandLogoUrl && (
+              <img
+                src={publicBrandLogoUrl}
+                alt={`${publicBrandLabel} logo`}
+                className="h-9 w-9 rounded-2xl object-cover border border-white/60 bg-white"
+              />
+            )}
+            <div className="text-left">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-on-surface-variant">Gate Access</p>
+              <p className="text-sm font-semibold text-on-lp-background">{publicBrandLabel}</p>
+            </div>
+          </div>
+        ) : (
+          <span className="font-headline italic text-brand text-xl tracking-tight select-none">
+            youareinvited
+          </span>
+        )}
         <button
           onClick={handleLogout}
-          className="flex items-center gap-1.5 text-sm text-on-surface-variant hover:text-on-lp-background transition-colors"
+          className="flex items-center gap-1.5 text-xs sm:text-sm text-on-surface-variant hover:text-on-lp-background transition-colors"
         >
           <span className="material-symbols-outlined text-[18px]">logout</span>
           End Session
         </button>
       </header>
 
-      <main className="max-w-xl mx-auto px-5 py-8 space-y-5">
+      <main className="max-w-xl mx-auto px-4 sm:px-5 py-6 sm:py-8 space-y-5">
         {/* Title */}
         <div>
           <p className="text-xs font-label font-semibold text-brand uppercase tracking-widest mb-1">Gate Scanner</p>
-          <h1 className="font-headline text-3xl text-on-lp-background">Check-In</h1>
+          <h1 className="font-headline text-2xl sm:text-3xl text-on-lp-background">Check-In</h1>
+          {eventInfo?.name && (
+            <p className="text-sm text-on-surface-variant mt-2">
+              Staff check-in for <span className="font-semibold text-on-lp-background">{eventInfo.name}</span>
+            </p>
+          )}
         </div>
 
         {/* Search */}
-        <div className="bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-xl p-6">
+        <div className="bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-xl p-5 sm:p-6">
           <label className="text-xs font-label font-semibold text-on-surface-variant uppercase tracking-wider mb-2 block">
             Invitation ID
           </label>
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
             <input
               type="text"
               value={invitationInput}
               onChange={e => setInvitationInput(e.target.value)}
               placeholder="Scan QR or enter UUID"
-              className="flex-1 h-11 rounded-2xl bg-surface-container border border-outline-variant/30 px-4 text-sm text-on-lp-background focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand/40 transition-all"
+              className="flex-1 h-11 rounded-2xl bg-surface-container border border-outline-variant/30 px-4 text-sm text-on-lp-background focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand/40 transition-all min-w-0"
             />
             <button
               onClick={() => loadGuest(invitationInput.trim())}
               disabled={!invitationInput.trim() || guestLoading}
-              className="h-11 px-5 rounded-2xl bg-brand text-white text-sm font-semibold disabled:opacity-50 hover:bg-brand/90 transition-colors"
+              className="h-11 px-5 rounded-2xl bg-brand text-white text-sm font-semibold disabled:opacity-50 hover:bg-brand/90 transition-colors sm:w-auto"
             >
               {guestLoading ? (
                 <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
@@ -207,7 +249,7 @@ function CheckInContent() {
 
         {/* Guest card */}
         {guest && (
-          <div className="bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-xl p-6">
+          <div className="bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-xl p-5 sm:p-6">
             {/* Name */}
             <div className="mb-4">
               <p className="text-xs font-label font-semibold text-brand uppercase tracking-widest mb-1">Guest</p>

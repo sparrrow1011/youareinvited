@@ -11,9 +11,13 @@ export default function UsersPage() {
   const [search, setSearch] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    usersApi.getAll().then(setUsers).finally(() => setLoading(false));
+    usersApi.getAll()
+      .then(setUsers)
+      .catch(() => setError('Could not load users. Check the admin backend URL and staff authentication.'))
+      .finally(() => setLoading(false));
   }, []);
 
   const filtered = users.filter((u) =>
@@ -60,6 +64,11 @@ export default function UsersPage() {
           <p className="text-light">Loading…</p>
         ) : (
           <div className="bg-secondary rounded-xl overflow-hidden">
+            {error && (
+              <div className="border-b px-4 py-3 text-sm text-red-200" style={{ borderColor: '#0f3460', background: 'rgba(239, 68, 68, 0.08)' }}>
+                {error}
+              </div>
+            )}
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b" style={{ borderColor: '#0f3460' }}>

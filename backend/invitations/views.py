@@ -1,6 +1,9 @@
 import csv
 import io
+from collections import Counter, defaultdict
 
+from django.conf import settings
+from django.http import HttpResponse
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
@@ -12,7 +15,6 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.db.utils import OperationalError, ProgrammingError
 from .models import Invitation, Event
-from .permissions import IsAuthenticatedOrGuestDetail
 from .serializers import (
     InvitationSerializer,
     InvitationCreateSerializer,
@@ -22,6 +24,161 @@ from .serializers import (
 )
 
 SECURITY_TOKEN_MAX_AGE = 43200  # 12 hours in seconds
+
+
+def media_storage_unavailable_response(detail: str) -> Response | None:
+    if settings.IS_VERCEL and not settings.USE_S3_STORAGE:
+        return Response(
+            {'detail': detail},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    return None
+
+
+def _rate(numerator: int, denominator: int) -> float:
+    return round((numerator / denominator * 100), 1) if denominator else 0.0
+
+
+def _hour_label(hour: int) -> str:
+    meridiem = 'AM' if hour < 12 else 'PM'
+    display_hour = hour % 12 or 12
+    return f'{display_hour}:00 {meridiem}'
+
+
+def _build_invitation_analytics(user):
+    events = list(
+        Event.objects.filter(owner=user).order_by('-date', '-created_at')
+    )
+    invitations = list(
+        Invitation.objects.filter(event__owner=user)
+        .select_related('event')
+        .order_by('created_at')
+    )
+
+    invitations_by_event: dict[str, list[Invitation]] = defaultdict(list)
+    tag_totals: dict[str, dict[str, int | str | float]] = {}
+    hourly_counts: Counter[int] = Counter()
+
+    total_opens = 0
+    total_viewed = 0
+    total_whatsapp_shares = 0
+    total_link_shares = 0
+    total_checked_in = 0
+
+    for invitation in invitations:
+        invitations_by_event[str(invitation.event_id)].append(invitation)
+        total_opens += invitation.view_count
+        total_whatsapp_shares += invitation.whatsapp_share_count
+        total_link_shares += invitation.link_share_count
+
+        if invitation.first_viewed_at or invitation.view_count > 0:
+            total_viewed += 1
+
+        if invitation.checked_in:
+            total_checked_in += 1
+
+        tag_label = invitation.tag.strip() or 'Uncategorized'
+        bucket = tag_totals.setdefault(tag_label, {
+            'tag': tag_label,
+            'count': 0,
+            'checked_in': 0,
+        })
+        bucket['count'] += 1
+        if invitation.checked_in:
+            bucket['checked_in'] += 1
+
+        if invitation.checked_in_at:
+            local_hour = timezone.localtime(invitation.checked_in_at).hour
+            hourly_counts[local_hour] += 1
+
+    total_sent = len(invitations)
+    total_pending = total_sent - total_checked_in
+
+    event_comparison = []
+    for event in events:
+        event_invitations = invitations_by_event.get(str(event.id), [])
+        invitations_sent = len(event_invitations)
+        viewed_invitations = sum(
+            1 for invitation in event_invitations
+            if invitation.first_viewed_at or invitation.view_count > 0
+        )
+        invitation_opens = sum(invitation.view_count for invitation in event_invitations)
+        whatsapp_shares = sum(invitation.whatsapp_share_count for invitation in event_invitations)
+        link_shares = sum(invitation.link_share_count for invitation in event_invitations)
+        checked_in = sum(1 for invitation in event_invitations if invitation.checked_in)
+        pending = invitations_sent - checked_in
+
+        event_comparison.append({
+            'event_id': str(event.id),
+            'event_name': event.name,
+            'event_date': str(event.date),
+            'invitations_sent': invitations_sent,
+            'viewed_invitations': viewed_invitations,
+            'invitation_opens': invitation_opens,
+            'whatsapp_shares': whatsapp_shares,
+            'link_shares': link_shares,
+            'total_shares': whatsapp_shares + link_shares,
+            'checked_in': checked_in,
+            'pending': pending,
+            'view_rate': _rate(viewed_invitations, invitations_sent),
+            'check_in_rate': _rate(checked_in, invitations_sent),
+        })
+
+    event_comparison.sort(
+        key=lambda row: (row['invitations_sent'], row['event_date'], row['event_name']),
+        reverse=True,
+    )
+
+    tag_breakdown = []
+    for item in sorted(tag_totals.values(), key=lambda row: (row['count'], row['tag']), reverse=True):
+        count = int(item['count'])
+        checked_in = int(item['checked_in'])
+        tag_breakdown.append({
+            'tag': item['tag'],
+            'count': count,
+            'checked_in': checked_in,
+            'pending': count - checked_in,
+            'check_in_rate': _rate(checked_in, count),
+        })
+
+    hourly_distribution = [
+        {'hour': hour, 'label': _hour_label(hour), 'count': hourly_counts.get(hour, 0)}
+        for hour in range(24)
+    ]
+    peak_check_in_times = sorted(
+        [item for item in hourly_distribution if item['count'] > 0],
+        key=lambda item: (item['count'], -item['hour']),
+        reverse=True,
+    )[:5]
+
+    return {
+        'totals': {
+            'total_events': len(events),
+            'invitations_sent': total_sent,
+            'invitation_opens': total_opens,
+            'viewed_invitations': total_viewed,
+            'whatsapp_shares': total_whatsapp_shares,
+            'link_shares': total_link_shares,
+            'total_shares': total_whatsapp_shares + total_link_shares,
+            'checked_in': total_checked_in,
+            'pending': total_pending,
+            'check_in_rate': _rate(total_checked_in, total_sent),
+            'view_rate': _rate(total_viewed, total_sent),
+        },
+        'funnel': {
+            'created': total_sent,
+            'viewed': total_viewed,
+            'arrived': total_checked_in,
+        },
+        'guest_status': {
+            'checked_in': total_checked_in,
+            'pending': total_pending,
+        },
+        'tag_breakdown': tag_breakdown,
+        'event_comparison': event_comparison,
+        'peak_check_in_times': peak_check_in_times,
+        'check_in_by_hour': hourly_distribution,
+    }
 
 
 class InvitationViewSet(viewsets.ModelViewSet):
@@ -36,7 +193,7 @@ class InvitationViewSet(viewsets.ModelViewSet):
         ).select_related('event__owner__profile')
 
     def get_permissions(self):
-        if self.action in ('retrieve', 'check_in'):
+        if self.action in ('retrieve', 'check_in', 'track_share'):
             # Guests can view their invitation; check_in handles its own auth logic
             return []
         if self.action in ('admin_undo_check_in', 'regenerate_images'):
@@ -51,6 +208,12 @@ class InvitationViewSet(viewsets.ModelViewSet):
         return InvitationSerializer
 
     def create(self, request, *args, **kwargs):
+        storage_error = media_storage_unavailable_response(
+            'Invitation image generation requires S3 storage on Vercel.'
+            'Set AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and AWS_STORAGE_BUCKET_NAME first.'
+        )
+        if storage_error is not None:
+            return storage_error
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         invitation = serializer.save()
@@ -62,9 +225,35 @@ class InvitationViewSet(viewsets.ModelViewSet):
         Public endpoint — any guest can view their invitation by ID.
         Bypasses the owner-scoped queryset used for organizer actions.
         """
-        invitation = get_object_or_404(Invitation, pk=kwargs['pk'])
+        invitation = get_object_or_404(
+            Invitation.objects.select_related('event__owner__profile'),
+            pk=kwargs['pk'],
+        )
+        if request.query_params.get('track_view') == '1':
+            invitation.record_view()
         serializer = self.get_serializer(invitation)
         return Response(serializer.data)
+
+    @action(detail=True, methods=['post'], permission_classes=[], authentication_classes=[])
+    def track_share(self, request, pk=None):
+        invitation = get_object_or_404(
+            Invitation.objects.select_related('event__owner__profile'),
+            pk=pk,
+        )
+        channel = str(request.data.get('channel', '')).strip().lower()
+
+        if channel not in {'whatsapp', 'link'}:
+            return Response(
+                {'detail': 'channel must be either "whatsapp" or "link".'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        invitation.record_share(channel)
+        return Response({
+            'channel': channel,
+            'whatsapp_share_count': invitation.whatsapp_share_count,
+            'link_share_count': invitation.link_share_count,
+        })
 
     @action(detail=True, methods=['post'], permission_classes=[])
     def check_in(self, request, pk=None):
@@ -146,6 +335,13 @@ class InvitationViewSet(viewsets.ModelViewSet):
           - file: CSV with columns name, seat_number, tag
         Returns { created: N, errors: [...] }
         """
+        storage_error = media_storage_unavailable_response(
+            'Bulk import requires Cloudinary storage on Vercel because each invitation '
+            'writes QR code and e-invite media files.'
+        )
+        if storage_error is not None:
+            return storage_error
+
         event_id = request.data.get('event')
         csv_file = request.FILES.get('file')
 
@@ -212,14 +408,123 @@ class InvitationViewSet(viewsets.ModelViewSet):
             'check_in_rate': (checked_in / total * 100) if total > 0 else 0
         })
 
+    @action(detail=False, methods=['get'])
+    def analytics(self, request):
+        try:
+            return Response(_build_invitation_analytics(request.user))
+        except (OperationalError, ProgrammingError):
+            return Response({
+                'totals': {
+                    'total_events': 0,
+                    'invitations_sent': 0,
+                    'invitation_opens': 0,
+                    'viewed_invitations': 0,
+                    'whatsapp_shares': 0,
+                    'link_shares': 0,
+                    'total_shares': 0,
+                    'checked_in': 0,
+                    'pending': 0,
+                    'check_in_rate': 0,
+                    'view_rate': 0,
+                },
+                'funnel': {'created': 0, 'viewed': 0, 'arrived': 0},
+                'guest_status': {'checked_in': 0, 'pending': 0},
+                'tag_breakdown': [],
+                'event_comparison': [],
+                'peak_check_in_times': [],
+                'check_in_by_hour': [],
+                'warning': 'Database not initialized.',
+            }, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['get'], url_path='analytics/export')
+    def analytics_export(self, request):
+        analytics = _build_invitation_analytics(request.user)
+        output = io.StringIO()
+        writer = csv.writer(output)
+
+        writer.writerow(['YouAreInvited Analytics Report'])
+        writer.writerow(['Generated At', timezone.now().isoformat()])
+        writer.writerow([])
+        writer.writerow(['Summary'])
+        writer.writerow(['Metric', 'Value'])
+        writer.writerow(['Total Events', analytics['totals']['total_events']])
+        writer.writerow(['Invitations Sent', analytics['totals']['invitations_sent']])
+        writer.writerow(['Invitation Opens', analytics['totals']['invitation_opens']])
+        writer.writerow(['Viewed Invitations', analytics['totals']['viewed_invitations']])
+        writer.writerow(['WhatsApp Shares', analytics['totals']['whatsapp_shares']])
+        writer.writerow(['Link Shares', analytics['totals']['link_shares']])
+        writer.writerow(['Checked In', analytics['totals']['checked_in']])
+        writer.writerow(['Pending', analytics['totals']['pending']])
+        writer.writerow(['View Rate %', analytics['totals']['view_rate']])
+        writer.writerow(['Check-in Rate %', analytics['totals']['check_in_rate']])
+        writer.writerow([])
+
+        writer.writerow(['Event Comparison'])
+        writer.writerow([
+            'Event',
+            'Date',
+            'Invitations Sent',
+            'Viewed Invitations',
+            'Invitation Opens',
+            'WhatsApp Shares',
+            'Link Shares',
+            'Total Shares',
+            'Checked In',
+            'Pending',
+            'View Rate %',
+            'Check-in Rate %',
+        ])
+        for row in analytics['event_comparison']:
+            writer.writerow([
+                row['event_name'],
+                row['event_date'],
+                row['invitations_sent'],
+                row['viewed_invitations'],
+                row['invitation_opens'],
+                row['whatsapp_shares'],
+                row['link_shares'],
+                row['total_shares'],
+                row['checked_in'],
+                row['pending'],
+                row['view_rate'],
+                row['check_in_rate'],
+            ])
+
+        writer.writerow([])
+        writer.writerow(['Guest Tag Breakdown'])
+        writer.writerow(['Tag', 'Guests', 'Checked In', 'Pending', 'Check-in Rate %'])
+        for row in analytics['tag_breakdown']:
+            writer.writerow([
+                row['tag'],
+                row['count'],
+                row['checked_in'],
+                row['pending'],
+                row['check_in_rate'],
+            ])
+
+        response = HttpResponse(output.getvalue(), content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="youareinvited-analytics-report.csv"'
+        return response
+
 
 class EventViewSet(viewsets.ModelViewSet):
     serializer_class = EventSerializer
 
     def get_queryset(self):
-        return Event.objects.filter(owner=self.request.user)
+        return Event.objects.filter(owner=self.request.user).select_related('owner__profile')
 
     def perform_create(self, serializer):
+        profile = getattr(self.request.user, 'profile', None)
+        default_template = getattr(profile, 'default_whatsapp_message_template', '').strip() if profile else ''
+        whatsapp_template = serializer.validated_data.get('whatsapp_message_template', '').strip()
+
+        if not whatsapp_template and default_template:
+            serializer.save(
+                owner=self.request.user,
+                whatsapp_message_template=default_template,
+            )
+            return
+
         serializer.save(owner=self.request.user)
 
     def get_permissions(self):
@@ -227,13 +532,50 @@ class EventViewSet(viewsets.ModelViewSet):
             return []
         return [IsAuthenticated()]
 
+    def create(self, request, *args, **kwargs):
+        if request.FILES.get('background_image'):
+            storage_error = media_storage_unavailable_response(
+                'Template uploads require S3 storage on Vercel.'
+                'Set AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and AWS_STORAGE_BUCKET_NAME first.'
+            )
+            if storage_error is not None:
+                return storage_error
+        return super().create(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        if request.FILES.get('background_image'):
+            storage_error = media_storage_unavailable_response(
+                'Template uploads require S3 storage on Vercel.'
+                'Set AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and AWS_STORAGE_BUCKET_NAME first.'
+            )
+            if storage_error is not None:
+                return storage_error
+        return super().update(request, *args, **kwargs)
+
     @action(detail=True, methods=['get'], permission_classes=[], authentication_classes=[])
     def public_info(self, request, pk=None):
-        event = get_object_or_404(Event, pk=pk)
+        event = get_object_or_404(Event.objects.select_related('owner__profile'), pk=pk)
+        profile = getattr(event.owner, 'profile', None)
+
+        if profile and profile.uses_event_branding():
+            try:
+                brand_logo_url = profile.brand_logo.url if profile.brand_logo else None
+            except ValueError:
+                brand_logo_url = None
+            brand_name = profile.brand_name
+            show_event_branding = True
+        else:
+            brand_logo_url = None
+            brand_name = ''
+            show_event_branding = False
+
         return Response({
             'id': str(event.id),
             'name': event.name,
             'date': str(event.date),
+            'brand_name': brand_name,
+            'brand_logo_url': brand_logo_url,
+            'show_event_branding': show_event_branding,
         })
 
     @action(detail=True, methods=['post'], permission_classes=[], authentication_classes=[],

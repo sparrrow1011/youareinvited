@@ -8,7 +8,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Email and password are required.' }, { status: 400 });
   }
 
-  const backendUrl = process.env.BACKEND_URL || 'http://localhost:8000';
+  const backendUrl =
+    process.env.BACKEND_URL ||
+    process.env.NEXT_PUBLIC_BACKEND_URL ||
+    'http://localhost:8000';
 
   let data: { access?: string; is_staff?: boolean; detail?: string };
   try {

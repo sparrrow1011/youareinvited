@@ -25,6 +25,7 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<PlatformStats | null>(null);
   const [growth, setGrowth] = useState<GrowthPoint[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     Promise.all([statsApi.getStats(), statsApi.getGrowth()])
@@ -32,6 +33,7 @@ export default function DashboardPage() {
         setStats(s);
         setGrowth(g);
       })
+      .catch(() => setError('Could not load platform stats. Check the admin backend URL and staff authentication.'))
       .finally(() => setLoading(false));
   }, []);
 
@@ -45,6 +47,11 @@ export default function DashboardPage() {
           <p className="text-light">Loading…</p>
         ) : (
           <>
+            {error && (
+              <div className="mb-6 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                {error}
+              </div>
+            )}
             {stats && (
               <>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">

@@ -52,16 +52,16 @@ function LoginForm() {
   };
 
   return (
-    <div className="w-full max-w-sm">
-      {/* Wordmark */}
-      <div className="text-center mb-8">
+      <div className="w-full max-w-sm">
+        {/* Wordmark */}
+      <div className="text-center mb-6 sm:mb-8">
         <span className="font-headline italic text-brand text-2xl tracking-tight select-none">
           youareinvited
         </span>
       </div>
 
       {/* Card */}
-      <div className="bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-2xl p-8">
+      <div className="bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-2xl p-6 sm:p-8">
         {/* Icon */}
         <div className="w-14 h-14 rounded-2xl bg-brand-container/40 flex items-center justify-center mx-auto mb-6">
           <span className="material-symbols-outlined text-brand text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>person</span>
@@ -134,7 +134,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen bg-lp-background flex items-center justify-center px-6">
+    <div className="min-h-screen bg-lp-background flex items-center justify-center px-4 sm:px-6 py-8 sm:py-10">
       <Aurora />
       <Suspense fallback={
         <div className="w-10 h-10 rounded-full border-2 border-brand border-t-transparent animate-spin" />

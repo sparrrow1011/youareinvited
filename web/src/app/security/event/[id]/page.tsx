@@ -2,13 +2,21 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { resolveMediaUrl } from '@/lib/api';
+
+type PublicEventInfo = {
+  name: string;
+  brand_name: string;
+  brand_logo_url: string | null;
+  show_event_branding: boolean;
+};
 
 export default function SecurityPinPage() {
   const params = useParams();
   const router = useRouter();
   const eventId = params.id as string;
 
-  const [eventName, setEventName] = useState<string | null>(null);
+  const [eventInfo, setEventInfo] = useState<PublicEventInfo | null>(null);
   const [pin, setPin] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -17,7 +25,7 @@ export default function SecurityPinPage() {
   useEffect(() => {
     fetch(`/api/events/${eventId}/public_info/`)
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
-      .then(data => setEventName(data.name))
+      .then(data => setEventInfo(data))
       .catch(() => setFetchError(true));
   }, [eventId]);
 
@@ -77,9 +85,9 @@ export default function SecurityPinPage() {
 
   if (fetchError) {
     return (
-      <div className="min-h-screen bg-lp-background flex items-center justify-center px-6">
+      <div className="min-h-screen bg-lp-background flex items-center justify-center px-4 sm:px-6">
         <Aurora />
-        <div className="bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-2xl p-10 max-w-sm w-full text-center">
+        <div className="bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-2xl p-6 sm:p-10 max-w-sm w-full text-center">
           <span className="material-symbols-outlined text-red-400 text-4xl mb-4 block">error</span>
           <h1 className="font-headline text-2xl text-on-lp-background mb-2">Event Not Found</h1>
           <p className="text-on-surface-variant text-sm">This event doesn&apos;t exist or the link is invalid.</p>
@@ -88,30 +96,56 @@ export default function SecurityPinPage() {
     );
   }
 
+  const showEventBranding = eventInfo?.show_event_branding;
+  const publicBrandName = eventInfo?.brand_name?.trim() || '';
+  const publicBrandLogoUrl = resolveMediaUrl(eventInfo?.brand_logo_url);
+  const publicBrandLabel = publicBrandName || eventInfo?.name || 'Event Host';
+
   return (
-    <div className="min-h-screen bg-lp-background flex items-center justify-center px-6">
+    <div className="min-h-screen bg-lp-background flex items-center justify-center px-4 sm:px-6 py-8 sm:py-10">
       <Aurora />
 
       <div className="w-full max-w-sm">
         {/* Wordmark */}
-        <div className="text-center mb-8">
-          <span className="font-headline italic text-brand text-xl tracking-tight select-none">
-            youareinvited
-          </span>
+        <div className="text-center mb-6 sm:mb-8">
+          {showEventBranding ? (
+            <div className="inline-flex items-center gap-3 rounded-full border border-white/50 bg-white/75 px-4 py-2 shadow-sm backdrop-blur-xl">
+              {publicBrandLogoUrl && (
+                <img
+                  src={publicBrandLogoUrl}
+                  alt={`${publicBrandLabel} logo`}
+                  className="h-9 w-9 rounded-2xl object-cover border border-white/60 bg-white"
+                />
+              )}
+              <div className="text-left">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-on-surface-variant">Event Access</p>
+                <p className="text-sm font-semibold text-on-lp-background">{publicBrandLabel}</p>
+              </div>
+            </div>
+          ) : (
+            <span className="font-headline italic text-brand text-xl tracking-tight select-none">
+              youareinvited
+            </span>
+          )}
         </div>
 
         {/* Card */}
-        <div className="bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-2xl p-8">
+        <div className="bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-2xl p-6 sm:p-8">
           {/* Lock icon */}
           <div className="w-14 h-14 rounded-2xl bg-brand-container/40 flex items-center justify-center mx-auto mb-6">
             <span className="material-symbols-outlined text-brand text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>lock</span>
           </div>
 
           {/* Event name */}
-          {eventName ? (
+          {eventInfo?.name ? (
             <div className="text-center mb-6">
               <p className="text-xs font-label font-semibold text-brand uppercase tracking-widest mb-1">Security Access</p>
-              <h1 className="font-headline text-2xl text-on-lp-background">{eventName}</h1>
+              <h1 className="font-headline text-2xl text-on-lp-background">{eventInfo.name}</h1>
+              {showEventBranding && (
+                <p className="text-xs text-on-surface-variant mt-2">
+                  Check-in flow powered by <span className="font-semibold text-on-lp-background">{publicBrandLabel}</span>
+                </p>
+              )}
             </div>
           ) : (
             <div className="text-center mb-6">
@@ -134,7 +168,7 @@ export default function SecurityPinPage() {
                 value={pin}
                 onChange={e => setPin(e.target.value.replace(/\D/g, ''))}
                 placeholder="••••"
-                className="w-full h-12 rounded-2xl bg-surface-container border border-outline-variant/30 px-4 text-center text-xl font-semibold tracking-[0.5em] text-on-lp-background focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand/40 transition-all"
+                className="w-full h-12 rounded-2xl bg-surface-container border border-outline-variant/30 px-4 text-center text-lg sm:text-xl font-semibold tracking-[0.35em] sm:tracking-[0.5em] text-on-lp-background focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand/40 transition-all"
                 disabled={loading}
               />
             </div>

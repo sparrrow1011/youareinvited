@@ -52,9 +52,9 @@ class InvitationAdmin(admin.ModelAdmin):
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
-    list_display = ['user', 'plan', 'watermark_override', 'created_at']
+    list_display = ['user', 'brand_name', 'plan', 'watermark_override', 'created_at']
     list_editable = ['plan', 'watermark_override']
-    search_fields = ['user__email']
+    search_fields = ['user__email', 'brand_name']
 
 
 @admin.register(Event)

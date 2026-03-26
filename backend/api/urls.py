@@ -18,7 +18,15 @@ from django.contrib import admin
 from django.urls import path, include, re_path
 from django.http import JsonResponse
 from django.views.static import serve
-from invitations.auth_views import register, login, logout
+from invitations.auth_views import (
+    register,
+    login,
+    logout,
+    me,
+    account_settings,
+    export_account_data,
+    delete_account,
+)
 from rest_framework_simplejwt.views import TokenRefreshView
 from invitations.superadmin_views import (
     superadmin_stats,
@@ -39,6 +47,10 @@ urlpatterns = [
     path('api/auth/login/', login),
     path('api/auth/refresh/', TokenRefreshView.as_view()),
     path('api/auth/logout/', logout),
+    path('api/auth/me/', me),
+    path('api/auth/settings/', account_settings),
+    path('api/auth/export/', export_account_data),
+    path('api/auth/delete/', delete_account),
     path('api/superadmin/stats/', superadmin_stats),
     path('api/superadmin/growth/', superadmin_growth),
     path('api/superadmin/users/', superadmin_users),
@@ -46,7 +58,7 @@ urlpatterns = [
     path('api/superadmin/users/<int:user_id>/events/', superadmin_user_events),
 ]
 
-if not settings.USE_CLOUDINARY_STORAGE and not settings.IS_VERCEL:
+if not settings.USE_S3_STORAGE and not settings.IS_VERCEL:
     urlpatterns += [
         re_path(r'^media/(?P<path>.*)$', serve, {'document_root': settings.MEDIA_ROOT}),
     ]

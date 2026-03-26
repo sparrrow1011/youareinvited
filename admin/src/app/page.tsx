@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 
@@ -11,7 +11,26 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [nextPath, setNextPath] = useState('/dashboard');
   const router = useRouter();
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const reason = params.get('reason');
+    const next = params.get('next');
+
+    if (next && next.startsWith('/')) {
+      setNextPath(next);
+    }
+
+    if (reason === 'session-expired') {
+      setError('Your admin session expired. Sign in again.');
+      return;
+    }
+    if (reason === 'access-denied') {
+      setError('This account does not have admin access.');
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,7 +43,7 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password }),
       });
       if (res.ok) {
-        router.push('/dashboard');
+        router.push(nextPath);
       } else {
         const data = await res.json().catch(() => ({}));
         setError(data.error || 'Sign in failed.');

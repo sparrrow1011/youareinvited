@@ -1,9 +1,11 @@
 import axios from 'axios';
-import { getAdminToken } from './auth';
+import { clearAdminToken, getAdminToken } from './auth';
 
 const api = axios.create({
   baseURL: '/api',
 });
+
+let hasRedirectedForAuthFailure = false;
 
 // Attach JWT as Bearer token on every request
 api.interceptors.request.use((config) => {
@@ -13,6 +15,26 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error.response?.status;
+
+    if (typeof window !== 'undefined' && (status === 401 || status === 403)) {
+      clearAdminToken();
+
+      if (!hasRedirectedForAuthFailure) {
+        hasRedirectedForAuthFailure = true;
+        const reason = status === 403 ? 'access-denied' : 'session-expired';
+        const next = encodeURIComponent(window.location.pathname);
+        window.location.href = `/?reason=${reason}&next=${next}`;
+      }
+    }
+
+    return Promise.reject(error);
+  },
+);
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -51,17 +73,17 @@ export interface UserEvent {
 // ── API helpers ───────────────────────────────────────────────────────────────
 
 export const statsApi = {
-  getStats: () => api.get<PlatformStats>('/api/superadmin/stats/').then((r) => r.data),
-  getGrowth: () => api.get<GrowthPoint[]>('/api/superadmin/growth/').then((r) => r.data),
+  getStats: () => api.get<PlatformStats>('/superadmin/stats/').then((r) => r.data),
+  getGrowth: () => api.get<GrowthPoint[]>('/superadmin/growth/').then((r) => r.data),
 };
 
 export const usersApi = {
-  getAll: () => api.get<AdminUser[]>('/api/superadmin/users/').then((r) => r.data),
+  getAll: () => api.get<AdminUser[]>('/superadmin/users/').then((r) => r.data),
   update: (id: number, data: Partial<Pick<AdminUser, 'plan' | 'watermark_override'>>) =>
-    api.patch<AdminUser>(`/api/superadmin/users/${id}/`, data).then((r) => r.data),
-  delete: (id: number) => api.delete(`/api/superadmin/users/${id}/`),
+    api.patch<AdminUser>(`/superadmin/users/${id}/`, data).then((r) => r.data),
+  delete: (id: number) => api.delete(`/superadmin/users/${id}/`),
   getEvents: (id: number) =>
-    api.get<UserEvent[]>(`/api/superadmin/users/${id}/events/`).then((r) => r.data),
+    api.get<UserEvent[]>(`/superadmin/users/${id}/events/`).then((r) => r.data),
 };
 
 export default api;

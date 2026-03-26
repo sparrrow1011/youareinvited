@@ -4,10 +4,15 @@ import { getToken, setToken, clearToken } from './auth';
 const LOCAL_BACKEND_URL = 'http://127.0.0.1:8000';
 const PRODUCTION_DIRECT_API_BASE_URL = 'https://backend.v0.youare-invited.com/api';
 const DIRECT_BROWSER_API_HOSTS = new Set(['youare-invited.com', 'www.youare-invited.com']);
+const LOCAL_BROWSER_HOSTS = new Set(['localhost', '127.0.0.1']);
 
 const getDefaultApiBaseUrl = (): string => {
   if (typeof window === 'undefined') {
     return `${(process.env.BACKEND_URL || LOCAL_BACKEND_URL).replace(/\/$/, '')}/api`;
+  }
+
+  if (LOCAL_BROWSER_HOSTS.has(window.location.hostname)) {
+    return `${LOCAL_BACKEND_URL}/api`;
   }
 
   if (DIRECT_BROWSER_API_HOSTS.has(window.location.hostname)) {
@@ -133,6 +138,41 @@ export interface AuthTokens {
   refresh: string;
 }
 
+export interface AuthUser {
+  id: number;
+  email: string;
+  username: string;
+  display_name: string;
+  avatar_initial: string;
+  plan: 'free' | 'pro';
+  brand_name: string;
+  brand_logo_url: string | null;
+  show_event_branding: boolean;
+}
+
+export interface AccountSettings extends AuthUser {
+  watermark_override: boolean;
+  default_whatsapp_message_template: string;
+  total_events: number;
+  protected_events: number;
+  frontend_url: string;
+  backend_url: string;
+  media_storage: 'local' | 's3' | 'unconfigured';
+  can_upload_brand_logo: boolean;
+  team_access_mode: 'security_pin_links';
+}
+
+export interface AccountSettingsUpdate {
+  display_name?: string;
+  email?: string;
+  brand_name?: string;
+  show_event_branding?: boolean;
+  default_whatsapp_message_template?: string;
+  current_password?: string;
+  new_password?: string;
+  clear_brand_logo?: boolean;
+}
+
 export const authService = {
   register: async (email: string, password: string): Promise<void> => {
     const response = await api.post<AuthTokens>('/auth/register/', { email, password });
@@ -152,6 +192,39 @@ export const authService = {
     } finally {
       clearToken();
     }
+  },
+
+  me: async (): Promise<AuthUser> => {
+    const response = await api.get<AuthUser>('/auth/me/');
+    return response.data;
+  },
+
+  getSettings: async (): Promise<AccountSettings> => {
+    const response = await api.get<AccountSettings>('/auth/settings/');
+    return response.data;
+  },
+
+  updateSettings: async (data: AccountSettingsUpdate | FormData): Promise<AccountSettings> => {
+    const isMultipart = typeof FormData !== 'undefined' && data instanceof FormData;
+    const response = await api.patch<AccountSettings>(
+      '/auth/settings/',
+      data,
+      isMultipart ? { headers: { 'Content-Type': 'multipart/form-data' } } : undefined
+    );
+    return response.data;
+  },
+
+  exportData: async (): Promise<Blob> => {
+    const response = await api.get('/auth/export/', {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+
+  deleteAccount: async (password: string): Promise<void> => {
+    await api.delete('/auth/delete/', {
+      data: { password },
+    });
   },
 };
 
@@ -210,6 +283,7 @@ export const eventService = {
 export interface Invitation {
   id: string;
   event: string;
+  event_name: string;
   name: string;
   seat_number: string;
   tag: string;
@@ -221,6 +295,9 @@ export interface Invitation {
   updated_at: string;
   invitation_url: string;
   whatsapp_share_url: string;
+  brand_name: string;
+  brand_logo_url: string | null;
+  show_event_branding: boolean;
 }
 
 export interface InvitationCreate {
@@ -236,6 +313,72 @@ export interface InvitationStats {
   check_in_rate: number;
 }
 
+export interface AnalyticsTotals {
+  total_events: number;
+  invitations_sent: number;
+  invitation_opens: number;
+  viewed_invitations: number;
+  whatsapp_shares: number;
+  link_shares: number;
+  total_shares: number;
+  checked_in: number;
+  pending: number;
+  check_in_rate: number;
+  view_rate: number;
+}
+
+export interface AnalyticsFunnel {
+  created: number;
+  viewed: number;
+  arrived: number;
+}
+
+export interface AnalyticsGuestStatus {
+  checked_in: number;
+  pending: number;
+}
+
+export interface AnalyticsTagBreakdown {
+  tag: string;
+  count: number;
+  checked_in: number;
+  pending: number;
+  check_in_rate: number;
+}
+
+export interface AnalyticsEventComparison {
+  event_id: string;
+  event_name: string;
+  event_date: string;
+  invitations_sent: number;
+  viewed_invitations: number;
+  invitation_opens: number;
+  whatsapp_shares: number;
+  link_shares: number;
+  total_shares: number;
+  checked_in: number;
+  pending: number;
+  view_rate: number;
+  check_in_rate: number;
+}
+
+export interface AnalyticsCheckInHour {
+  hour: number;
+  label: string;
+  count: number;
+}
+
+export interface InvitationAnalytics {
+  totals: AnalyticsTotals;
+  funnel: AnalyticsFunnel;
+  guest_status: AnalyticsGuestStatus;
+  tag_breakdown: AnalyticsTagBreakdown[];
+  event_comparison: AnalyticsEventComparison[];
+  peak_check_in_times: AnalyticsCheckInHour[];
+  check_in_by_hour: AnalyticsCheckInHour[];
+  warning?: string;
+}
+
 export const invitationService = {
   // Get all invitations
   getAll: async (): Promise<Invitation[]> => {
@@ -244,8 +387,10 @@ export const invitationService = {
   },
 
   // Get single invitation
-  getById: async (id: string): Promise<Invitation> => {
-    const response = await api.get<Invitation>(`/invitations/${id}/`);
+  getById: async (id: string, options?: { trackView?: boolean }): Promise<Invitation> => {
+    const response = await api.get<Invitation>(`/invitations/${id}/`, {
+      params: options?.trackView ? { track_view: '1' } : undefined,
+    });
     return response.data;
   },
 
@@ -290,6 +435,22 @@ export const invitationService = {
   getStats: async (): Promise<InvitationStats> => {
     const response = await api.get<InvitationStats>('/invitations/stats/');
     return response.data;
+  },
+
+  getAnalytics: async (): Promise<InvitationAnalytics> => {
+    const response = await api.get<InvitationAnalytics>('/invitations/analytics/');
+    return response.data;
+  },
+
+  exportAnalytics: async (): Promise<Blob> => {
+    const response = await api.get('/invitations/analytics/export/', {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+
+  trackShare: async (id: string, channel: 'whatsapp' | 'link'): Promise<void> => {
+    await api.post(`/invitations/${id}/track_share/`, { channel });
   },
 
   // Bulk import from CSV
