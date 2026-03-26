@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { resolveMediaUrl } from '@/lib/api';
+import { buildApiUrl, resolveMediaUrl } from '@/lib/api';
 
 type PublicEventInfo = {
   name: string;
@@ -23,7 +23,7 @@ export default function SecurityPinPage() {
   const [fetchError, setFetchError] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/events/${eventId}/public_info/`)
+    fetch(buildApiUrl(`/events/${eventId}/public_info/`))
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
       .then(data => setEventInfo(data))
       .catch(() => setFetchError(true));
@@ -35,7 +35,7 @@ export default function SecurityPinPage() {
     setError(null);
 
     try {
-      const res = await fetch(`/api/events/${eventId}/verify_security_pin/`, {
+      const res = await fetch(buildApiUrl(`/events/${eventId}/verify_security_pin/`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pin }),

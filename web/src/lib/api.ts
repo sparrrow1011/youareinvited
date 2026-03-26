@@ -74,6 +74,11 @@ export const resolveMediaUrl = (pathOrUrl?: string | null): string => {
   return `${API_ORIGIN}${normalizedPath}`;
 };
 
+export const buildApiUrl = (path: string): string => {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${API_BASE_URL}${normalizedPath}`;
+};
+
 export const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
-import { resolveMediaUrl } from '@/lib/api';
+import { buildApiUrl, resolveMediaUrl } from '@/lib/api';
 
 interface Guest {
   id: string;
@@ -49,7 +49,7 @@ function CheckInContent() {
   }, [eventId, router]);
 
   useEffect(() => {
-    fetch(`/api/events/${eventId}/public_info/`)
+    fetch(buildApiUrl(`/events/${eventId}/public_info/`))
       .then((response) => response.ok ? response.json() : Promise.reject(response.status))
       .then((data) => setEventInfo(data))
       .catch(() => setEventInfo(null));
@@ -69,7 +69,7 @@ function CheckInContent() {
     setGuestError(null);
     setGuest(null);
     try {
-      const res = await fetch(`/api/invitations/${id}/`);
+      const res = await fetch(buildApiUrl(`/invitations/${id}/`));
       if (res.status === 404) {
         setGuestError('Invitation not found.');
         return;
@@ -91,7 +91,7 @@ function CheckInContent() {
     setCheckingIn(true);
     setCheckInError(null);
     try {
-      const res = await fetch(`/api/invitations/${guest.id}/check_in/`, {
+      const res = await fetch(buildApiUrl(`/invitations/${guest.id}/check_in/`), {
         method: 'POST',
         headers: { 'X-Security-Token': token },
       });
