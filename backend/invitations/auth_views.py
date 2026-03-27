@@ -10,6 +10,8 @@ from django.core.validators import validate_email
 from django.core import signing
 from django.core.mail import send_mail
 from django.utils import timezone
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
 
 logger = logging.getLogger(__name__)
 from rest_framework import status
@@ -306,6 +308,61 @@ def verify_email(request):
         profile.save(update_fields=['email_verified'])
     else:
         logger.warning('verify_email: no profile found for user %s, email_verified not set', user.id)
+
+    refresh = RefreshToken.for_user(user)
+    return Response({
+        'access': str(refresh.access_token),
+        'refresh': str(refresh),
+    })
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def google_auth(request):
+    id_token_str = request.data.get('id_token', '').strip()
+    if not id_token_str:
+        return Response({'detail': 'id_token is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    google_client_id = settings.GOOGLE_CLIENT_ID
+    if not google_client_id:
+        return Response(
+            {'detail': 'Google login is not configured.'},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE
+        )
+
+    try:
+        payload = id_token.verify_oauth2_token(
+            id_token_str,
+            google_requests.Request(),
+            google_client_id,
+        )
+    except ValueError:
+        return Response({'detail': 'Invalid Google token.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    email = payload.get('email', '').strip().lower()
+    name = payload.get('name', '').strip()
+
+    if not email:
+        return Response(
+            {'detail': 'Google account has no email address.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    user, created = User.objects.get_or_create(
+        email=email,
+        defaults={'username': email},
+    )
+
+    if created:
+        name_parts = name.split(' ', 1)
+        user.first_name = name_parts[0] if name_parts else ''
+        user.last_name = name_parts[1] if len(name_parts) > 1 else ''
+        user.save(update_fields=['first_name', 'last_name'])
+
+    profile = getattr(user, 'profile', None)
+    if created and profile:
+        profile.email_verified = True
+        profile.save(update_fields=['email_verified'])
 
     refresh = RefreshToken.for_user(user)
     return Response({

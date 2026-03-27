@@ -1,4 +1,5 @@
 from datetime import date
+from unittest.mock import patch
 
 import pytest
 from django.test import Client, override_settings
@@ -284,4 +285,56 @@ def test_resend_verification_rate_limited(auth_client, user):
 def test_resend_verification_already_verified(auth_client, user):
     # user fixture has email_verified=True (default)
     response = auth_client.post('/api/auth/resend-verification/')
+    assert response.status_code == 400
+
+
+@pytest.mark.django_db
+@override_settings(GOOGLE_CLIENT_ID='test-client-id')
+@patch('invitations.auth_views.id_token.verify_oauth2_token')
+def test_google_auth_creates_new_user(mock_verify, api_client):
+    mock_verify.return_value = {
+        'email': 'googleuser@gmail.com',
+        'name': 'Google User',
+    }
+
+    response = api_client.post('/api/auth/google/', {'id_token': 'fake-token'}, format='json')
+
+    assert response.status_code == 200
+    assert 'access' in response.data
+    user = User.objects.get(email='googleuser@gmail.com')
+    assert user.profile.email_verified is True
+
+
+@pytest.mark.django_db
+@override_settings(GOOGLE_CLIENT_ID='test-client-id')
+@patch('invitations.auth_views.id_token.verify_oauth2_token')
+def test_google_auth_links_existing_user(mock_verify, api_client, user):
+    mock_verify.return_value = {
+        'email': 'testuser@example.com',  # matches the 'user' fixture
+        'name': 'Test User',
+    }
+
+    response = api_client.post('/api/auth/google/', {'id_token': 'fake-token'}, format='json')
+
+    assert response.status_code == 200
+    assert 'access' in response.data
+    # Should not have created a second user
+    assert User.objects.filter(email='testuser@example.com').count() == 1
+
+
+@pytest.mark.django_db
+@override_settings(GOOGLE_CLIENT_ID='test-client-id')
+@patch('invitations.auth_views.id_token.verify_oauth2_token')
+def test_google_auth_invalid_token(mock_verify, api_client):
+    mock_verify.side_effect = ValueError('Invalid token')
+
+    response = api_client.post('/api/auth/google/', {'id_token': 'bad-token'}, format='json')
+
+    assert response.status_code == 400
+    assert 'detail' in response.data
+
+
+@pytest.mark.django_db
+def test_google_auth_missing_token(api_client):
+    response = api_client.post('/api/auth/google/', {}, format='json')
     assert response.status_code == 400
