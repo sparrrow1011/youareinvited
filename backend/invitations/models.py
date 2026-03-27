@@ -52,6 +52,7 @@ class UserProfile(models.Model):
     brand_logo = models.ImageField(upload_to=user_brand_logo_path, blank=True, null=True)
     show_branding_on_event_surfaces = models.BooleanField(default=False)
     watermark_override = models.BooleanField(default=False)
+    email_verified = models.BooleanField(default=True)
     default_whatsapp_message_template = models.CharField(max_length=500, blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
 

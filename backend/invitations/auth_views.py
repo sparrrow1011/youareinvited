@@ -46,6 +46,7 @@ def _user_payload(user):
         'brand_name': profile.brand_name if profile else '',
         'brand_logo_url': _brand_logo_url(profile),
         'show_event_branding': profile.show_branding_on_event_surfaces if profile else False,
+        'email_verified': profile.email_verified if profile else True,
     }
 
 
@@ -106,6 +107,10 @@ def register(request):
         )
 
     user = User.objects.create_user(username=email, email=email, password=password)
+    profile = getattr(user, 'profile', None)
+    if profile:
+        profile.email_verified = False
+        profile.save(update_fields=['email_verified'])
     refresh = RefreshToken.for_user(user)
 
     return Response({

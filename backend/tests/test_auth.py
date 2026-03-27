@@ -179,3 +179,21 @@ def test_delete_account_removes_authenticated_user(auth_client, user):
 
     assert response.status_code == 204
     assert not User.objects.filter(pk=user.pk).exists()
+
+
+@pytest.mark.django_db
+def test_register_creates_unverified_user(api_client):
+    response = api_client.post('/api/auth/register/', {
+        'email': 'unverified@example.com',
+        'password': 'X9mK#vPqL2!',
+    }, format='json')
+    assert response.status_code == 201
+    user = User.objects.get(email='unverified@example.com')
+    assert user.profile.email_verified is False
+
+
+@pytest.mark.django_db
+def test_me_returns_email_verified_field(auth_client, user):
+    response = auth_client.get('/api/auth/me/')
+    assert response.status_code == 200
+    assert 'email_verified' in response.data
