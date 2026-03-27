@@ -4,6 +4,7 @@ from django.conf import settings
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
+from django.core.cache import cache
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.validators import validate_email
 from django.core import signing
@@ -244,6 +245,39 @@ def delete_account(request):
     serializer.is_valid(raise_exception=True)
     request.user.delete()
     return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def resend_verification(request):
+    user = request.user
+    profile = getattr(user, 'profile', None)
+
+    if profile and profile.email_verified:
+        return Response(
+            {'detail': 'Email is already verified.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    cache_key = f'verify_resend_{user.id}'
+    if cache.get(cache_key):
+        return Response(
+            {'detail': 'Please wait 60 seconds before requesting another verification email.'},
+            status=status.HTTP_429_TOO_MANY_REQUESTS
+        )
+
+    cache.set(cache_key, True, 60)
+
+    try:
+        send_verification_email(user)
+    except Exception:
+        cache.delete(cache_key)
+        return Response(
+            {'detail': 'Failed to send email. Please try again.'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+    return Response({'detail': 'Verification email sent.'})
 
 
 @api_view(['GET'])

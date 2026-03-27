@@ -246,3 +246,42 @@ def test_verify_email_expired_token(api_client, user):
 def test_verify_email_invalid_token(api_client):
     response = api_client.get('/api/auth/verify-email/?token=not-a-valid-token')
     assert response.status_code == 400
+
+
+@pytest.mark.django_db
+@override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+def test_resend_verification_sends_email(auth_client, user):
+    from django.core import mail
+    from django.core.cache import cache
+    cache.clear()
+
+    user.profile.email_verified = False
+    user.profile.save(update_fields=['email_verified'])
+
+    response = auth_client.post('/api/auth/resend-verification/')
+
+    assert response.status_code == 200
+    assert len(mail.outbox) == 1
+    assert user.email in mail.outbox[0].to
+
+
+@pytest.mark.django_db
+@override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+def test_resend_verification_rate_limited(auth_client, user):
+    from django.core.cache import cache
+    cache.clear()
+
+    user.profile.email_verified = False
+    user.profile.save(update_fields=['email_verified'])
+
+    auth_client.post('/api/auth/resend-verification/')
+    response = auth_client.post('/api/auth/resend-verification/')
+
+    assert response.status_code == 429
+
+
+@pytest.mark.django_db
+def test_resend_verification_already_verified(auth_client, user):
+    # user fixture has email_verified=True (default)
+    response = auth_client.post('/api/auth/resend-verification/')
+    assert response.status_code == 400
