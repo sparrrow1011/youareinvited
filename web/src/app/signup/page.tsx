@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { GoogleLogin } from '@react-oauth/google';
 import { authService } from '@/lib/api';
 
 const Aurora = () => (
@@ -42,21 +43,31 @@ export default function SignupPage() {
     }
   };
 
+  const handleGoogleSuccess = async (credentialResponse: { credential?: string }) => {
+    if (!credentialResponse.credential) {
+      setError('Google sign-up failed. Please try again.');
+      return;
+    }
+    try {
+      await authService.google(credentialResponse.credential);
+      router.push('/dashboard');
+    } catch {
+      setError('Google sign-up failed. Please try again.');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-lp-background flex items-center justify-center px-4 sm:px-6 py-8 sm:py-10">
       <Aurora />
 
       <div className="w-full max-w-sm">
-        {/* Wordmark */}
         <div className="text-center mb-6 sm:mb-8">
           <span className="font-headline italic text-brand text-2xl tracking-tight select-none">
             youareinvited
           </span>
         </div>
 
-        {/* Card */}
         <div className="bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-2xl p-6 sm:p-8">
-          {/* Icon */}
           <div className="w-14 h-14 rounded-2xl bg-brand-container/40 flex items-center justify-center mx-auto mb-6">
             <span className="material-symbols-outlined text-brand text-3xl" style={{ fontVariationSettings: "'FILL' 1" }}>person_add</span>
           </div>
@@ -129,6 +140,23 @@ export default function SignupPage() {
               )}
             </button>
           </form>
+
+          <div className="flex items-center gap-3 my-5">
+            <div className="flex-1 h-px bg-outline-variant/20" />
+            <span className="text-xs text-on-surface-variant/60 font-medium">or</span>
+            <div className="flex-1 h-px bg-outline-variant/20" />
+          </div>
+
+          <div className="flex justify-center">
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={() => setError('Google sign-up failed. Please try again.')}
+              shape="pill"
+              theme="outline"
+              size="large"
+              text="signup_with"
+            />
+          </div>
 
           <p className="text-center text-sm text-on-surface-variant mt-6">
             Already have an account?{' '}
