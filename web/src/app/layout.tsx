@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Inter, Noto_Serif, Manrope } from 'next/font/google';
+import GoogleAuthProvider from '@/components/GoogleAuthProvider';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -32,7 +33,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className={`${inter.className} ${notoSerif.variable} ${manrope.variable}`}>
-        {children}
+        <GoogleAuthProvider>
+          {children}
+        </GoogleAuthProvider>
       </body>
     </html>
   );

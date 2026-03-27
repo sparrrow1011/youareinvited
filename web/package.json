@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@react-oauth/google": "^0.13.4",
     "autoprefixer": "^10.4.17",
     "axios": "^1.6.5",
     "framer-motion": "^12.38.0",
