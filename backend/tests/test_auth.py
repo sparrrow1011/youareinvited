@@ -220,7 +220,7 @@ def test_verify_email_valid_token(api_client, user):
     user.profile.email_verified = False
     user.profile.save(update_fields=['email_verified'])
 
-    token = signing.dumps({'user_id': user.id})
+    token = signing.dumps({'user_id': user.id}, salt='email-verification')
     response = api_client.get(f'/api/auth/verify-email/?token={token}')
 
     assert response.status_code == 200
@@ -231,10 +231,15 @@ def test_verify_email_valid_token(api_client, user):
 
 @pytest.mark.django_db
 def test_verify_email_expired_token(api_client, user):
-    # Use a token signed with wrong salt to simulate invalid/expired
-    token = signing.dumps({'user_id': user.id}, salt='wrong-salt')
+    from unittest.mock import patch
+    import time as time_mod
+
+    # Sign a token as if it was created 90000 seconds ago (> 86400s max_age)
+    with patch.object(time_mod, 'time', return_value=time_mod.time() - 90000):
+        token = signing.dumps({'user_id': user.id}, salt='email-verification')
     response = api_client.get(f'/api/auth/verify-email/?token={token}')
     assert response.status_code == 400
+    assert 'expired' in response.data['detail'].lower()
 
 
 @pytest.mark.django_db

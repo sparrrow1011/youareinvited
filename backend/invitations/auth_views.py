@@ -1,3 +1,5 @@
+import logging
+
 from django.conf import settings
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
@@ -7,6 +9,8 @@ from django.core.validators import validate_email
 from django.core import signing
 from django.core.mail import send_mail
 from django.utils import timezone
+
+logger = logging.getLogger(__name__)
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -75,7 +79,7 @@ def _settings_payload(user):
 
 
 def send_verification_email(user):
-    token = signing.dumps({'user_id': user.id})
+    token = signing.dumps({'user_id': user.id}, salt='email-verification')
     link = f"{settings.FRONTEND_URL}/verify-email?token={token}"
     send_mail(
         subject='Verify your YouAreInvited email',
@@ -135,7 +139,7 @@ def register(request):
     try:
         send_verification_email(user)
     except Exception:
-        pass  # Don't block registration if email fails
+        logger.exception('Failed to send verification email to user %s', user.id)
 
     refresh = RefreshToken.for_user(user)
 
@@ -250,11 +254,11 @@ def verify_email(request):
         return Response({'detail': 'Token is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
-        data = signing.loads(token, max_age=86400)
+        data = signing.loads(token, max_age=86400, salt='email-verification')
         user_id = data['user_id']
     except signing.SignatureExpired:
         return Response({'detail': 'Verification link has expired.'}, status=status.HTTP_400_BAD_REQUEST)
-    except (signing.BadSignature, KeyError, Exception):
+    except (signing.BadSignature, KeyError):
         return Response({'detail': 'Invalid verification link.'}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
@@ -266,6 +270,8 @@ def verify_email(request):
     if profile:
         profile.email_verified = True
         profile.save(update_fields=['email_verified'])
+    else:
+        logger.warning('verify_email: no profile found for user %s, email_verified not set', user.id)
 
     refresh = RefreshToken.for_user(user)
     return Response({
