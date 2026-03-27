@@ -197,3 +197,4 @@ def test_me_returns_email_verified_field(auth_client, user):
     response = auth_client.get('/api/auth/me/')
     assert response.status_code == 200
     assert 'email_verified' in response.data
+    assert response.data['email_verified'] is True
