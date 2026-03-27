@@ -9,6 +9,7 @@ import {
   eventService,
   resolveMediaUrl,
 } from '@/lib/api';
+import VerificationBanner from '@/components/VerificationBanner';
 
 const getErrorMessage = (error: unknown, fallback: string) => {
   if (
@@ -291,6 +292,8 @@ export default function SettingsPage() {
 
   return (
     <div className="min-h-screen bg-lp-background text-on-surface font-body">
+      {settings && !settings.email_verified && <VerificationBanner />}
+
       <div className="fixed inset-0 overflow-hidden pointer-events-none -z-10">
         <div className="absolute -top-16 -left-20 w-[520px] h-[520px] rounded-full bg-brand/10 blur-[140px]" />
         <div className="absolute top-1/3 -right-16 w-[420px] h-[420px] rounded-full bg-tertiary/10 blur-[120px]" />

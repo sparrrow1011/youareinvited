@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { eventService, invitationService, authService, api, Event, Invitation, InvitationStats, AuthUser } from '@/lib/api';
 import ZoneEditor, { Zones } from '@/components/ZoneEditor';
+import VerificationBanner from '@/components/VerificationBanner';
 import { resolveMediaUrl } from '@/lib/api';
 
 const NAV_LINKS = [
@@ -399,6 +400,8 @@ export default function EventPage() {
 
           </div>
         </header>
+
+        {user && !user.email_verified && <VerificationBanner />}
 
         <section className="px-4 sm:px-6 lg:px-12 py-8 lg:py-10 max-w-7xl mx-auto pb-24">
           {/* Event header */}
