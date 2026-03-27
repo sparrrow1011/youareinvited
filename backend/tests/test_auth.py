@@ -1,8 +1,9 @@
 from datetime import date
 
 import pytest
-from django.test import Client
+from django.test import Client, override_settings
 from django.contrib.auth.models import User
+from django.core import signing
 
 from invitations.models import Event, Invitation
 
@@ -198,3 +199,45 @@ def test_me_returns_email_verified_field(auth_client, user):
     assert response.status_code == 200
     assert 'email_verified' in response.data
     assert response.data['email_verified'] is True
+
+
+@pytest.mark.django_db
+@override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+def test_register_sends_verification_email(api_client):
+    from django.core import mail
+    response = api_client.post('/api/auth/register/', {
+        'email': 'emailtest@example.com',
+        'password': 'X9mK#vPqL2!',
+    }, format='json')
+    assert response.status_code == 201
+    assert len(mail.outbox) == 1
+    assert 'emailtest@example.com' in mail.outbox[0].to
+    assert 'verify' in mail.outbox[0].subject.lower()
+
+
+@pytest.mark.django_db
+def test_verify_email_valid_token(api_client, user):
+    user.profile.email_verified = False
+    user.profile.save(update_fields=['email_verified'])
+
+    token = signing.dumps({'user_id': user.id})
+    response = api_client.get(f'/api/auth/verify-email/?token={token}')
+
+    assert response.status_code == 200
+    assert 'access' in response.data
+    user.profile.refresh_from_db()
+    assert user.profile.email_verified is True
+
+
+@pytest.mark.django_db
+def test_verify_email_expired_token(api_client, user):
+    # Use a token signed with wrong salt to simulate invalid/expired
+    token = signing.dumps({'user_id': user.id}, salt='wrong-salt')
+    response = api_client.get(f'/api/auth/verify-email/?token={token}')
+    assert response.status_code == 400
+
+
+@pytest.mark.django_db
+def test_verify_email_invalid_token(api_client):
+    response = api_client.get('/api/auth/verify-email/?token=not-a-valid-token')
+    assert response.status_code == 400

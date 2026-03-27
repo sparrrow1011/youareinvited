@@ -4,6 +4,8 @@ from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.validators import validate_email
+from django.core import signing
+from django.core.mail import send_mail
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -72,6 +74,24 @@ def _settings_payload(user):
     }
 
 
+def send_verification_email(user):
+    token = signing.dumps({'user_id': user.id})
+    link = f"{settings.FRONTEND_URL}/verify-email?token={token}"
+    send_mail(
+        subject='Verify your YouAreInvited email',
+        message=(
+            f'Hi,\n\n'
+            f'Please verify your email address by clicking the link below:\n\n'
+            f'{link}\n\n'
+            f'This link expires in 24 hours.\n\n'
+            f'If you did not create an account, you can ignore this email.'
+        ),
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[user.email],
+        fail_silently=False,
+    )
+
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def register(request):
@@ -111,6 +131,12 @@ def register(request):
     if profile:
         profile.email_verified = False
         profile.save(update_fields=['email_verified'])
+
+    try:
+        send_verification_email(user)
+    except Exception:
+        pass  # Don't block registration if email fails
+
     refresh = RefreshToken.for_user(user)
 
     return Response({
@@ -214,3 +240,35 @@ def delete_account(request):
     serializer.is_valid(raise_exception=True)
     request.user.delete()
     return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def verify_email(request):
+    token = request.query_params.get('token', '')
+    if not token:
+        return Response({'detail': 'Token is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        data = signing.loads(token, max_age=86400)
+        user_id = data['user_id']
+    except signing.SignatureExpired:
+        return Response({'detail': 'Verification link has expired.'}, status=status.HTTP_400_BAD_REQUEST)
+    except (signing.BadSignature, KeyError, Exception):
+        return Response({'detail': 'Invalid verification link.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        user = User.objects.get(pk=user_id)
+    except User.DoesNotExist:
+        return Response({'detail': 'User not found.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    profile = getattr(user, 'profile', None)
+    if profile:
+        profile.email_verified = True
+        profile.save(update_fields=['email_verified'])
+
+    refresh = RefreshToken.for_user(user)
+    return Response({
+        'access': str(refresh.access_token),
+        'refresh': str(refresh),
+    })
