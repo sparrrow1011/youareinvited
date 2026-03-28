@@ -139,8 +139,8 @@ class Invitation(models.Model):
         return f"{self.name} - Seat {self.seat_number}"
 
     def get_invitation_url(self):
-        # Guest view page
-        return f"{settings.FRONTEND_URL}/invitation/{self.id}"
+        # Dedicated invitee page
+        return f"{settings.FRONTEND_URL}/invite/{self.id}"
 
     def get_security_checkin_url(self):
         return f"{settings.FRONTEND_URL}/security/event/{self.event_id}/checkin?invitation={self.id}"

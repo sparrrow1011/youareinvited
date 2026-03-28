@@ -5,7 +5,7 @@ const PUBLIC_PATHS = new Set([
   '/', '/login', '/logout', '/signup', '/verify-email',
 ]);
 
-const PUBLIC_PREFIXES = ['/invitation/', '/security/event/'];
+const PUBLIC_PREFIXES = ['/invite/', '/invitation/', '/security/event/'];
 const PUBLIC_API_PATTERNS = [
   /^\/api\/events\/[^/]+\/public_info\/?$/,
   /^\/api\/events\/[^/]+\/verify_security_pin\/?$/,
