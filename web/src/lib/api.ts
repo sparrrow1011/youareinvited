@@ -304,6 +304,7 @@ export interface Invitation {
   event_date: string;
   event_theme: string;
   event_theme_data: Record<string, unknown>;
+  event_has_template: boolean;
   name: string;
   seat_number: string;
   tag: string;

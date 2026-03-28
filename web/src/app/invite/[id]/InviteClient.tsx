@@ -66,6 +66,91 @@ export default function InviteClient({ id }: { id: string }) {
     );
   }
 
+  const useMinimalPublicInvite = !invitation.event_theme && !invitation.event_has_template;
+
+  if (useMinimalPublicInvite) {
+    const checkedIn = invitation.checked_in;
+
+    return (
+      <div className="min-h-screen bg-lp-background">
+        <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
+          <div className="absolute -top-40 -left-40 w-[600px] h-[600px] rounded-full bg-brand-container/40 blur-[120px]" />
+          <div className="absolute top-1/3 -right-32 w-[500px] h-[500px] rounded-full bg-tertiary-container/30 blur-[100px]" />
+          <div className="absolute -bottom-32 left-1/3 w-[480px] h-[480px] rounded-full bg-secondary-container/35 blur-[110px]" />
+        </div>
+
+        <main className="flex flex-col items-center px-4 sm:px-5 py-12 sm:py-16 gap-5 max-w-lg mx-auto">
+          <div className="w-full bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-xl p-5 sm:p-6">
+            <div className="mb-5 text-center">
+              <p className="text-xs font-label font-semibold text-brand uppercase tracking-widest mb-1">Guest</p>
+              <h1 className="font-headline text-2xl sm:text-3xl text-on-lp-background">{invitation.name}</h1>
+            </div>
+
+            <div className="flex flex-wrap justify-center gap-3 mb-5">
+              {invitation.seat_number && (
+                <div className="flex items-center gap-1.5 bg-brand-container/40 px-3 py-1.5 rounded-full">
+                  <span className="material-symbols-outlined text-brand text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>chair</span>
+                  <span className="text-sm font-semibold text-brand">Seat {invitation.seat_number}</span>
+                </div>
+              )}
+              {invitation.tag && (
+                <div className="flex items-center gap-1.5 bg-secondary-container/40 px-3 py-1.5 rounded-full">
+                  <span className="material-symbols-outlined text-on-surface text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>label</span>
+                  <span className="text-sm font-semibold text-on-surface">{invitation.tag}</span>
+                </div>
+              )}
+            </div>
+
+            {checkedIn ? (
+              <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-2xl px-4 py-3">
+                <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined text-green-600 text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-green-700">Checked In</p>
+                  {invitation.checked_in_at && (
+                    <p className="text-xs text-green-600 mt-0.5">
+                      {new Date(invitation.checked_in_at).toLocaleString()}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3 bg-brand-container/20 border border-brand/20 rounded-2xl px-4 py-3">
+                <div className="w-9 h-9 rounded-full bg-brand-container/40 flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined text-brand text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>qr_code_scanner</span>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-brand">Not yet checked in</p>
+                  <p className="text-xs text-on-surface-variant mt-0.5">Show your QR code at the venue entrance</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {invitation.qr_code && (
+            <div className="w-full bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-xl p-5 sm:p-6">
+              <p className="text-xs font-label font-semibold text-brand uppercase tracking-widest mb-4 text-center">Your QR Code</p>
+              <div className="flex justify-center">
+                <div className="bg-white rounded-2xl p-4 shadow-md border border-outline-variant/20">
+                  <Image
+                    src={resolveMediaUrl(invitation.qr_code)}
+                    alt="QR Code"
+                    width={180}
+                    height={180}
+                  />
+                </div>
+              </div>
+              <p className="text-center text-xs text-on-surface-variant mt-4">
+                Present this at the venue entrance to check in
+              </p>
+            </div>
+          )}
+        </main>
+      </div>
+    );
+  }
+
   // ── No theme — clean PIL image page ─────────────────────────────────────
   return (
     <div className="min-h-screen bg-lp-background flex flex-col items-center">

@@ -10,7 +10,7 @@ export default function InvitationClient({ id }: { id: string }) {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    invitationService.getById(id, { trackView: true })
+    invitationService.getById(id)
       .then(setInvitation)
       .catch(() => {/* stay null */})
       .finally(() => setLoading(false));
@@ -85,39 +85,42 @@ export default function InvitationClient({ id }: { id: string }) {
   const publicBrandName = invitation.brand_name?.trim() || '';
   const publicBrandLogoUrl = resolveMediaUrl(invitation.brand_logo_url);
   const publicBrandLabel = publicBrandName || invitation.event_name || 'Event Host';
+  const useMinimalOrganizerPreview = !invitation.event_theme && !invitation.event_has_template;
 
   return (
     <div className="min-h-screen bg-lp-background">
       <Aurora />
 
       {/* ── Top wordmark ──────────────────────────────────────────────────── */}
-      <header className="flex justify-center pt-6 sm:pt-8 pb-0 px-4">
-        {showEventBranding ? (
-          <div className="inline-flex items-center gap-3 rounded-full border border-white/50 bg-white/75 px-4 py-2 shadow-sm backdrop-blur-xl">
-            {publicBrandLogoUrl && (
-              <img
-                src={publicBrandLogoUrl}
-                alt={`${publicBrandLabel} logo`}
-                className="h-9 w-9 rounded-2xl object-cover border border-white/60 bg-white"
-              />
-            )}
-            <div className="text-left">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-on-surface-variant">Presented by</p>
-              <p className="text-sm font-semibold text-on-lp-background">{publicBrandLabel}</p>
+      {!useMinimalOrganizerPreview && (
+        <header className="flex justify-center pt-6 sm:pt-8 pb-0 px-4">
+          {showEventBranding ? (
+            <div className="inline-flex items-center gap-3 rounded-full border border-white/50 bg-white/75 px-4 py-2 shadow-sm backdrop-blur-xl">
+              {publicBrandLogoUrl && (
+                <img
+                  src={publicBrandLogoUrl}
+                  alt={`${publicBrandLabel} logo`}
+                  className="h-9 w-9 rounded-2xl object-cover border border-white/60 bg-white"
+                />
+              )}
+              <div className="text-left">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-on-surface-variant">Presented by</p>
+                <p className="text-sm font-semibold text-on-lp-background">{publicBrandLabel}</p>
+              </div>
             </div>
-          </div>
-        ) : (
-          <span className="font-headline italic text-brand text-xl tracking-tight select-none">
-            youareinvited
-          </span>
-        )}
-      </header>
+          ) : (
+            <span className="font-headline italic text-brand text-xl tracking-tight select-none">
+              youareinvited
+            </span>
+          )}
+        </header>
+      )}
 
       {/* ── Main content ──────────────────────────────────────────────────── */}
-      <main className="flex flex-col items-center px-4 sm:px-5 py-8 sm:py-10 gap-5 max-w-lg mx-auto">
+      <main className={`flex flex-col items-center px-4 sm:px-5 gap-5 max-w-lg mx-auto ${useMinimalOrganizerPreview ? 'py-12 sm:py-16' : 'py-8 sm:py-10'}`}>
 
         {/* E-invite image — hero */}
-        {invitation.e_invite_image && (
+        {!useMinimalOrganizerPreview && invitation.e_invite_image && (
           <div className="w-full rounded-[2rem] overflow-hidden shadow-2xl border border-white/50">
             <Image
               src={resolveMediaUrl(invitation.e_invite_image)}
@@ -235,16 +238,18 @@ export default function InvitationClient({ id }: { id: string }) {
       </main>
 
       {/* ── Footer ────────────────────────────────────────────────────────── */}
-      <footer className="text-center pb-8 sm:pb-10 px-4 sm:px-6">
-        {showEventBranding && (
-          <p className="text-xs text-on-surface-variant mb-1">
-            Hosted by <span className="font-semibold text-on-lp-background">{publicBrandLabel}</span>
+      {!useMinimalOrganizerPreview && (
+        <footer className="text-center pb-8 sm:pb-10 px-4 sm:px-6">
+          {showEventBranding && (
+            <p className="text-xs text-on-surface-variant mb-1">
+              Hosted by <span className="font-semibold text-on-lp-background">{publicBrandLabel}</span>
+            </p>
+          )}
+          <p className="text-xs text-on-surface-variant">
+            Powered by <span className="font-semibold text-brand">youareinvited</span>
           </p>
-        )}
-        <p className="text-xs text-on-surface-variant">
-          Powered by <span className="font-semibold text-brand">youareinvited</span>
-        </p>
-      </footer>
+        </footer>
+      )}
     </div>
   );
 }

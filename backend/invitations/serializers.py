@@ -29,6 +29,7 @@ class InvitationSerializer(serializers.ModelSerializer):
     event_date = serializers.DateField(source='event.date', read_only=True)
     event_theme = serializers.CharField(source='event.theme', read_only=True)
     event_theme_data = serializers.JSONField(source='event.theme_data', read_only=True)
+    event_has_template = serializers.SerializerMethodField()
     invitation_url = serializers.SerializerMethodField()
     whatsapp_share_url = serializers.SerializerMethodField()
     brand_name = serializers.SerializerMethodField()
@@ -44,6 +45,7 @@ class InvitationSerializer(serializers.ModelSerializer):
             'event_date',
             'event_theme',
             'event_theme_data',
+            'event_has_template',
             'name',
             'seat_number',
             'tag',
@@ -63,6 +65,9 @@ class InvitationSerializer(serializers.ModelSerializer):
             'id', 'event', 'qr_code', 'e_invite_image',
             'checked_in_at', 'created_at', 'updated_at',
         ]
+
+    def get_event_has_template(self, obj):
+        return obj.event.has_template() if obj.event_id else False
 
     def get_invitation_url(self, obj):
         return obj.get_invitation_url()

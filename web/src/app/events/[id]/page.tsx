@@ -301,8 +301,8 @@ export default function EventPage() {
   };
 
   const openInvitationPreview = (inv: Invitation) => {
-    const invitationUrl = inv.invitation_url || `${window.location.origin}/invitation/${inv.id}`;
-    window.open(invitationUrl, '_blank', 'noopener,noreferrer');
+    const previewUrl = `${window.location.origin}/invitation/${inv.id}`;
+    window.open(previewUrl, '_blank', 'noopener,noreferrer');
   };
 
   const displayName = user?.display_name || 'Organizer';
