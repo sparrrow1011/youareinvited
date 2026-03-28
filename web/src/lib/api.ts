@@ -244,6 +244,8 @@ export interface Event {
   tag_zone: Record<string, number | string> | null;
   has_security_pin: boolean;
   whatsapp_message_template: string;
+  theme: string;
+  theme_data: Record<string, unknown>;
   created_at: string;
 }
 
@@ -251,6 +253,8 @@ export interface EventCreate {
   name: string;
   date: string;
   description?: string;
+  theme?: string;
+  theme_data?: Record<string, unknown>;
 }
 
 // Event service
@@ -287,6 +291,9 @@ export interface Invitation {
   id: string;
   event: string;
   event_name: string;
+  event_date: string;
+  event_theme: string;
+  event_theme_data: Record<string, unknown>;
   name: string;
   seat_number: string;
   tag: string;
