@@ -4,25 +4,14 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
+    """
+    Renamed indexes were already applied by 0014_event_theme_fields on the
+    main branch. This migration is a no-op dependency bridge so that
+    0015_email_verified (from the google-auth branch) can chain correctly.
+    """
 
     dependencies = [
-        ("invitations", "0013_invitation_analytics_fields"),
+        ("invitations", "0014_event_theme_fields"),
     ]
 
-    operations = [
-        migrations.RenameIndex(
-            model_name="invitation",
-            new_name="invitations_event_i_d31380_idx",
-            old_name="invitation_event_6d57df_idx",
-        ),
-        migrations.RenameIndex(
-            model_name="invitation",
-            new_name="invitations_event_i_0b0495_idx",
-            old_name="invitation_event_4d9e36_idx",
-        ),
-        migrations.RenameIndex(
-            model_name="invitation",
-            new_name="invitations_event_i_5f0e1c_idx",
-            old_name="invitation_event_16c73a_idx",
-        ),
-    ]
+    operations = []
