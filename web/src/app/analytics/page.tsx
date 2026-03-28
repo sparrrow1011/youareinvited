@@ -10,6 +10,7 @@ import {
   invitationService,
   resolveMediaUrl,
 } from '@/lib/api';
+import VerificationBanner from '@/components/VerificationBanner';
 
 const NAV_LINKS = [
   { icon: 'dashboard', label: 'Dashboard', href: '/dashboard' },
@@ -333,6 +334,8 @@ export default function AnalyticsPage() {
             </div>
           </div>
         </header>
+
+        {user && !user.email_verified && <VerificationBanner />}
 
         <section className="px-4 sm:px-6 lg:px-12 py-8 lg:py-10 max-w-7xl mx-auto pb-24">
           <div className="mb-8 lg:mb-10">

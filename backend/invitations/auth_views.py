@@ -1,10 +1,19 @@
+import logging
+
 from django.conf import settings
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
+from django.core.cache import cache
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.validators import validate_email
+from django.core import signing
+from django.core.mail import send_mail
 from django.utils import timezone
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
+
+logger = logging.getLogger(__name__)
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -46,6 +55,7 @@ def _user_payload(user):
         'brand_name': profile.brand_name if profile else '',
         'brand_logo_url': _brand_logo_url(profile),
         'show_event_branding': profile.show_branding_on_event_surfaces if profile else False,
+        'email_verified': profile.email_verified if profile else True,
     }
 
 
@@ -69,6 +79,24 @@ def _settings_payload(user):
         'can_upload_brand_logo': (not settings.IS_VERCEL) or settings.USE_S3_STORAGE,
         'team_access_mode': 'security_pin_links',
     }
+
+
+def send_verification_email(user):
+    token = signing.dumps({'user_id': user.id}, salt='email-verification')
+    link = f"{settings.FRONTEND_URL}/verify-email?token={token}"
+    send_mail(
+        subject='Verify your YouAreInvited email',
+        message=(
+            f'Hi,\n\n'
+            f'Please verify your email address by clicking the link below:\n\n'
+            f'{link}\n\n'
+            f'This link expires in 24 hours.\n\n'
+            f'If you did not create an account, you can ignore this email.'
+        ),
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[user.email],
+        fail_silently=False,
+    )
 
 
 @api_view(['POST'])
@@ -106,6 +134,16 @@ def register(request):
         )
 
     user = User.objects.create_user(username=email, email=email, password=password)
+    profile = getattr(user, 'profile', None)
+    if profile:
+        profile.email_verified = False
+        profile.save(update_fields=['email_verified'])
+
+    try:
+        send_verification_email(user)
+    except Exception:
+        logger.exception('Failed to send verification email to user %s', user.id)
+
     refresh = RefreshToken.for_user(user)
 
     return Response({
@@ -209,3 +247,125 @@ def delete_account(request):
     serializer.is_valid(raise_exception=True)
     request.user.delete()
     return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def resend_verification(request):
+    user = request.user
+    profile = getattr(user, 'profile', None)
+
+    if profile and profile.email_verified:
+        return Response(
+            {'detail': 'Email is already verified.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    cache_key = f'verify_resend_{user.id}'
+    if cache.get(cache_key):
+        return Response(
+            {'detail': 'Please wait 60 seconds before requesting another verification email.'},
+            status=status.HTTP_429_TOO_MANY_REQUESTS
+        )
+
+    cache.set(cache_key, True, 60)
+
+    try:
+        send_verification_email(user)
+    except Exception:
+        cache.delete(cache_key)
+        return Response(
+            {'detail': 'Failed to send email. Please try again.'},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+    return Response({'detail': 'Verification email sent.'})
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def verify_email(request):
+    token = request.query_params.get('token', '')
+    if not token:
+        return Response({'detail': 'Token is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        data = signing.loads(token, max_age=86400, salt='email-verification')
+        user_id = data['user_id']
+    except signing.SignatureExpired:
+        return Response({'detail': 'Verification link has expired.'}, status=status.HTTP_400_BAD_REQUEST)
+    except (signing.BadSignature, KeyError):
+        return Response({'detail': 'Invalid verification link.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        user = User.objects.get(pk=user_id)
+    except User.DoesNotExist:
+        return Response({'detail': 'User not found.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    profile = getattr(user, 'profile', None)
+    if profile:
+        profile.email_verified = True
+        profile.save(update_fields=['email_verified'])
+    else:
+        logger.warning('verify_email: no profile found for user %s, email_verified not set', user.id)
+
+    refresh = RefreshToken.for_user(user)
+    return Response({
+        'access': str(refresh.access_token),
+        'refresh': str(refresh),
+    })
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def google_auth(request):
+    id_token_str = request.data.get('id_token', '').strip()
+    if not id_token_str:
+        return Response({'detail': 'id_token is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    google_client_id = settings.GOOGLE_CLIENT_ID
+    if not google_client_id:
+        return Response(
+            {'detail': 'Google login is not configured.'},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE
+        )
+
+    try:
+        payload = id_token.verify_oauth2_token(
+            id_token_str,
+            google_requests.Request(),
+            google_client_id,
+        )
+    except ValueError:
+        return Response({'detail': 'Invalid Google token.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    email = payload.get('email', '').strip().lower()
+    name = payload.get('name', '').strip()
+
+    if not email:
+        return Response(
+            {'detail': 'Google account has no email address.'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    user, created = User.objects.get_or_create(
+        email=email,
+        defaults={'username': email},
+    )
+
+    if created:
+        name_parts = name.split(' ', 1)
+        user.first_name = name_parts[0] if name_parts else ''
+        user.last_name = name_parts[1] if len(name_parts) > 1 else ''
+        user.save(update_fields=['first_name', 'last_name'])
+
+    profile = getattr(user, 'profile', None)
+    if created and profile:
+        profile.email_verified = True
+        profile.save(update_fields=['email_verified'])
+
+    refresh = RefreshToken.for_user(user)
+    return Response({
+        'access': str(refresh.access_token),
+        'refresh': str(refresh),
+    })

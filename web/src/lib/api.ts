@@ -151,6 +151,7 @@ export interface AuthUser {
   brand_name: string;
   brand_logo_url: string | null;
   show_event_branding: boolean;
+  email_verified: boolean;
 }
 
 export interface AccountSettings extends AuthUser {
@@ -228,6 +229,15 @@ export const authService = {
     await api.delete('/auth/delete/', {
       data: { password },
     });
+  },
+
+  google: async (idToken: string): Promise<void> => {
+    const response = await api.post<AuthTokens>('/auth/google/', { id_token: idToken });
+    setToken(response.data.access);
+  },
+
+  resendVerification: async (): Promise<void> => {
+    await api.post('/auth/resend-verification/');
   },
 };
 

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { eventService, authService, invitationService, Event, InvitationStats, AuthUser, resolveMediaUrl } from '@/lib/api';
+import VerificationBanner from '@/components/VerificationBanner';
 
 const NAV_LINKS = [
   { icon: 'dashboard', label: 'Dashboard', href: '/dashboard', active: true },
@@ -196,7 +197,8 @@ export default function DashboardPage() {
         <div className="px-6 pt-4">
           <button
             onClick={() => router.push('/events/new')}
-            className="w-full bg-brand text-white py-3 rounded-full font-medium shadow-lg shadow-brand/20 hover:scale-[1.02] active:scale-[0.98] transition-all text-sm"
+            disabled={!user?.email_verified}
+            className="w-full bg-brand text-white py-3 rounded-full font-medium shadow-lg shadow-brand/20 hover:scale-[1.02] active:scale-[0.98] transition-all text-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:scale-100"
           >
             + New Event
           </button>
@@ -234,7 +236,8 @@ export default function DashboardPage() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => router.push('/events/new')}
-                  className="px-4 py-2 rounded-full bg-brand text-white text-xs font-semibold shadow-lg shadow-brand/20"
+                  disabled={!user?.email_verified}
+                  className="px-4 py-2 rounded-full bg-brand text-white text-xs font-semibold shadow-lg shadow-brand/20 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   New Event
                 </button>
@@ -369,6 +372,8 @@ export default function DashboardPage() {
           </div>
         </header>
 
+        {user && !user.email_verified && <VerificationBanner />}
+
         <section className="px-4 sm:px-6 lg:px-12 py-8 lg:py-10 max-w-7xl mx-auto pb-24">
           {/* Greeting */}
           <div className="mb-10 lg:mb-12">
@@ -439,7 +444,8 @@ export default function DashboardPage() {
                 <h3 className="font-headline text-2xl font-normal">My Events</h3>
                 <button
                   onClick={() => router.push('/events/new')}
-                  className="text-sm font-medium text-brand hover:underline underline-offset-4"
+                  disabled={!user?.email_verified}
+                  className="text-sm font-medium text-brand hover:underline underline-offset-4 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   + New Event
                 </button>
@@ -454,7 +460,8 @@ export default function DashboardPage() {
                   <p className="text-on-surface-variant mb-4">No events yet.</p>
                   <button
                     onClick={() => router.push('/events/new')}
-                    className="px-6 py-3 bg-brand text-white rounded-full font-semibold text-sm"
+                    disabled={!user?.email_verified}
+                    className="px-6 py-3 bg-brand text-white rounded-full font-semibold text-sm disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     Create Your First Event
                   </button>
@@ -498,13 +505,15 @@ export default function DashboardPage() {
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-6 border-t border-outline-variant/10 mt-6">
                         <button
                           onClick={() => handleDelete(event.id)}
-                          className="text-xs text-left text-on-surface-variant hover:text-tertiary transition-colors"
+                          disabled={!user?.email_verified}
+                          className="text-xs text-left text-on-surface-variant hover:text-tertiary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                           Delete
                         </button>
                         <button
                           onClick={() => router.push(`/events/${event.id}`)}
-                          className="flex items-center text-brand font-bold text-sm group-hover:translate-x-1 transition-transform"
+                          disabled={!user?.email_verified}
+                          className="flex items-center text-brand font-bold text-sm group-hover:translate-x-1 transition-transform disabled:opacity-40 disabled:cursor-not-allowed disabled:translate-x-0"
                         >
                           Manage Event <span className="material-symbols-outlined ml-1">arrow_forward</span>
                         </button>
@@ -588,7 +597,8 @@ export default function DashboardPage() {
       {/* FAB */}
       <button
         onClick={() => router.push('/events/new')}
-        className="fixed bottom-6 right-4 sm:bottom-8 sm:right-8 bg-on-lp-background text-lp-background w-14 h-14 rounded-full flex items-center justify-center shadow-2xl hover:scale-110 active:scale-95 transition-all z-50"
+        disabled={!user?.email_verified}
+        className="fixed bottom-6 right-4 sm:bottom-8 sm:right-8 bg-on-lp-background text-lp-background w-14 h-14 rounded-full flex items-center justify-center shadow-2xl hover:scale-110 active:scale-95 transition-all z-50 disabled:opacity-40 disabled:cursor-not-allowed disabled:scale-100"
       >
         <span className="material-symbols-outlined">add</span>
       </button>

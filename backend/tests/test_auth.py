@@ -1,8 +1,10 @@
 from datetime import date
+from unittest.mock import patch
 
 import pytest
-from django.test import Client
+from django.test import Client, override_settings
 from django.contrib.auth.models import User
+from django.core import signing
 
 from invitations.models import Event, Invitation
 
@@ -179,3 +181,160 @@ def test_delete_account_removes_authenticated_user(auth_client, user):
 
     assert response.status_code == 204
     assert not User.objects.filter(pk=user.pk).exists()
+
+
+@pytest.mark.django_db
+def test_register_creates_unverified_user(api_client):
+    response = api_client.post('/api/auth/register/', {
+        'email': 'unverified@example.com',
+        'password': 'X9mK#vPqL2!',
+    }, format='json')
+    assert response.status_code == 201
+    user = User.objects.get(email='unverified@example.com')
+    assert user.profile.email_verified is False
+
+
+@pytest.mark.django_db
+def test_me_returns_email_verified_field(auth_client, user):
+    response = auth_client.get('/api/auth/me/')
+    assert response.status_code == 200
+    assert 'email_verified' in response.data
+    assert response.data['email_verified'] is True
+
+
+@pytest.mark.django_db
+@override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+def test_register_sends_verification_email(api_client):
+    from django.core import mail
+    response = api_client.post('/api/auth/register/', {
+        'email': 'emailtest@example.com',
+        'password': 'X9mK#vPqL2!',
+    }, format='json')
+    assert response.status_code == 201
+    assert len(mail.outbox) == 1
+    assert 'emailtest@example.com' in mail.outbox[0].to
+    assert 'verify' in mail.outbox[0].subject.lower()
+
+
+@pytest.mark.django_db
+def test_verify_email_valid_token(api_client, user):
+    user.profile.email_verified = False
+    user.profile.save(update_fields=['email_verified'])
+
+    token = signing.dumps({'user_id': user.id}, salt='email-verification')
+    response = api_client.get(f'/api/auth/verify-email/?token={token}')
+
+    assert response.status_code == 200
+    assert 'access' in response.data
+    user.profile.refresh_from_db()
+    assert user.profile.email_verified is True
+
+
+@pytest.mark.django_db
+def test_verify_email_expired_token(api_client, user):
+    from unittest.mock import patch
+    import time as time_mod
+
+    # Sign a token as if it was created 90000 seconds ago (> 86400s max_age)
+    with patch.object(time_mod, 'time', return_value=time_mod.time() - 90000):
+        token = signing.dumps({'user_id': user.id}, salt='email-verification')
+    response = api_client.get(f'/api/auth/verify-email/?token={token}')
+    assert response.status_code == 400
+    assert 'expired' in response.data['detail'].lower()
+
+
+@pytest.mark.django_db
+def test_verify_email_invalid_token(api_client):
+    response = api_client.get('/api/auth/verify-email/?token=not-a-valid-token')
+    assert response.status_code == 400
+
+
+@pytest.mark.django_db
+@override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+def test_resend_verification_sends_email(auth_client, user):
+    from django.core import mail
+    from django.core.cache import cache
+    cache.clear()
+
+    user.profile.email_verified = False
+    user.profile.save(update_fields=['email_verified'])
+
+    response = auth_client.post('/api/auth/resend-verification/')
+
+    assert response.status_code == 200
+    assert len(mail.outbox) == 1
+    assert user.email in mail.outbox[0].to
+
+
+@pytest.mark.django_db
+@override_settings(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend')
+def test_resend_verification_rate_limited(auth_client, user):
+    from django.core.cache import cache
+    cache.clear()
+
+    user.profile.email_verified = False
+    user.profile.save(update_fields=['email_verified'])
+
+    auth_client.post('/api/auth/resend-verification/')
+    response = auth_client.post('/api/auth/resend-verification/')
+
+    assert response.status_code == 429
+
+
+@pytest.mark.django_db
+def test_resend_verification_already_verified(auth_client, user):
+    # user fixture has email_verified=True (default)
+    response = auth_client.post('/api/auth/resend-verification/')
+    assert response.status_code == 400
+
+
+@pytest.mark.django_db
+@override_settings(GOOGLE_CLIENT_ID='test-client-id')
+@patch('invitations.auth_views.id_token.verify_oauth2_token')
+def test_google_auth_creates_new_user(mock_verify, api_client):
+    mock_verify.return_value = {
+        'email': 'googleuser@gmail.com',
+        'name': 'Google User',
+    }
+
+    response = api_client.post('/api/auth/google/', {'id_token': 'fake-token'}, format='json')
+
+    assert response.status_code == 200
+    assert 'access' in response.data
+    user = User.objects.get(email='googleuser@gmail.com')
+    assert user.profile.email_verified is True
+
+
+@pytest.mark.django_db
+@override_settings(GOOGLE_CLIENT_ID='test-client-id')
+@patch('invitations.auth_views.id_token.verify_oauth2_token')
+def test_google_auth_links_existing_user(mock_verify, api_client, user):
+    mock_verify.return_value = {
+        'email': 'testuser@example.com',  # matches the 'user' fixture
+        'name': 'Test User',
+    }
+
+    response = api_client.post('/api/auth/google/', {'id_token': 'fake-token'}, format='json')
+
+    assert response.status_code == 200
+    assert 'access' in response.data
+    # Should not have created a second user
+    assert User.objects.filter(email='testuser@example.com').count() == 1
+
+
+@pytest.mark.django_db
+@override_settings(GOOGLE_CLIENT_ID='test-client-id')
+@patch('invitations.auth_views.id_token.verify_oauth2_token')
+def test_google_auth_invalid_token(mock_verify, api_client):
+    mock_verify.side_effect = ValueError('Invalid token')
+
+    response = api_client.post('/api/auth/google/', {'id_token': 'bad-token'}, format='json')
+
+    assert response.status_code == 400
+    assert 'detail' in response.data
+
+
+@pytest.mark.django_db
+def test_google_auth_missing_token(api_client):
+    response = api_client.post('/api/auth/google/', {}, format='json')
+    assert response.status_code == 400

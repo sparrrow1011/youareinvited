@@ -26,6 +26,9 @@ from invitations.auth_views import (
     account_settings,
     export_account_data,
     delete_account,
+    verify_email,
+    resend_verification,
+    google_auth,
 )
 from rest_framework_simplejwt.views import TokenRefreshView
 from invitations.superadmin_views import (
@@ -51,6 +54,9 @@ urlpatterns = [
     path('api/auth/settings/', account_settings),
     path('api/auth/export/', export_account_data),
     path('api/auth/delete/', delete_account),
+    path('api/auth/verify-email/', verify_email),
+    path('api/auth/resend-verification/', resend_verification),
+    path('api/auth/google/', google_auth),
     path('api/superadmin/stats/', superadmin_stats),
     path('api/superadmin/growth/', superadmin_growth),
     path('api/superadmin/users/', superadmin_users),
