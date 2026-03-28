@@ -8,6 +8,7 @@ import ZoneEditor, { Zones } from '@/components/ZoneEditor';
 import VerificationBanner from '@/components/VerificationBanner';
 import { resolveMediaUrl } from '@/lib/api';
 import ThemePicker from '@/components/ThemePicker';
+import InvitationPreviewModal from '@/components/InvitationPreviewModal';
 
 const NAV_LINKS = [
   { icon: 'dashboard', label: 'Dashboard', href: '/dashboard' },
@@ -55,6 +56,7 @@ export default function EventPage() {
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({ name: '', seat_number: '', tag: '' });
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [previewingInvitation, setPreviewingInvitation] = useState<Pick<Invitation, 'id' | 'name'> | null>(null);
   const [error, setError] = useState('');
   const [savingGuest, setSavingGuest] = useState(false);
 
@@ -301,8 +303,7 @@ export default function EventPage() {
   };
 
   const openInvitationPreview = (inv: Invitation) => {
-    const previewUrl = `${window.location.origin}/invitation/${inv.id}`;
-    window.open(previewUrl, '_blank', 'noopener,noreferrer');
+    setPreviewingInvitation({ id: inv.id, name: inv.name });
   };
 
   const displayName = user?.display_name || 'Organizer';
@@ -676,7 +677,7 @@ export default function EventPage() {
                                   <button
                                     onClick={() => openInvitationPreview(inv)}
                                     className="p-1.5 rounded-lg hover:bg-surface-container transition-colors text-on-surface-variant hover:text-brand"
-                                    title="View invitation in new tab"
+                                    title="Preview invitation"
                                   >
                                     <span className="material-symbols-outlined text-sm">visibility</span>
                                   </button>
@@ -1131,6 +1132,12 @@ export default function EventPage() {
           </div>
         </div>
       )}
+
+      <InvitationPreviewModal
+        invitationId={previewingInvitation?.id ?? null}
+        invitationName={previewingInvitation?.name}
+        onClose={() => setPreviewingInvitation(null)}
+      />
 
       {/* FAB */}
       {activeTab === 'guests' && (
