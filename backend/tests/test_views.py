@@ -400,3 +400,46 @@ def test_analytics_export_returns_csv(auth_client, user, monkeypatch):
     assert response['Content-Type'].startswith('text/csv')
     assert 'attachment;' in response['Content-Disposition']
     assert 'Event Comparison' in response.content.decode('utf-8')
+
+
+@pytest.mark.django_db
+def test_event_serializer_exposes_theme_fields(auth_client, user):
+    response = auth_client.post('/api/events/', {
+        'name': 'Birthday Bash',
+        'date': '2026-12-01',
+        'theme': 'birthday',
+        'theme_data': {'ageNumber': '30', 'ageWord': 'thirty'},
+    }, format='json')
+    assert response.status_code == 201
+    assert response.data['theme'] == 'birthday'
+    assert response.data['theme_data'] == {'ageNumber': '30', 'ageWord': 'thirty'}
+
+
+@pytest.mark.django_db
+def test_event_theme_defaults_to_empty(auth_client, user):
+    response = auth_client.post('/api/events/', {
+        'name': 'Simple Event',
+        'date': '2026-12-01',
+    }, format='json')
+    assert response.status_code == 201
+    assert response.data['theme'] == ''
+    assert response.data['theme_data'] == {}
+
+
+@pytest.mark.django_db
+def test_invitation_exposes_event_theme_fields(api_client, user, monkeypatch):
+    from invitations.models import Invitation
+    monkeypatch.setattr(Invitation, 'generate_qr_code', lambda self: None)
+    monkeypatch.setattr(Invitation, 'generate_e_invite', lambda self, **kwargs: None)
+
+    event = Event.objects.create(
+        owner=user, name='Birthday', date='2026-12-01',
+        theme='birthday', theme_data={'ageNumber': '30'}
+    )
+    inv = Invitation.objects.create(name='Alice', seat_number='A1', tag='VIP', event=event)
+
+    response = api_client.get(f'/api/invitations/{inv.id}/')
+    assert response.status_code == 200
+    assert response.data['event_theme'] == 'birthday'
+    assert response.data['event_theme_data'] == {'ageNumber': '30'}
+    assert response.data['event_date'] == '2026-12-01'

@@ -129,6 +129,7 @@ class EventSerializer(serializers.ModelSerializer):
             'id', 'owner', 'name', 'date', 'description',
             'background_image', 'qr_zone', 'name_zone', 'tag_zone',
             'created_at', 'has_security_pin', 'whatsapp_message_template',
+            'theme', 'theme_data',
         ]
         read_only_fields = ['id', 'owner', 'created_at']
 
