@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { invitationService, Invitation, resolveMediaUrl } from '@/lib/api';
 import Image from 'next/image';
+import ThemeRenderer from '@/components/ThemeRenderer';
 
 export default function InvitationClient({ id }: { id: string }) {
   const [invitation, setInvitation] = useState<Invitation | null>(null);
@@ -116,8 +117,27 @@ export default function InvitationClient({ id }: { id: string }) {
       {/* ── Main content ──────────────────────────────────────────────────── */}
       <main className="flex flex-col items-center px-4 sm:px-5 py-8 sm:py-10 gap-5 max-w-lg mx-auto">
 
-        {/* E-invite image — hero */}
-        {invitation.e_invite_image && (
+        {/* Themed invitation card — takes priority over PIL image */}
+        {invitation.event_theme ? (
+          <div className="w-full rounded-[2rem] overflow-hidden shadow-2xl border border-white/50">
+            <ThemeRenderer
+              themeId={invitation.event_theme}
+              props={{
+                eventName: invitation.event_name,
+                inviteeName: invitation.name,
+                eventDate: invitation.event_date,
+                qrContent: invitation.qr_code ? (
+                  <img
+                    src={resolveMediaUrl(invitation.qr_code)}
+                    alt="QR Code"
+                    style={{ width: 120, height: 120 }}
+                  />
+                ) : undefined,
+                ...invitation.event_theme_data,
+              }}
+            />
+          </div>
+        ) : invitation.e_invite_image ? (
           <div className="w-full rounded-[2rem] overflow-hidden shadow-2xl border border-white/50">
             <Image
               src={resolveMediaUrl(invitation.e_invite_image)}
@@ -128,7 +148,7 @@ export default function InvitationClient({ id }: { id: string }) {
               priority
             />
           </div>
-        )}
+        ) : null}
 
         {/* Guest details card */}
         <div className="w-full bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-xl p-5 sm:p-6">
