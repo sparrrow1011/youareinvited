@@ -4,7 +4,12 @@ import { useState, useEffect } from 'react';
 import { invitationService, Invitation, resolveMediaUrl } from '@/lib/api';
 import Image from 'next/image';
 
-export default function InvitationClient({ id }: { id: string }) {
+type InvitationClientProps = {
+  id: string;
+  embedded?: boolean;
+};
+
+export default function InvitationClient({ id, embedded = false }: InvitationClientProps) {
   const [invitation, setInvitation] = useState<Invitation | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
@@ -40,9 +45,17 @@ export default function InvitationClient({ id }: { id: string }) {
     window.open(resolveMediaUrl(invitation.e_invite_image), '_blank');
   };
 
+  const shellClass = embedded
+    ? 'relative h-full bg-lp-background overflow-y-auto'
+    : 'min-h-screen bg-lp-background';
+  const stateShellClass = embedded
+    ? 'relative min-h-[520px] bg-lp-background flex items-center justify-center'
+    : 'min-h-screen bg-lp-background flex items-center justify-center';
+  const statePaddingClass = embedded ? 'px-4 sm:px-5 py-10' : 'px-4 sm:px-6';
+
   // ── Aurora background (shared by all states) ──────────────────────────────
   const Aurora = () => (
-    <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
+    <div className={`${embedded ? 'absolute' : 'fixed'} inset-0 -z-10 overflow-hidden pointer-events-none`}>
       <div className="absolute -top-40 -left-40 w-[600px] h-[600px] rounded-full bg-brand-container/40 blur-[120px]" />
       <div className="absolute top-1/3 -right-32 w-[500px] h-[500px] rounded-full bg-tertiary-container/30 blur-[100px]" />
       <div className="absolute -bottom-32 left-1/3 w-[480px] h-[480px] rounded-full bg-secondary-container/35 blur-[110px]" />
@@ -52,9 +65,9 @@ export default function InvitationClient({ id }: { id: string }) {
   // ── Loading ────────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="min-h-screen bg-lp-background flex items-center justify-center">
+      <div className={stateShellClass}>
         <Aurora />
-        <div className="flex flex-col items-center gap-4">
+        <div className={`flex flex-col items-center gap-4 ${statePaddingClass}`}>
           <div className="w-10 h-10 rounded-full border-2 border-brand border-t-transparent animate-spin" />
           <p className="text-on-surface-variant text-sm font-label">Loading your invitation…</p>
         </div>
@@ -65,7 +78,7 @@ export default function InvitationClient({ id }: { id: string }) {
   // ── Not found ──────────────────────────────────────────────────────────────
   if (!invitation) {
     return (
-      <div className="min-h-screen bg-lp-background flex items-center justify-center px-4 sm:px-6">
+      <div className={`${stateShellClass} ${statePaddingClass}`}>
         <Aurora />
         <div className="bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-2xl p-6 sm:p-10 max-w-sm w-full text-center">
           <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-5">
@@ -86,9 +99,12 @@ export default function InvitationClient({ id }: { id: string }) {
   const publicBrandLogoUrl = resolveMediaUrl(invitation.brand_logo_url);
   const publicBrandLabel = publicBrandName || invitation.event_name || 'Event Host';
   const useMinimalOrganizerPreview = !invitation.event_theme && !invitation.event_has_template;
+  const mainClass = embedded
+    ? `flex flex-col items-center px-4 sm:px-5 gap-5 max-w-lg mx-auto ${useMinimalOrganizerPreview ? 'py-10 sm:py-12' : 'py-8 sm:py-10'}`
+    : `flex flex-col items-center px-4 sm:px-5 gap-5 max-w-lg mx-auto ${useMinimalOrganizerPreview ? 'py-12 sm:py-16' : 'py-8 sm:py-10'}`;
 
   return (
-    <div className="min-h-screen bg-lp-background">
+    <div className={shellClass}>
       <Aurora />
 
       {/* ── Top wordmark ──────────────────────────────────────────────────── */}
@@ -117,7 +133,7 @@ export default function InvitationClient({ id }: { id: string }) {
       )}
 
       {/* ── Main content ──────────────────────────────────────────────────── */}
-      <main className={`flex flex-col items-center px-4 sm:px-5 gap-5 max-w-lg mx-auto ${useMinimalOrganizerPreview ? 'py-12 sm:py-16' : 'py-8 sm:py-10'}`}>
+      <main className={mainClass}>
 
         {/* E-invite image — hero */}
         {!useMinimalOrganizerPreview && invitation.e_invite_image && (

@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
+import InvitationClient from '@/app/invitation/[id]/InvitationClient';
 
 type InvitationPreviewModalProps = {
   invitationId: string | null;
@@ -39,8 +40,6 @@ export default function InvitationPreviewModal({
     return null;
   }
 
-  const previewUrl = `/invitation/${invitationId}`;
-
   return createPortal(
     <AnimatePresence>
       <motion.div
@@ -66,33 +65,18 @@ export default function InvitationPreviewModal({
                 {invitationName || 'Invitation Preview'}
               </h2>
             </div>
-            <div className="flex items-center gap-2">
-              <a
-                href={previewUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center gap-2 rounded-full border border-outline-variant/20 bg-surface-container px-3 py-2 text-xs font-medium text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface"
-              >
-                <span className="material-symbols-outlined text-sm">open_in_new</span>
-                Open Page
-              </a>
-              <button
-                type="button"
-                onClick={onClose}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-surface-container text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface"
-                aria-label="Close invitation preview"
-              >
-                <span className="material-symbols-outlined">close</span>
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-surface-container text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface"
+              aria-label="Close invitation preview"
+            >
+              <span className="material-symbols-outlined">close</span>
+            </button>
           </div>
 
-          <div className="flex-1 bg-lp-background">
-            <iframe
-              src={previewUrl}
-              title={invitationName ? `${invitationName} invitation preview` : 'Invitation preview'}
-              className="h-full w-full border-0"
-            />
+          <div className="relative flex-1 overflow-hidden bg-lp-background">
+            <InvitationClient id={invitationId} embedded />
           </div>
         </motion.div>
       </motion.div>,
