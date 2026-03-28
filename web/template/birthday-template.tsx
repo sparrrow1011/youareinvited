@@ -1,17 +1,18 @@
 import type { CSSProperties, ReactNode } from 'react';
-import type { ThemeProps } from '../types';
 
-function parseEventDate(isoDate: string) {
-  // Parse as local date by appending midnight UTC offset guard
-  const [year, month, day] = isoDate.split('-').map(Number);
-  const d = new Date(year, month - 1, day);
-  return {
-    dayNumber: String(d.getDate()),
-    dayLabel: d.toLocaleDateString('en-US', { weekday: 'long' }),
-    monthLabel: d.toLocaleDateString('en-US', { month: 'long' }),
-    yearLabel: String(d.getFullYear()),
-  };
-}
+export type BirthdayTemplateProps = {
+  celebrantName?: string;
+  inviteeName?: string;
+  ageWord?: string;
+  ageNumber?: string;
+  dayNumber?: string;
+  dayLabel?: string;
+  monthLabel?: string;
+  yearLabel?: string;
+  location?: string;
+  timeLabel?: string;
+  qrContent?: ReactNode;
+};
 
 const fonts = {
   display: "'Epilogue', 'Helvetica Neue', Arial, sans-serif",
@@ -27,19 +28,18 @@ const styles: Record<string, CSSProperties> = {
     alignItems: 'center',
     padding: 0,
     position: 'relative',
-    width: '100%',
-    maxWidth: 390,
+    width: 390,
     minHeight: 1418,
     background: '#F3F1F0',
     color: '#000000',
     overflow: 'hidden',
-    margin: '0 auto',
   },
   canvas: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    width: '100%',
+    width: 390,
+    maxWidth: 448,
     paddingBottom: 64,
   },
   hero: {
@@ -290,39 +290,32 @@ const styles: Record<string, CSSProperties> = {
   },
 };
 
-export default function BirthdayTheme({
-  eventName,
-  inviteeName,
-  eventDate,
-  location,
-  time,
+export default function BirthdayTemplate({
+  celebrantName = 'Name of Celebrant',
+  inviteeName = 'Invitee',
+  ageWord = 'thirty',
+  ageNumber = '30',
+  dayNumber = '17',
+  dayLabel = 'Sunday',
+  monthLabel = 'November',
+  yearLabel = '2026',
+  location = 'Location',
+  timeLabel = '4PM PROMPT',
   qrContent,
-  ageNumber,
-  ageWord,
-}: ThemeProps) {
-  const { dayNumber, dayLabel, monthLabel, yearLabel } = parseEventDate(eventDate || '2026-01-01');
-  const displayAgeNumber = typeof ageNumber === 'string' || typeof ageNumber === 'number'
-    ? String(ageNumber)
-    : '';
-  const displayAgeWord = typeof ageWord === 'string' || typeof ageWord === 'number'
-    ? String(ageWord)
-    : '';
-
+}: BirthdayTemplateProps) {
   return (
     <div style={styles.body}>
       <div style={styles.canvas}>
         <section style={styles.hero}>
-          {displayAgeNumber && (
-            <div style={styles.giantAgeWrap}>
-              <div style={styles.giantAge}>{displayAgeNumber}</div>
-              {displayAgeWord && <div style={styles.ageWord}>{displayAgeWord}</div>}
-            </div>
-          )}
+          <div style={styles.giantAgeWrap}>
+            <div style={styles.giantAge}>{ageNumber}</div>
+            <div style={styles.ageWord}>{ageWord}</div>
+          </div>
         </section>
 
         <section style={styles.nameSection}>
           <div style={styles.nameCluster}>
-            <div style={styles.celebrant}>{eventName || 'Celebrant'}</div>
+            <div style={styles.celebrant}>{celebrantName}</div>
           </div>
         </section>
 
@@ -347,19 +340,19 @@ export default function BirthdayTheme({
 
           <div style={styles.inviteeCluster}>
             <div style={styles.celebrateText}>celebrate with us</div>
-            {inviteeName && <div style={styles.invitee}>{inviteeName}</div>}
+            <div style={styles.invitee}>{inviteeName}</div>
           </div>
 
           <div style={styles.footer}>
             <div style={styles.locationBlock}>
-              {location && <div style={styles.location}>{location}</div>}
-              {time && <div style={styles.time}>{time}</div>}
+              <div style={styles.location}>{location}</div>
+              <div style={styles.time}>{timeLabel}</div>
             </div>
 
             <div style={styles.qrFrameWrap}>
               <div style={styles.qrFrame}>
                 {qrContent ? (
-                  qrContent as ReactNode
+                  qrContent
                 ) : (
                   <div style={styles.qrFallback}>
                     <span style={styles.qrLabel}>QR CODE</span>
