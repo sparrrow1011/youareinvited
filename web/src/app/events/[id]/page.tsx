@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { eventService, invitationService, authService, api, Event, Invitation, InvitationStats, AuthUser } from '@/lib/api';
 import ZoneEditor, { Zones } from '@/components/ZoneEditor';
 import { resolveMediaUrl } from '@/lib/api';
+import ThemePicker from '@/components/ThemePicker';
 
 const NAV_LINKS = [
   { icon: 'dashboard', label: 'Dashboard', href: '/dashboard' },
@@ -54,6 +55,11 @@ export default function EventPage() {
   const [savingWaTemplate, setSavingWaTemplate] = useState(false);
   const [waTemplateSaved, setWaTemplateSaved] = useState(false);
 
+  const [selectedTheme, setSelectedTheme] = useState('');
+  const [themeData, setThemeData] = useState<Record<string, unknown>>({});
+  const [savingTheme, setSavingTheme] = useState(false);
+  const [themeSaved, setThemeSaved] = useState(false);
+
   const loadData = async () => {
     try {
       const [me, ev, invs] = await Promise.all([
@@ -65,6 +71,8 @@ export default function EventPage() {
       setEvent(ev);
       setSecurityPinSet(Boolean(ev.has_security_pin));
       setWaTemplate(ev.whatsapp_message_template ?? '');
+      setSelectedTheme(ev.theme ?? '');
+      setThemeData(ev.theme_data ?? {});
       const eventInvs = invs.filter((inv) => inv.event === id);
       setInvitations(eventInvs);
       const total = eventInvs.length;
@@ -232,6 +240,22 @@ export default function EventPage() {
       // keep current value
     } finally {
       setSavingWaTemplate(false);
+    }
+  };
+
+  const handleSaveTheme = async (theme: string, data: Record<string, unknown>) => {
+    setSelectedTheme(theme);
+    setThemeData(data);
+    setSavingTheme(true);
+    setThemeSaved(false);
+    try {
+      await eventService.update(id, { theme, theme_data: data });
+      setThemeSaved(true);
+      window.setTimeout(() => setThemeSaved(false), 2000);
+    } catch {
+      setError('Failed to save theme.');
+    } finally {
+      setSavingTheme(false);
     }
   };
 
@@ -765,6 +789,33 @@ export default function EventPage() {
                   </p>
                 )}
               </div>
+
+              {/* Invitation theme card — pro only */}
+              {user?.plan === 'pro' && (
+                <div className="bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-xl p-5 sm:p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-8 h-8 rounded-xl bg-brand-container/40 flex items-center justify-center">
+                      <span className="material-symbols-outlined text-brand text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>style</span>
+                    </div>
+                    <p className="text-xs font-label font-semibold text-on-surface uppercase tracking-widest">Invitation Theme</p>
+                  </div>
+                  <p className="text-xs text-on-surface-variant mb-4 leading-relaxed">
+                    Choose a styled card design that guests will see when they open their invite link.
+                  </p>
+                  <ThemePicker
+                    selectedTheme={selectedTheme}
+                    themeData={themeData}
+                    onChange={handleSaveTheme}
+                    saving={savingTheme}
+                  />
+                  {themeSaved && (
+                    <p className="text-xs text-green-600 text-center mt-3 flex items-center justify-center gap-1">
+                      <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                      Theme saved
+                    </p>
+                  )}
+                </div>
+              )}
 
               {/* Event info card */}
               <div className="bg-surface-container-low rounded-[2rem] p-5 sm:p-6 border border-outline-variant/10">
