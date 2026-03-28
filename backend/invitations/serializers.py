@@ -26,6 +26,9 @@ def _public_brand_payload(profile):
 class InvitationSerializer(serializers.ModelSerializer):
     event = serializers.UUIDField(source='event_id', read_only=True)
     event_name = serializers.CharField(source='event.name', read_only=True)
+    event_date = serializers.DateField(source='event.date', read_only=True)
+    event_theme = serializers.CharField(source='event.theme', read_only=True)
+    event_theme_data = serializers.JSONField(source='event.theme_data', read_only=True)
     invitation_url = serializers.SerializerMethodField()
     whatsapp_share_url = serializers.SerializerMethodField()
     brand_name = serializers.SerializerMethodField()
@@ -38,6 +41,9 @@ class InvitationSerializer(serializers.ModelSerializer):
             'id',
             'event',
             'event_name',
+            'event_date',
+            'event_theme',
+            'event_theme_data',
             'name',
             'seat_number',
             'tag',
