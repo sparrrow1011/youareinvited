@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { isExpiredJwt } from '@/lib/jwt';
 
 const PUBLIC_PATHS = new Set([
-  '/', '/login', '/logout', '/signup', '/verify-email',
+  '/', '/login', '/logout', '/signup', '/verify-email', '/privacy', '/terms', '/cookies',
 ]);
 
 const PUBLIC_PREFIXES = ['/invite/', '/security/event/'];

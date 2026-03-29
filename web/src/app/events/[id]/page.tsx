@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { eventService, invitationService, authService, api, Event, Invitation, InvitationStats, AuthUser } from '@/lib/api';
+import OrganizerWorkspaceHeader from '@/components/OrganizerWorkspaceHeader';
+import OrganizerWorkspaceSidebar from '@/components/OrganizerWorkspaceSidebar';
 import ZoneEditor, { Zones } from '@/components/ZoneEditor';
 import VerificationBanner from '@/components/VerificationBanner';
 import { resolveMediaUrl } from '@/lib/api';
@@ -344,79 +346,31 @@ export default function EventPage() {
         <div className="absolute bottom-0 right-0 w-[600px] h-[600px] rounded-full bg-tertiary/10 blur-[150px]" />
       </div>
 
-      {/* ── Sidebar ── */}
-      <aside className="hidden lg:flex h-screen w-64 fixed left-0 top-0 bg-surface-container-low flex-col py-8 z-40">
-        <div className="px-8 mb-10">
-          <Link href="/" className="text-xl font-headline italic text-tertiary">YouAreInvited</Link>
-        </div>
-        <div className="px-6 mb-8">
-          <div className="flex items-center gap-3 bg-white/50 p-3 rounded-xl">
-            {workspaceBrandLogoUrl ? (
-              <img
-                src={workspaceBrandLogoUrl}
-                alt={`${workspaceIdentityName} logo`}
-                className="w-10 h-10 rounded-2xl object-cover border border-white/60 bg-white"
-              />
-            ) : (
-              <div className="w-10 h-10 rounded-full bg-brand text-white flex items-center justify-center text-sm font-bold">
-                {avatarInitial}
-              </div>
-            )}
-            <div>
-              <p className="text-sm font-medium tracking-tight text-on-surface truncate">{workspaceIdentityName}</p>
-              <p className="text-[10px] uppercase tracking-widest text-on-surface-variant">{workspaceIdentityMeta}</p>
-            </div>
-          </div>
-        </div>
-        <nav className="flex-1 space-y-1">
-          {NAV_LINKS.map(({ icon, label, href, active }) => (
-            <Link
-              key={label}
-              href={href}
-              className={`py-3 pl-8 flex items-center gap-3 transition-all ${active
-                  ? 'text-brand font-bold bg-white rounded-r-full'
-                  : 'text-on-surface-variant hover:translate-x-1 hover:text-brand'
-                }`}
-            >
-              <span className="material-symbols-outlined" style={active ? { fontVariationSettings: "'FILL' 1" } : undefined}>{icon}</span>
-              <span className="text-sm font-medium tracking-tight">{label}</span>
-            </Link>
-          ))}
-        </nav>
-        <div className="px-6 pt-4">
+      <OrganizerWorkspaceSidebar
+        identityName={workspaceIdentityName}
+        identityMeta={workspaceIdentityMeta}
+        avatarInitial={avatarInitial}
+        brandLogoUrl={workspaceBrandLogoUrl}
+        navLinks={NAV_LINKS}
+        primaryAction={(
           <button
             onClick={openAddForm}
             className="w-full bg-brand text-white py-3 rounded-full font-medium shadow-lg shadow-brand/20 hover:scale-[1.02] active:scale-[0.98] transition-all text-sm"
           >
             + Add Guest
           </button>
-        </div>
-        <div className="mt-6 space-y-1 border-t border-outline-variant/10 pt-4">
-          <Link href="/settings" className="text-on-surface-variant py-2 pl-8 hover:translate-x-1 transition-transform flex items-center gap-3 hover:text-brand">
-            <span className="material-symbols-outlined">settings</span>
-            <span className="text-sm font-medium tracking-tight">Settings</span>
-          </Link>
-          <Link
-            href="/support"
-            className="text-on-surface-variant py-2 pl-8 hover:translate-x-1 transition-transform flex items-center gap-3 hover:text-brand"
-          >
-            <span className="material-symbols-outlined">help</span>
-            <span className="text-sm font-medium tracking-tight">Support</span>
-          </Link>
-          <button
-            onClick={() => router.push('/dashboard')}
-            className="w-full text-left text-on-surface-variant py-2 pl-8 hover:translate-x-1 transition-transform flex items-center gap-3 hover:text-brand"
-          >
-            <span className="material-symbols-outlined">arrow_back</span>
-            <span className="text-sm font-medium tracking-tight">Dashboard</span>
-          </button>
-        </div>
-      </aside>
+        )}
+        secondaryActions={[
+          { icon: 'settings', label: 'Settings', href: '/settings' },
+          { icon: 'help', label: 'Support', href: '/support' },
+          { icon: 'arrow_back', label: 'Dashboard', href: '/dashboard' },
+        ]}
+      />
 
       {/* ── Main ── */}
       <main className="ml-0 lg:ml-64 min-h-screen relative z-10">
-        {/* Top bar */}
-        <header className="sticky top-0 z-30 bg-lp-background/60 backdrop-blur-md border-b border-outline-variant/10 px-4 sm:px-6 lg:px-12 py-4 flex flex-col gap-4 lg:h-20 lg:flex-row lg:items-center lg:justify-between">
+        <OrganizerWorkspaceHeader>
+          <div className="px-4 sm:px-6 lg:px-12 py-4 flex flex-col gap-4 lg:h-20 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-start gap-3 min-w-0">
             <button onClick={() => router.push('/dashboard')} className="shrink-0 text-on-surface-variant hover:text-brand transition-colors">
               <span className="material-symbols-outlined">arrow_back</span>
@@ -474,7 +428,8 @@ export default function EventPage() {
               </button>
             )}
           </div>
-        </header>
+          </div>
+        </OrganizerWorkspaceHeader>
 
         {user && !user.email_verified && <VerificationBanner />}
 

@@ -214,6 +214,7 @@ const styles: Record<string, CSSProperties> = {
   invitee: {
     width: '100%',
     display: 'flex',
+    alignItems: 'center',
     justifyContent: 'center',
     textAlign: 'center',
     fontFamily: fonts.headline,
@@ -221,6 +222,25 @@ const styles: Record<string, CSSProperties> = {
     lineHeight: '36px',
     letterSpacing: '-0.75px',
     textTransform: 'uppercase',
+  },
+  inviteeMeta: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 10,
+    marginTop: 6,
+    fontFamily: fonts.body,
+    fontWeight: 500,
+    fontSize: 12,
+    lineHeight: '16px',
+    letterSpacing: '1.6px',
+    color: '#5D5F5F',
+    textTransform: 'uppercase',
+  },
+  inviteeMetaPill: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 4,
   },
   footer: {
     display: 'flex',
@@ -293,6 +313,8 @@ const styles: Record<string, CSSProperties> = {
 export default function BirthdayTheme({
   eventName,
   inviteeName,
+  seatNumber,
+  tag,
   eventDate,
   location,
   time,
@@ -348,6 +370,12 @@ export default function BirthdayTheme({
           <div style={styles.inviteeCluster}>
             <div style={styles.celebrateText}>celebrate with us</div>
             {inviteeName && <div style={styles.invitee}>{inviteeName}</div>}
+            {(seatNumber || tag) && (
+              <div style={styles.inviteeMeta}>
+                {seatNumber && <span style={styles.inviteeMetaPill}>💺 {seatNumber}</span>}
+                {tag && <span style={styles.inviteeMetaPill}>🏷️ {tag}</span>}
+              </div>
+            )}
           </div>
 
           <div style={styles.footer}>

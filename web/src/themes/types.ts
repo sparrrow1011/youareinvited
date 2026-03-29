@@ -11,6 +11,8 @@ export interface ThemeField {
 export interface ThemeProps {
   eventName: string;
   inviteeName?: string;
+  seatNumber?: string;
+  tag?: string;
   /** ISO date string "YYYY-MM-DD" — theme parses it */
   eventDate: string;
   location?: string;

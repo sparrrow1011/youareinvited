@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { invitationService, Invitation, resolveMediaUrl } from '@/lib/api';
+import PoweredByFooter from '@/components/PoweredByFooter';
 import ThemeRenderer from '@/components/ThemeRenderer';
 
 export default function InviteClient({ id }: { id: string }) {
@@ -57,6 +58,8 @@ export default function InviteClient({ id }: { id: string }) {
           props={{
             eventName: invitation.event_name,
             inviteeName: invitation.name,
+            seatNumber: invitation.seat_number,
+            tag: invitation.tag,
             eventDate: invitation.event_date,
             qrContent,
             ...invitation.event_theme_data,
@@ -203,11 +206,7 @@ export default function InviteClient({ id }: { id: string }) {
         )}
       </main>
 
-      <footer className="pb-8 text-center">
-        <p className="text-xs text-on-surface-variant">
-          Powered by <span className="font-semibold text-brand">youareinvited</span>
-        </p>
-      </footer>
+      <PoweredByFooter />
     </div>
   );
 }

@@ -10,6 +10,8 @@ import {
   invitationService,
   resolveMediaUrl,
 } from '@/lib/api';
+import OrganizerWorkspaceHeader from '@/components/OrganizerWorkspaceHeader';
+import OrganizerWorkspaceSidebar from '@/components/OrganizerWorkspaceSidebar';
 import VerificationBanner from '@/components/VerificationBanner';
 
 const NAV_LINKS = [
@@ -164,55 +166,13 @@ export default function AnalyticsPage() {
         <div className="absolute bottom-0 right-0 w-[600px] h-[600px] rounded-full bg-tertiary/10 blur-[150px]" />
       </div>
 
-      <aside className="hidden lg:flex h-screen w-64 fixed left-0 top-0 bg-surface-container-low flex-col py-8 z-40">
-        <div className="px-8 mb-10">
-          <Link href="/" className="text-xl font-headline italic text-tertiary">
-            YouAreInvited
-          </Link>
-        </div>
-
-        <div className="px-6 mb-8">
-          <div className="flex items-center gap-3 bg-white/50 p-3 rounded-xl">
-            {workspaceBrandLogoUrl ? (
-              <img
-                src={workspaceBrandLogoUrl}
-                alt={`${workspaceIdentityName} logo`}
-                className="w-10 h-10 rounded-2xl object-cover border border-white/60 bg-white"
-              />
-            ) : (
-              <div className="w-10 h-10 rounded-full bg-brand text-white flex items-center justify-center text-sm font-bold">
-                {avatarInitial}
-              </div>
-            )}
-            <div>
-              <p className="text-sm font-medium tracking-tight text-on-surface truncate">{workspaceIdentityName}</p>
-              <p className="text-[10px] uppercase tracking-widest text-on-surface-variant">{workspaceIdentityMeta}</p>
-            </div>
-          </div>
-        </div>
-
-        <nav className="flex-1 space-y-1">
-          {NAV_LINKS.map(({ icon, label, href, active }) => (
-            <Link
-              key={label}
-              href={href}
-              className={`py-3 pl-8 flex items-center gap-3 transition-all ${active
-                  ? 'text-brand font-bold bg-white rounded-r-full'
-                  : 'text-on-surface-variant hover:translate-x-1 hover:text-brand'
-                }`}
-            >
-              <span
-                className="material-symbols-outlined"
-                style={active ? { fontVariationSettings: "'FILL' 1" } : undefined}
-              >
-                {icon}
-              </span>
-              <span className="text-sm font-medium tracking-tight">{label}</span>
-            </Link>
-          ))}
-        </nav>
-
-        <div className="px-6 pt-4">
+      <OrganizerWorkspaceSidebar
+        identityName={workspaceIdentityName}
+        identityMeta={workspaceIdentityMeta}
+        avatarInitial={avatarInitial}
+        brandLogoUrl={workspaceBrandLogoUrl}
+        navLinks={NAV_LINKS}
+        primaryAction={(
           <button
             onClick={handleExport}
             disabled={exporting}
@@ -220,29 +180,16 @@ export default function AnalyticsPage() {
           >
             {exporting ? 'Exporting…' : 'Export Report'}
           </button>
-        </div>
-
-        <div className="mt-6 space-y-1 border-t border-outline-variant/10 pt-4">
-          <Link href="/settings" className="text-on-surface-variant py-2 pl-8 hover:translate-x-1 transition-transform flex items-center gap-3 hover:text-brand">
-            <span className="material-symbols-outlined">settings</span>
-            <span className="text-sm font-medium tracking-tight">Settings</span>
-          </Link>
-          <Link href="/support" className="text-on-surface-variant py-2 pl-8 hover:translate-x-1 transition-transform flex items-center gap-3 hover:text-brand">
-            <span className="material-symbols-outlined">help</span>
-            <span className="text-sm font-medium tracking-tight">Support</span>
-          </Link>
-          <button
-            onClick={handleLogout}
-            className="w-full text-left text-on-surface-variant py-2 pl-8 hover:translate-x-1 transition-transform flex items-center gap-3 hover:text-brand"
-          >
-            <span className="material-symbols-outlined">logout</span>
-            <span className="text-sm font-medium tracking-tight">Log out</span>
-          </button>
-        </div>
-      </aside>
+        )}
+        secondaryActions={[
+          { icon: 'settings', label: 'Settings', href: '/settings' },
+          { icon: 'help', label: 'Support', href: '/support' },
+          { icon: 'logout', label: 'Log out', onClick: handleLogout },
+        ]}
+      />
 
       <main className="ml-0 lg:ml-64 min-h-screen relative z-10">
-        <header className="sticky top-0 z-30 bg-lp-background/60 backdrop-blur-md border-b border-outline-variant/10">
+        <OrganizerWorkspaceHeader navLinks={NAV_LINKS}>
           <div className="px-4 sm:px-6 lg:px-12 py-4 lg:h-20 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-center justify-between lg:hidden">
               <Link href="/" className="text-lg font-headline italic text-tertiary">
@@ -310,30 +257,7 @@ export default function AnalyticsPage() {
               </div>
             </div>
           </div>
-
-          <div className="lg:hidden px-4 sm:px-6 pb-4 overflow-x-auto">
-            <div className="flex items-center gap-2 min-w-max">
-              {NAV_LINKS.map(({ icon, label, href, active }) => (
-                <Link
-                  key={label}
-                  href={href}
-                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold border transition-colors ${active
-                      ? 'bg-brand text-white border-brand shadow-lg shadow-brand/15'
-                      : 'bg-white/70 text-on-surface-variant border-outline-variant/10'
-                    }`}
-                >
-                  <span
-                    className="material-symbols-outlined text-base"
-                    style={active ? { fontVariationSettings: "'FILL' 1" } : undefined}
-                  >
-                    {icon}
-                  </span>
-                  <span>{label}</span>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </header>
+        </OrganizerWorkspaceHeader>
 
         {user && !user.email_verified && <VerificationBanner />}
 

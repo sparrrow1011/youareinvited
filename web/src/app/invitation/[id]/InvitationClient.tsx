@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { invitationService, Invitation, resolveMediaUrl } from '@/lib/api';
 import Image from 'next/image';
+import PoweredByFooter from '@/components/PoweredByFooter';
 
 type InvitationClientProps = {
   id: string;
@@ -255,16 +256,10 @@ export default function InvitationClient({ id, embedded = false }: InvitationCli
 
       {/* ── Footer ────────────────────────────────────────────────────────── */}
       {!useMinimalOrganizerPreview && (
-        <footer className="text-center pb-8 sm:pb-10 px-4 sm:px-6">
-          {showEventBranding && (
-            <p className="text-xs text-on-surface-variant mb-1">
-              Hosted by <span className="font-semibold text-on-lp-background">{publicBrandLabel}</span>
-            </p>
-          )}
-          <p className="text-xs text-on-surface-variant">
-            Powered by <span className="font-semibold text-brand">youareinvited</span>
-          </p>
-        </footer>
+        <PoweredByFooter
+          className="sm:pb-10 px-4 sm:px-6"
+          hostLabel={showEventBranding ? publicBrandLabel : undefined}
+        />
       )}
     </div>
   );
