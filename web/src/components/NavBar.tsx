@@ -3,10 +3,10 @@
 import Link from 'next/link';
 
 const NAV_LINKS = [
-  { label: 'Gallery', href: '#gallery' },
-  { label: 'Services', href: '#services' },
-  { label: 'Pricing', href: '#pricing' },
-  { label: 'Journal', href: '#journal' },
+  { label: 'Features', href: '/#features' },
+  { label: 'How It Works', href: '/#how-it-works' },
+  { label: 'Guest Experience', href: '/#guest-experience' },
+  { label: 'Contact', href: '/#contact' },
 ];
 
 export default function NavBar() {
@@ -22,13 +22,13 @@ export default function NavBar() {
         {/* Centre links — hidden on mobile */}
         <div className="hidden md:flex items-center gap-10 font-headline font-light tracking-wide">
           {NAV_LINKS.map(({ label, href }) => (
-            <a
+            <Link
               key={label}
               href={href}
               className="text-on-surface-variant hover:text-brand transition-colors text-sm"
             >
               {label}
-            </a>
+            </Link>
           ))}
         </div>
 

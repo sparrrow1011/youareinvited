@@ -63,7 +63,7 @@ function QRCard() {
         <div className="w-16 h-16 rounded-xl bg-white border-2 border-outline-variant/20 flex items-center justify-center shadow-sm">
           <div className="grid grid-cols-4 gap-0.5 w-10 h-10">
             {Array.from({ length: 16 }).map((_, i) => (
-              <div key={i} className={`rounded-sm ${[0,1,4,5,2,7,8,11,13,14,15,10].includes(i) ? 'bg-on-lp-background' : 'bg-transparent'}`} />
+              <div key={i} className={`rounded-sm ${[0, 1, 4, 5, 2, 7, 8, 11, 13, 14, 15, 10].includes(i) ? 'bg-on-lp-background' : 'bg-transparent'}`} />
             ))}
           </div>
         </div>
@@ -150,21 +150,29 @@ function DashboardCard() {
 
 // ── STEPS defined AFTER all card components ───────────────────────────────────
 
-type StepDef = { number: string; title: string; description: string; ui: React.ReactNode };
+type StepDef = {
+  number: string;
+  title: string;
+  summary: string;
+  description: string;
+  icon: string;
+  ui: React.ReactNode;
+};
 
 const STEPS: StepDef[] = [
-  { number: '01', title: 'Create Event',       description: "Start with a blank canvas. Name your event, set the date, and you're ready.",  ui: <CreateEventCard /> },
-  { number: '02', title: 'Personalize Invite', description: 'Upload your design. Mark where the guest name, tag, and QR code go.',           ui: <PersonalizeCard /> },
-  { number: '03', title: 'Generate QR',        description: 'Each guest receives a unique QR code embedded in their personalised invite.',    ui: <QRCard /> },
-  { number: '04', title: 'Share',              description: 'Deliver beautiful digital invitations to all 47 guests in one click.',           ui: <ShareCard /> },
-  { number: '05', title: 'Check-in',           description: 'Guests scan at the door. Instant verification, no paper, no queues.',            ui: <CheckInCard /> },
-  { number: '06', title: 'Dashboard',          description: 'Watch attendance roll in. Real-time control for the modern host.',               ui: <DashboardCard /> },
+  { number: '01', title: 'Create Event', summary: 'Set the event foundation.', description: "Start with a blank canvas. Name your event, set the date, and you're ready.", icon: 'calendar_add_on', ui: <CreateEventCard /> },
+  { number: '02', title: 'Personalize Invite', summary: 'Place every visual detail.', description: 'Upload your design. Mark where the guest name, tag, and QR code go.', icon: 'draw', ui: <PersonalizeCard /> },
+  { number: '03', title: 'Generate QR', summary: 'Every guest gets a unique pass.', description: 'Each guest receives a unique QR code embedded in their personalised invite.', icon: 'qr_code_2', ui: <QRCard /> },
+  { number: '04', title: 'Share', summary: 'Deliver invites in one motion.', description: 'Deliver beautiful digital invitations to all 47 guests in one click.', icon: 'send', ui: <ShareCard /> },
+  { number: '05', title: 'Check-in', summary: 'Verify arrivals at the door.', description: 'Guests scan at the door. Instant verification, no paper, no queues.', icon: 'qr_code_scanner', ui: <CheckInCard /> },
+  { number: '06', title: 'Dashboard', summary: 'Monitor every arrival live.', description: 'Watch attendance roll in. Real-time control for the modern host.', icon: 'monitoring', ui: <DashboardCard /> },
 ];
 
 // ── Main carousel export ──────────────────────────────────────────────────────
 
 export default function HeroScroll() {
   const [active, setActive] = useState(0);
+  const activeStep = STEPS[active];
 
   // Auto-advance every 4 seconds; resets if user clicks a dot
   useEffect(() => {
@@ -173,61 +181,98 @@ export default function HeroScroll() {
   }, [active]);
 
   return (
-    <section className="py-24 px-6 md:px-12">
+    <section id="how-it-works" className="py-24 px-6 md:px-12">
       <div className="max-w-screen-2xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-16">
-          <h2 className="font-headline text-4xl md:text-5xl text-on-lp-background mb-4">How it works</h2>
-          <p className="text-on-surface-variant text-lg">Six steps to a flawless event</p>
+        <div className="text-center mb-14 md:mb-16 space-y-4">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-brand-container/30 border border-brand-container/40 text-on-brand-container text-sm font-medium">
+            <span className="material-symbols-outlined text-sm text-brand">auto_awesome</span>
+            Host Journey
+          </div>
+          <h2 className="font-headline text-4xl md:text-5xl text-on-lp-background">How it works</h2>
+          <p className="text-on-surface-variant text-lg">Six steps to a flawless event, from first setup to the final arrival.</p>
         </div>
 
-        {/* Two-col layout */}
-        <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
-          {/* Left: step text */}
-          <div className="relative min-h-[200px] flex items-center">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={active}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.35, ease: 'easeOut' }}
-              >
-                <span className="text-brand font-label font-bold text-sm tracking-widest mb-3 block">{STEPS[active].number}</span>
-                <h3 className="font-headline text-3xl md:text-4xl text-on-lp-background mb-4">{STEPS[active].title}</h3>
-                <p className="text-on-surface-variant text-lg leading-relaxed max-w-md">{STEPS[active].description}</p>
-              </motion.div>
-            </AnimatePresence>
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.12fr)_minmax(320px,0.88fr)] gap-10 xl:gap-14 items-stretch">
+          <div className="rounded-[2.75rem] bg-white/55 backdrop-blur-2xl border border-white/60 shadow-[0_24px_80px_rgba(18,16,15,0.08)] p-6 sm:p-8 md:p-10">
+            <div className="grid gap-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(280px,1fr)] items-center">
+              <div className="space-y-6">
+                <div className="relative min-h-[220px] flex items-center">
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={active}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -20 }}
+                      transition={{ duration: 0.35, ease: 'easeOut' }}
+                      className="w-full"
+                    >
+                      <div className="w-14 h-14 rounded-2xl bg-brand-container/60 flex items-center justify-center mb-5">
+                        <span className="material-symbols-outlined text-brand text-2xl">{activeStep.icon}</span>
+                      </div>
+                      <span className="text-brand font-label font-bold text-sm tracking-widest mb-3 block">{activeStep.number}</span>
+                      <h3 className="font-headline text-3xl md:text-4xl text-on-lp-background mb-4">{activeStep.title}</h3>
+                      <p className="text-on-surface-variant text-lg leading-relaxed max-w-md">{activeStep.description}</p>
+                    </motion.div>
+                  </AnimatePresence>
+                </div>
+
+                <div className="flex items-center justify-between gap-6 flex-wrap pt-2">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.24em] text-on-surface-variant mb-2">Progress</p>
+                    <p className="font-semibold text-on-lp-background">{active + 1} of {STEPS.length} steps</p>
+                  </div>
+                  <div className="flex justify-center gap-3">
+                    {STEPS.map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setActive(i)}
+                        aria-label={`Step ${i + 1}`}
+                        className={`h-2.5 rounded-full transition-all duration-300 ${i === active ? 'w-8 bg-brand' : 'w-2.5 bg-outline-variant hover:bg-on-surface-variant'
+                          }`}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-center min-h-[320px]">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={active}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.35, ease: 'easeOut' }}
+                  >
+                    {activeStep.ui}
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+            </div>
           </div>
 
-          {/* Right: card */}
-          <div className="flex items-center justify-center min-h-[320px]">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={active}
-                initial={{ opacity: 0, scale: 0.96, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.96, y: -20 }}
-                transition={{ duration: 0.35, ease: 'easeOut' }}
-              >
-                {STEPS[active].ui}
-              </motion.div>
-            </AnimatePresence>
+          <div className="flex flex-col gap-5">
+            <div className="rounded-[2.5rem] bg-[linear-gradient(145deg,#171310_0%,#241c18_100%)] p-6 sm:p-7 text-white shadow-[0_24px_80px_rgba(18,16,15,0.18)]">
+              <p className="text-xs uppercase tracking-[0.22em] text-white/50 mb-5">What the host gets</p>
+              <div className="space-y-4">
+                {[
+                  { icon: 'draw', title: 'Branded setup', text: 'One clean place to shape the invite, guest data, and presentation style.' },
+                  { icon: 'verified', title: 'Door-ready access', text: 'Every guest arrives with a unique QR flow ready for staff verification.' },
+                  { icon: 'insights', title: 'Live event control', text: 'Attendance, delivery, and arrival momentum stay visible throughout the event.' },
+                ].map((item) => (
+                  <div key={item.title} className="flex items-start gap-4 rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/10">
+                      <span className="material-symbols-outlined text-[20px] text-warm">{item.icon}</span>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-white mb-1">{item.title}</p>
+                      <p className="text-sm leading-relaxed text-white/65">{item.text}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
-        </div>
-
-        {/* Clickable progress dots */}
-        <div className="flex justify-center gap-3 mt-12">
-          {STEPS.map((_, i) => (
-            <button
-              key={i}
-              onClick={() => setActive(i)}
-              aria-label={`Step ${i + 1}`}
-              className={`h-2.5 rounded-full transition-all duration-300 ${
-                i === active ? 'w-8 bg-brand' : 'w-2.5 bg-outline-variant hover:bg-on-surface-variant'
-              }`}
-            />
-          ))}
         </div>
       </div>
     </section>

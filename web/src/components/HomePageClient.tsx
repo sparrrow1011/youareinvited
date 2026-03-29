@@ -1,11 +1,14 @@
 'use client';
 
 import Link from 'next/link';
+import NextImage from 'next/image';
 import { AnimatePresence, motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
+
+const MotionImage = motion(NextImage);
 import HeroScroll from '@/components/HeroScroll';
-import LegalFooterLinks from '@/components/LegalFooterLinks';
 import NavBar from '@/components/NavBar';
-import { useEffect, useState } from 'react';
+import PublicSiteFooter from '@/components/PublicSiteFooter';
+import { useEffect, useRef, useState } from 'react';
 
 const EASE_OUT = [0.22, 1, 0.36, 1] as const;
 
@@ -61,6 +64,21 @@ const ANALYTICS_SNAPSHOTS = [
   },
 ] as const;
 
+const CTA_COLLAGE_IMAGES = [
+  '/img/collage/first.png',
+  '/img/collage/second.png',
+  '/img/collage/third.png',
+  '/img/collage/fouth.png',
+  '/img/collage/fifth.png',
+  '/img/collage/sixth.png',
+  '/img/collage/seven.png',
+  '/img/collage/eigth.png',
+  '/img/collage/ninth.png',
+  '/img/collage/tenth.png',
+] as const;
+
+const CTA_GRID_IMAGES = Array.from({ length: 20 }, (_, index) => CTA_COLLAGE_IMAGES[index % CTA_COLLAGE_IMAGES.length]);
+
 function MotionButton({
   href,
   className,
@@ -83,10 +101,65 @@ export default function HomePageClient() {
   const prefersReducedMotion = useReducedMotion();
   const { scrollY } = useScroll();
   const [analyticsSnapshotIndex, setAnalyticsSnapshotIndex] = useState(0);
+  const [ctaGridIndices, setCtaGridIndices] = useState(() => CTA_GRID_IMAGES.map((_, index) => index % CTA_COLLAGE_IMAGES.length));
+  const ctaGridCursorRef = useRef(0);
+  const heroSequence = prefersReducedMotion
+    ? {
+      hidden: { opacity: 1 },
+      show: { opacity: 1, transition: { staggerChildren: 0 } },
+    }
+    : {
+      hidden: { opacity: 1 },
+      show: {
+        opacity: 1,
+        transition: {
+          staggerChildren: 0.12,
+          delayChildren: 0.08,
+        },
+      },
+    };
+  const heroReveal = prefersReducedMotion
+    ? {
+      hidden: { opacity: 1, y: 0 },
+      show: { opacity: 1, y: 0, transition: { duration: 0.01 } },
+    }
+    : {
+      hidden: { opacity: 0, y: 54 },
+      show: {
+        opacity: 1,
+        y: 0,
+        transition: { duration: 0.72, ease: EASE_OUT },
+      },
+    };
+  const heroHeadlineSequence = prefersReducedMotion
+    ? {
+      hidden: { opacity: 1 },
+      show: { opacity: 1, transition: { staggerChildren: 0 } },
+    }
+    : {
+      hidden: { opacity: 1 },
+      show: {
+        opacity: 1,
+        transition: {
+          staggerChildren: 0.11,
+          delayChildren: 0.02,
+        },
+      },
+    };
+  const heroWordReveal = prefersReducedMotion
+    ? {
+      hidden: { opacity: 1, y: 0 },
+      show: { opacity: 1, y: 0, transition: { duration: 0.1 } },
+    }
+    : {
+      hidden: { opacity: 0, y: '110%' },
+      show: {
+        opacity: 1,
+        y: '0%',
+        transition: { duration: 0.68, ease: EASE_OUT },
+      },
+    };
 
-  const backgroundYOne = useTransform(scrollY, [0, 1200], [0, prefersReducedMotion ? 0 : -32]);
-  const backgroundYTwo = useTransform(scrollY, [0, 1200], [0, prefersReducedMotion ? 0 : -52]);
-  const backgroundYThree = useTransform(scrollY, [0, 1200], [0, prefersReducedMotion ? 0 : -22]);
   const heroFrontY = useTransform(scrollY, [0, 700], [0, prefersReducedMotion ? 0 : -18]);
   const heroBackY = useTransform(scrollY, [0, 700], [0, prefersReducedMotion ? 0 : -10]);
   const heroChipY = useTransform(scrollY, [0, 700], [0, prefersReducedMotion ? 0 : -26]);
@@ -95,7 +168,21 @@ export default function HomePageClient() {
   useEffect(() => {
     const interval = window.setInterval(() => {
       setAnalyticsSnapshotIndex((current) => (current + 1) % ANALYTICS_SNAPSHOTS.length);
-    }, prefersReducedMotion ? 4200 : 2600);
+    }, prefersReducedMotion ? 7000 : 5000);
+
+    return () => window.clearInterval(interval);
+  }, [prefersReducedMotion]);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setCtaGridIndices((current) => {
+        const next = [...current];
+        const tileIndex = ctaGridCursorRef.current % next.length;
+        next[tileIndex] = (next[tileIndex] + 3) % CTA_COLLAGE_IMAGES.length;
+        ctaGridCursorRef.current = (ctaGridCursorRef.current + 1) % next.length;
+        return next;
+      });
+    }, prefersReducedMotion ? 8000 : 5500);
 
     return () => window.clearInterval(interval);
   }, [prefersReducedMotion]);
@@ -103,18 +190,9 @@ export default function HomePageClient() {
   return (
     <div className="bg-lp-background text-on-lp-background font-body overflow-x-hidden">
       <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-        <motion.div
-          style={{ y: backgroundYOne }}
-          className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-brand/20 blur-[120px]"
-        />
-        <motion.div
-          style={{ y: backgroundYTwo }}
-          className="absolute top-1/4 -right-48 w-full h-[600px] rounded-full bg-secondary-container/30 blur-[120px]"
-        />
-        <motion.div
-          style={{ y: backgroundYThree }}
-          className="absolute -bottom-48 left-1/4 w-[800px] h-[800px] rounded-full bg-tertiary-container/20 blur-[120px]"
-        />
+        <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-brand/20 blur-[80px]" />
+        <div className="absolute top-1/4 -right-48 w-full h-[600px] rounded-full bg-secondary-container/30 blur-[80px]" />
+        <div className="absolute -bottom-48 left-1/4 w-[800px] h-[800px] rounded-full bg-tertiary-container/20 blur-[80px]" />
       </div>
 
       <NavBar />
@@ -122,56 +200,74 @@ export default function HomePageClient() {
       <main className="relative z-10 pt-28">
         <section className="min-h-[90vh] flex items-center px-6 md:px-12 max-w-screen-2xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center w-full">
-            <div className="space-y-8">
-              <motion.div
-                initial={{ opacity: 0, y: 18 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.55, ease: EASE_OUT }}
-                className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-brand-container/30 border border-brand-container/40 text-on-brand-container text-sm font-medium"
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-brand animate-pulse" />
-                Redefining the Digital Gala
-              </motion.div>
-
-              <motion.h1
-                initial={{ opacity: 0, y: 26 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.7, delay: 0.08, ease: EASE_OUT }}
-                className="font-headline text-6xl md:text-8xl leading-tight text-on-lp-background tracking-tight"
-              >
-                The Art of <br />
-                <span className="italic text-warm">Invitation</span>.
-              </motion.h1>
-
-              <motion.p
-                initial={{ opacity: 0, y: 22 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.65, delay: 0.16, ease: EASE_OUT }}
-                className="text-xl md:text-2xl text-on-surface-variant font-light max-w-xl leading-relaxed"
-              >
-                Elevate your event with cinematic digital curation. A high-end experience that begins the moment they click.
-              </motion.p>
-
-              <motion.div
-                initial={{ opacity: 0, y: 18 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.24, ease: EASE_OUT }}
-                className="flex flex-wrap gap-4"
-              >
-                <MotionButton
-                  href="/signup"
-                  className="bg-brand hover:bg-brand-dim text-white px-8 py-4 rounded-full font-semibold text-lg transition-all shadow-xl"
+            <motion.div
+              initial="hidden"
+              animate="show"
+              variants={heroSequence}
+              className="space-y-8"
+            >
+              <div className="overflow-hidden">
+                <motion.div
+                  variants={heroReveal}
+                  className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-brand-container/30 border border-brand-container/40 text-on-brand-container text-sm font-medium"
                 >
-                  Get Started
-                </MotionButton>
-                <MotionButton
-                  href="/login"
-                  className="bg-white/40 backdrop-blur-md border border-outline-variant/20 hover:bg-white/60 text-on-surface px-8 py-4 rounded-full font-semibold text-lg transition-all"
+                  <span className="w-1.5 h-1.5 rounded-full bg-brand animate-pulse" />
+                  Redefining the Digital Gala
+                </motion.div>
+              </div>
+
+              <div className="space-y-1">
+                <motion.h1
+                  variants={heroHeadlineSequence}
+                  className="font-headline text-6xl md:text-8xl leading-tight tracking-tight"
                 >
-                  View Sample Event
-                </MotionButton>
-              </motion.div>
-            </div>
+                  <span className="flex flex-wrap gap-x-4 md:gap-x-5">
+                    {['The', 'Art', 'of'].map((word) => (
+                      <span key={word} className="overflow-hidden pb-2">
+                        <motion.span variants={heroWordReveal} className="inline-block text-on-lp-background">
+                          {word}
+                        </motion.span>
+                      </span>
+                    ))}
+                  </span>
+                  <span className="mt-1 flex flex-wrap gap-x-4 md:gap-x-5">
+                    {['Invitation.'].map((word) => (
+                      <span key={word} className="overflow-hidden pb-2">
+                        <motion.span variants={heroWordReveal} className="inline-block italic text-warm">
+                          {word}
+                        </motion.span>
+                      </span>
+                    ))}
+                  </span>
+                </motion.h1>
+              </div>
+
+              <div className="overflow-hidden">
+                <motion.p
+                  variants={heroReveal}
+                  className="text-xl md:text-2xl text-on-surface-variant font-light max-w-xl leading-relaxed"
+                >
+                  Elevate your event with cinematic digital curation. A high-end experience that begins the moment they click.
+                </motion.p>
+              </div>
+
+              <div className="overflow-hidden">
+                <motion.div variants={heroReveal} className="flex flex-wrap gap-4">
+                  <MotionButton
+                    href="/signup"
+                    className="bg-brand hover:bg-brand-dim text-white px-8 py-4 rounded-full font-semibold text-lg transition-all shadow-xl"
+                  >
+                    Get Started
+                  </MotionButton>
+                  <MotionButton
+                    href="/login"
+                    className="bg-white/40 backdrop-blur-md border border-outline-variant/20 hover:bg-white/60 text-on-surface px-8 py-4 rounded-full font-semibold text-lg transition-all"
+                  >
+                    View Sample Event
+                  </MotionButton>
+                </motion.div>
+              </div>
+            </motion.div>
 
             <div className="relative h-[580px] hidden lg:block">
               <motion.div
@@ -184,11 +280,11 @@ export default function HomePageClient() {
                 bg-white/40 backdrop-blur-3xl rounded-[2.5rem] shadow-2xl z-30 border border-white/60 p-8 
                 flex flex-col justify-between rotate-3"
               >
-                <div className="w-full h-56 rounded-2xl bg-gradient-to-br from-brand-container/40 to-secondary-container/40 shadow-inner" >
-                  <img src="/img/marriage_party.png" alt="Femi & Chioma Wedding" className='rounded-2xl' width={380} height={500} />
+                <div className="w-full h-56 rounded-2xl bg-gradient-to-br from-brand-container/40 to-secondary-container/40 shadow-inner relative overflow-hidden" >
+                  <NextImage src="/img/marriage_party.png" alt="Femi & Chioma Wedding" fill sizes="380px" className='rounded-2xl object-cover' priority />
                 </div>
                 <div className="space-y-3">
-                  <h3 className="font-headline text-2xl text-on-lp-background">Femi & Chioma Wedding</h3>
+                  <h3 className="font-headline text-2xl text-on-lp-background">Femi & Chioma's Wedding</h3>
                   <p className="text-sm font-medium text-on-surface-variant uppercase tracking-widest">Transcorp Hilton · 10.24.2025</p>
                   <div className="pt-3 border-t border-outline-variant/20 flex justify-between items-center">
                     <span className="text-xs italic text-on-surface-variant">Private Invitation Only</span>
@@ -204,8 +300,8 @@ export default function HomePageClient() {
                 style={{ y: heroBackY }}
                 className="absolute -top-[10%] right-[2%] w-60 h-72 bg-white/20 backdrop-blur-2xl rounded-[2rem] shadow-xl z-20 border border-white/40 -rotate-12"
               >
-                <div className="w-full h-full rounded-[2rem] bg-gradient-to-br from-surface-container to-outline-variant/20" >
-                  <img src="/img/afro_woman.jpg" alt="Charity Gala" className='rounded-[2rem] w-full h-full object-cover' />
+                <div className="w-full h-full rounded-[2rem] bg-gradient-to-br from-surface-container to-outline-variant/20 relative overflow-hidden" >
+                  <NextImage src="/img/afro_woman.jpg" alt="Charity Gala" fill sizes="240px" className='rounded-[2rem] object-cover' priority />
                 </div>
 
               </motion.div>
@@ -236,7 +332,7 @@ export default function HomePageClient() {
 
         <HeroScroll />
 
-        <section id="gallery" className="py-32 px-6 md:px-12 max-w-screen-2xl mx-auto space-y-20">
+        <section id="features" className="py-32 px-6 md:px-12 max-w-screen-2xl mx-auto space-y-20">
           <div className="text-center space-y-4">
             <motion.h2 {...revealInView} className="font-headline text-4xl md:text-5xl text-on-lp-background">
               Curation for the Conscious Host
@@ -288,8 +384,8 @@ export default function HomePageClient() {
                   CSV upload, per-guest personalisation, and real-time check-in tracking.
                 </p>
               </div>
-              <div className="mt-10 rounded-2xl overflow-hidden bg-gradient-to-br from-brand-container/30 to-secondary-container/30 h-36" >
-                <img src="/img/event.jpg" alt="Guest List" className='w-full h-full object-cover' />
+              <div className="mt-10 rounded-2xl overflow-hidden bg-gradient-to-br from-brand-container/30 to-secondary-container/30 h-36 relative" >
+                <NextImage src="/img/event.jpg" alt="Guest List" fill sizes="(max-width: 768px) 100vw, 500px" className='object-cover' priority />
               </div>
             </motion.div>
 
@@ -315,8 +411,8 @@ export default function HomePageClient() {
           </div>
         </section>
 
-        <section className="py-32 px-6 md:px-12 max-w-screen-2xl mx-auto">
-          <div className="text-center space-y-4 mb-20">
+        <section className="py-24 px-6 md:px-12 max-w-screen-2xl mx-auto">
+          <div className="text-center space-y-4 mb-12 md:mb-14">
             <motion.div
               {...revealInView}
               className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-secondary-container/30 border border-secondary-container/40 text-on-secondary-container text-sm font-medium mb-4"
@@ -346,8 +442,8 @@ export default function HomePageClient() {
                 title: 'Organizer Dashboard',
                 description: 'Create your event, upload your design, import guests from CSV, and configure every detail — all in one elegant command centre.',
                 illustration: (
-                  <div className="w-full h-44 rounded-2xl bg-gradient-to-br from-brand-container/30 to-secondary-container/30 relative overflow-hidden">
-                    <img src="/img/dashboard.png" alt="Organizer Dashboard" className='w-full h-full object-cover' />
+                  <div className="w-full h-36 rounded-2xl bg-gradient-to-br from-brand-container/30 to-secondary-container/30 relative overflow-hidden">
+                    <NextImage src="/img/dashboard.png" alt="Organizer Dashboard" fill sizes="(max-width: 768px) 100vw, 400px" className='object-cover' />
                   </div>
                 ),
                 extraClass: '',
@@ -360,7 +456,7 @@ export default function HomePageClient() {
                 title: 'Guest Experience',
                 description: 'Each guest receives a personalised invitation page — their name, seat, and QR code — beautifully composed for any device.',
                 illustration: (
-                  <div className="w-full h-44 rounded-2xl bg-gradient-to-br from-secondary-container/30 to-tertiary-container/30 relative overflow-hidden flex items-center justify-center">
+                  <div className="w-full h-36 rounded-2xl bg-gradient-to-br from-secondary-container/30 to-tertiary-container/30 relative overflow-hidden flex items-center justify-center">
                     <div className="w-24 h-36 rounded-2xl bg-white/60 backdrop-blur-sm shadow-lg p-3 flex flex-col items-center justify-between">
                       <div className="w-full h-16 rounded-xl bg-gradient-to-br from-brand-container/60 to-secondary-container/60" />
                       <div className="text-center space-y-1">
@@ -375,7 +471,7 @@ export default function HomePageClient() {
                     </div>
                   </div>
                 ),
-                extraClass: 'md:-mt-8',
+                extraClass: '',
               },
               {
                 step: 'Step 03',
@@ -385,7 +481,7 @@ export default function HomePageClient() {
                 title: 'Security Check-In',
                 description: 'Security staff scan QR codes at the door. Instant verification, no paper lists, no confusion — just seamless entry.',
                 illustration: (
-                  <div className="w-full h-44 rounded-2xl bg-gradient-to-br from-tertiary-container/30 to-brand-container/20 relative overflow-hidden flex items-center justify-center">
+                  <div className="w-full h-36 rounded-2xl bg-gradient-to-br from-tertiary-container/30 to-brand-container/20 relative overflow-hidden flex items-center justify-center">
                     <div className="relative">
                       <div className="w-20 h-20 rounded-2xl bg-white/60 shadow-lg grid grid-cols-3 gap-1 p-2">
                         {Array(9).fill(0).map((_, i) => (
@@ -410,7 +506,7 @@ export default function HomePageClient() {
                 {...revealInView}
                 transition={{ duration: 0.6, delay: 0.08 * index, ease: EASE_OUT }}
                 whileHover={prefersReducedMotion ? undefined : { y: -6 }}
-                className={`group relative rounded-[2.5rem] bg-surface-container-lowest overflow-hidden shadow-sm hover:shadow-xl transition-all duration-500 p-8 space-y-6 ${card.extraClass}`}
+                className={`group relative rounded-[2.5rem] bg-surface-container-lowest overflow-hidden shadow-sm hover:shadow-xl transition-all duration-500 p-6 md:p-7 space-y-4 ${card.extraClass}`}
               >
                 <div className={`w-12 h-12 rounded-2xl ${card.iconWrap} flex items-center justify-center`}>
                   <span className={`material-symbols-outlined ${card.iconColor} text-2xl`} style={{ fontVariationSettings: "'FILL' 1" }}>
@@ -440,7 +536,7 @@ export default function HomePageClient() {
                 <div className="flex items-center justify-between mb-2">
                   <div>
                     <p className="font-semibold text-on-lp-background">Event Analytics</p>
-                    <AnimatePresence mode="wait">
+                    <AnimatePresence>
                       <motion.p
                         key={analyticsSnapshot.eventName}
                         initial={{ opacity: 0, y: 8 }}
@@ -468,7 +564,7 @@ export default function HomePageClient() {
                       <div className={`w-8 h-8 rounded-xl ${color} flex items-center justify-center`}>
                         <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>{icon}</span>
                       </div>
-                      <AnimatePresence mode="wait">
+                      <AnimatePresence>
                         <motion.div
                           key={`${label}-${value}`}
                           initial={{ opacity: 0, y: 8 }}
@@ -570,30 +666,74 @@ export default function HomePageClient() {
           </div>
         </section>
 
-        <section className="py-32 bg-surface-container/50">
-          <div className="max-w-4xl mx-auto px-6 text-center space-y-10">
+        <section className="relative py-32 px-6 overflow-hidden">
+          <div className="absolute inset-0 bg-[#12100f] -z-30" />
+          <div className="absolute inset-0 pointer-events-none -z-20 overflow-hidden opacity-85">
+            <div className="absolute left-1/2 top-1/2 grid -translate-x-1/2 -translate-y-1/2 rotate-[-7deg] grid-cols-3 gap-3 sm:grid-cols-4 sm:gap-4 lg:grid-cols-5 w-[960px] sm:w-[1240px] lg:w-[1600px]">
+              {CTA_GRID_IMAGES.map((_, index) => {
+                const imageSrc = CTA_COLLAGE_IMAGES[ctaGridIndices[index]];
+
+                return (
+                  <motion.div
+                    key={`testimonial-${index}`}
+                    initial={{ opacity: 0, scale: 1.04 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: prefersReducedMotion ? 0.35 : 0.85, delay: Math.min(index * 0.13, 0.45), ease: EASE_OUT }}
+                    className={`relative h-[220px] w-[220px] overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/5 shadow-2xl sm:h-[260px] sm:w-[260px] lg:h-[300px] lg:w-[300px] ${index % 5 === 0
+                      ? 'translate-y-8'
+                      : index % 4 === 0
+                        ? '-translate-y-6'
+                        : index % 3 === 0
+                          ? 'translate-y-3'
+                          : ''
+                      }`}
+                  >
+                    <AnimatePresence>
+                      <MotionImage
+                        key={`testimonial-${index}-${imageSrc}`}
+                        src={imageSrc}
+                        alt=""
+                        aria-hidden="true"
+                        fill
+                        sizes="(max-width: 640px) 220px, (max-width: 1024px) 260px, 300px"
+                        initial={{ opacity: 0, scale: 1.06 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.98 }}
+                        transition={{ duration: prefersReducedMotion ? 0.35 : 1.1, ease: EASE_OUT }}
+                        className="object-cover grayscale brightness-[0.45] contrast-[1.15]"
+                      />
+                    </AnimatePresence>
+                    <div className="absolute inset-0 bg-on-lp-background/18" />
+                  </motion.div>
+                );
+              })}
+            </div>
+          </div>
+          <div className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,rgba(18,16,15,0.58)_0%,rgba(18,16,15,0.72)_24%,rgba(18,16,15,0.88)_56%,rgba(18,16,15,0.95)_100%)]" />
+          <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.05),transparent_40%)]" />
+          <div className="max-w-4xl mx-auto text-center space-y-10 relative z-10">
             <motion.span {...revealInView} className="font-headline italic text-5xl text-warm inline-block">
               &ldquo;
             </motion.span>
             <motion.blockquote
               {...revealInView}
-              className="font-headline text-4xl md:text-5xl leading-tight text-on-lp-background italic"
+              className="font-headline text-4xl md:text-5xl leading-tight text-white italic"
             >
               As an event organizer, I need the invitation, guest flow, and check-in moment to feel seamless. YouAreInvited gave our events the polish of a premium production.
             </motion.blockquote>
             <motion.div {...revealInView} className="flex flex-col items-center gap-3">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-brand-container to-secondary-container ring-4 ring-white shadow-lg" >
-                <img src="/img/ifeoluwa.png" alt="Ifeoluwa Oyedepo" className='w-full h-full object-cover rounded-full' />
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-brand-container to-secondary-container ring-4 ring-white shadow-lg relative overflow-hidden" >
+                <NextImage src="/img/ifeoluwa.png" alt="Ifeoluwa Oyedepo" fill sizes="64px" className='object-cover rounded-full' />
               </div>
               <cite className="not-italic">
-                <div className="font-bold text-lg text-on-lp-background">Ifeoluwa Oyedepo</div>
-                <div className="text-on-surface-variant uppercase tracking-widest text-xs font-semibold">Luxury Event Organizer</div>
+                <div className="font-bold text-lg text-white">Ifeoluwa Oyedepo</div>
+                <div className="text-white/60 uppercase tracking-widest text-xs font-semibold">Luxury Event Organizer</div>
               </cite>
             </motion.div>
           </div>
         </section>
 
-        <section id="services" className="py-40 px-6 md:px-12 max-w-screen-2xl mx-auto overflow-hidden">
+        <section id="guest-experience" className="py-40 px-6 md:px-12 max-w-screen-2xl mx-auto overflow-hidden">
           <div className="flex flex-col md:flex-row items-center gap-16 md:gap-20">
             <motion.div
               {...revealInView}
@@ -601,7 +741,7 @@ export default function HomePageClient() {
               className="w-full md:w-1/2 relative"
             >
               <div className="aspect-[4/5] rounded-[4rem] overflow-hidden shadow-2xl relative z-10 bg-gradient-to-br from-brand-container/40 to-secondary-container/60" >
-                <img src="/img/lady_standing.jpg" alt="Organizer Dashboard" className='w-full h-full object-cover' />
+                <NextImage src="/img/lady_standing.jpg" alt="Elegant event guest" fill sizes="(max-width: 768px) 100vw, 50vw" className='object-cover' />
               </div>
               <div className="absolute -bottom-10 -right-10 w-64 h-80 bg-secondary-container rounded-[3rem] -z-10 hidden md:block" />
               <div className="absolute -top-10 -left-10 w-64 h-64 bg-brand-container/30 rounded-full blur-3xl -z-10" />
@@ -748,14 +888,16 @@ export default function HomePageClient() {
           </div>
         </section> */}
 
-        <section className="relative py-40 px-6 overflow-hidden">
-          <div className="absolute inset-0 bg-on-lp-background -z-20" />
-          <div className="absolute -top-1/2 -left-1/4 w-full h-full bg-brand/20 blur-[150px] -z-10" />
-          <div className="absolute -bottom-1/2 -right-1/4 w-full h-full bg-warm/20 blur-[150px] -z-10" />
-          <div className="max-w-4xl mx-auto text-center space-y-10">
+        <section className="relative py-40 px-6 overflow-hidden bg-[#171310] rounded-[3rem] max-w-screen-2xl mx-auto">
+          <div className="absolute rounded-[3rem] inset-0 -z-30 bg-[linear-gradient(180deg,#171310_0%,#1d1713_48%,#16110f_100%)]" />
+          <div className="absolute rounded-[3rem] inset-0 -z-20 bg-[radial-gradient(circle_at_50%_26%,rgba(214,178,132,0.24),rgba(214,178,132,0.08)_22%,rgba(23,19,16,0)_52%)]" />
+          <div className="absolute rounded-[3rem] left-1/2 top-[24%] -z-10 h-[560px] w-[560px] -translate-x-1/2 rounded-full bg-[#d6b284]/12 blur-[130px]" />
+          <div className="absolute rounded-[3rem] inset-0 -z-10 opacity-[0.06] bg-[repeating-linear-gradient(0deg,rgba(255,255,255,0.18)_0px,rgba(255,255,255,0.18)_1px,transparent_1px,transparent_3px)]" />
+          <div className="absolute rounded-[3rem] inset-x-6 top-12 bottom-12 -z-10 rounded-[3rem] border border-white/8 bg-white/[0.015] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] md:inset-x-10" />
+          <div className="max-w-4xl mx-auto text-center space-y-10 relative z-10">
             <motion.div
               {...revealInView}
-              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 border border-white/20 text-white text-sm font-medium mb-4"
+              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/8 border border-white/12 text-white/80 text-sm font-medium mb-4 backdrop-blur-sm"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-warm animate-pulse" />
               Your next event awaits
@@ -778,7 +920,7 @@ export default function HomePageClient() {
             >
               <MotionButton
                 href="/signup"
-                className="w-full md:w-auto bg-white text-on-lp-background hover:bg-surface-container-high px-12 py-5 rounded-full font-bold text-xl transition-all"
+                className="w-full md:w-auto bg-white text-on-lp-background hover:bg-[#f0ece6] px-12 py-5 rounded-full font-bold text-xl transition-all shadow-[0_18px_50px_rgba(0,0,0,0.24)]"
               >
                 Create Your Event
               </MotionButton>
@@ -786,7 +928,7 @@ export default function HomePageClient() {
                 href="#"
                 whileHover={{ y: -2, scale: 1.01 }}
                 whileTap={{ scale: 0.985 }}
-                className="w-full md:w-auto bg-transparent border border-white/30 text-white hover:bg-white/10 px-12 py-5 rounded-full font-bold text-xl transition-all"
+                className="w-full md:w-auto bg-transparent border border-white/20 text-white hover:bg-white/8 px-12 py-5 rounded-full font-bold text-xl transition-all"
               >
                 Contact Sales
               </motion.a>
@@ -794,58 +936,7 @@ export default function HomePageClient() {
           </div>
         </section>
 
-        <footer id="journal" className="py-20 px-6 md:px-12 border-t border-outline-variant/10 max-w-screen-2xl mx-auto">
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-10 md:gap-12">
-            <div className="col-span-2 space-y-5">
-              <div className="text-3xl font-headline italic text-on-lp-background">YouAreInvited</div>
-              <p className="text-on-surface-variant max-w-xs text-sm leading-relaxed">
-                A digital invitation platform for those who value elegance, intentionality, and cinematic storytelling.
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              <div className="font-bold text-sm uppercase tracking-widest text-on-lp-background">Platform</div>
-              <ul className="space-y-2 text-sm text-on-surface-variant">
-                {['Features', 'Pricing', 'Showcase', 'Guidelines'].map((item) => (
-                  <li key={item}><a href="#" className="hover:text-brand transition-colors">{item}</a></li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="space-y-4">
-              <div className="font-bold text-sm uppercase tracking-widest text-on-lp-background">Company</div>
-              <ul className="space-y-2 text-sm text-on-surface-variant">
-                {['Our Story', 'Journal', 'Contact', 'Careers'].map((item) => (
-                  <li key={item}><a href="#" className="hover:text-brand transition-colors">{item}</a></li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="col-span-2 space-y-5">
-              <div className="font-bold text-sm uppercase tracking-widest text-on-lp-background">Newsletter</div>
-              <p className="text-xs text-on-surface-variant">Weekly inspiration for high-end event curation.</p>
-              <div className="flex">
-                <input
-                  type="email"
-                  placeholder="email address"
-                  className="flex-1 bg-surface-container-low rounded-l-full px-6 py-3 text-sm outline-none focus:ring-1 focus:ring-brand border-0"
-                />
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.985 }}
-                  className="bg-on-lp-background text-white px-6 py-3 rounded-r-full hover:bg-brand transition-all"
-                >
-                  <span className="material-symbols-outlined text-sm">arrow_forward</span>
-                </motion.button>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-16 pt-8 border-t border-outline-variant/10 flex flex-col md:flex-row justify-between items-center gap-6">
-            <div className="text-xs text-on-surface-variant">© {new Date().getFullYear()} YouAreInvited. All Rights Reserved.</div>
-            <LegalFooterLinks className="text-xs text-on-surface-variant font-medium" />
-          </div>
-        </footer>
+        <PublicSiteFooter id="contact" />
       </main>
     </div>
   );

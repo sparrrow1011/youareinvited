@@ -2,8 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   @apply bg-gray-50 text-gray-900;
+}
+
+section[id],
+footer[id] {
+  scroll-margin-top: 7rem;
 }
 
 .btn-primary {
@@ -24,4 +33,10 @@ body {
 
 .label {
   @apply block text-sm font-medium text-gray-700 mb-2;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
 }

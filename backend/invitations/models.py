@@ -97,12 +97,7 @@ class Event(models.Model):
         return self.name
 
     def has_template(self):
-        return bool(
-            self.background_image
-            and self.qr_zone
-            and self.name_zone
-            and self.tag_zone
-        )
+        return bool(self.background_image)
 
 
 class Invitation(models.Model):
@@ -254,29 +249,31 @@ class Invitation(models.Model):
 
         # Draw name — auto-sized to fill the zone box height
         nz = self.event.name_zone
-        nx, ny, nw, nh = zone_to_pixels(nz)
-        color = nz.get('color', '#ffffff')
-        font, text_w, text_h = fit_text(self.name, nw, nh, scale=1.2)
-        draw.text(
-            (nx + (nw - text_w) // 2, ny + (nh - text_h) // 2),
-            self.name, fill=color, font=font,
-        )
+        if nz:
+            nx, ny, nw, nh = zone_to_pixels(nz)
+            color = nz.get('color', '#ffffff')
+            font, text_w, text_h = fit_text(self.name, nw, nh, scale=1.2)
+            draw.text(
+                (nx + (nw - text_w) // 2, ny + (nh - text_h) // 2),
+                self.name, fill=color, font=font,
+            )
 
         # Draw tag — auto-sized to fill the zone box height
         tz = self.event.tag_zone
-        tx, ty, tw, th = zone_to_pixels(tz)
-        tag_color = tz.get('color', '#a8dadc')
-        tag_text = f"Category: {self.tag}"
-        tag_font, tag_text_w, tag_text_h = fit_text(tag_text, tw, th, scale=1.14)
-        draw.text(
-            (tx + (tw - tag_text_w) // 2, ty + (th - tag_text_h) // 2),
-            tag_text, fill=tag_color, font=tag_font,
-        )
+        if tz and self.tag:
+            tx, ty, tw, th = zone_to_pixels(tz)
+            tag_color = tz.get('color', '#a8dadc')
+            tag_text = f"Category: {self.tag}"
+            tag_font, tag_text_w, tag_text_h = fit_text(tag_text, tw, th, scale=1.14)
+            draw.text(
+                (tx + (tw - tag_text_w) // 2, ty + (th - tag_text_h) // 2),
+                tag_text, fill=tag_color, font=tag_font,
+            )
 
         # Draw QR code — fetch from URL (Cloudinary storage has no .path property)
-        if self.qr_code:
+        qz = self.event.qr_zone
+        if self.qr_code and qz:
             try:
-                qz = self.event.qr_zone
                 qx, qy, qw, qh = zone_to_pixels(qz)
                 qr_img = self._open_storage_image(self.qr_code).convert('RGB')
                 qr_img = qr_img.resize((qw, qh))

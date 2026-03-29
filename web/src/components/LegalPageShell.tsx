@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import LegalFooterLinks from '@/components/LegalFooterLinks';
+import PublicSiteFooter from '@/components/PublicSiteFooter';
 
 type LegalSection = {
   title: string;
@@ -101,6 +102,8 @@ export default function LegalPageShell({
           </p>
           <LegalFooterLinks className="text-xs text-on-surface-variant font-medium" />
         </footer>
+
+        <PublicSiteFooter className="pt-6 border-t-0 px-0" />
       </main>
     </div>
   );

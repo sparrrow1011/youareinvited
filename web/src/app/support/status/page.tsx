@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import PublicSiteFooter from '@/components/PublicSiteFooter';
 
 const STATUS_ITEMS = [
   {
@@ -108,6 +109,8 @@ export default function SupportStatusPage() {
             ))}
           </div>
         </section>
+
+        <PublicSiteFooter className="pt-12 border-t-0" />
       </main>
     </div>
   );
