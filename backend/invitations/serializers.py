@@ -120,6 +120,7 @@ class InvitationCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Invitation
         fields = ['name', 'seat_number', 'tag', 'event', 'phone_number', 'whatsapp_sent_at']
+        read_only_fields = ['whatsapp_sent_at']
 
 
 class CheckInSerializer(serializers.Serializer):
