@@ -52,11 +52,12 @@ def _generate_whatsapp_link(invitation: Invitation, event: Event) -> str:
     # Use event's WhatsApp message template if available, otherwise use default
     message_template = event.whatsapp_message_template.strip() if event.whatsapp_message_template else ''
     if not message_template:
-        message_template = f"{invitation.name} invited you! 🎉\nView your invitation: {invitation_url}"
-    else:
-        # Allow {name} and {link} placeholders in the template
-        message_template = message_template.replace('{name}', invitation.name)
-        message_template = message_template.replace('{link}', invitation_url)
+        # Use placeholder template consistent with custom templates
+        message_template = "{name} invited you! 🎉\nView your invitation: {link}"
+
+    # Replace placeholders with actual values
+    message_template = message_template.replace('{name}', invitation.name)
+    message_template = message_template.replace('{link}', invitation_url)
 
     # Encode message for URL
     from urllib.parse import quote
