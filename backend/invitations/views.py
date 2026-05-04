@@ -45,6 +45,27 @@ def _hour_label(hour: int) -> str:
     return f'{display_hour}:00 {meridiem}'
 
 
+def _generate_whatsapp_link(invitation: Invitation, event: Event) -> str:
+    """Generate a WhatsApp share link for a guest invitation."""
+    invitation_url = invitation.get_invitation_url()
+
+    # Use event's WhatsApp message template if available, otherwise use default
+    message_template = event.whatsapp_message_template.strip() if event.whatsapp_message_template else ''
+    if not message_template:
+        message_template = f"{invitation.name} invited you! 🎉\nView your invitation: {invitation_url}"
+    else:
+        # Allow {name} and {link} placeholders in the template
+        message_template = message_template.replace('{name}', invitation.name)
+        message_template = message_template.replace('{link}', invitation_url)
+
+    # Encode message for URL
+    from urllib.parse import quote
+    encoded_message = quote(message_template)
+
+    # Return wa.me link (guest will click and manually send)
+    return f"https://wa.me/?text={encoded_message}"
+
+
 def _build_invitation_analytics(user):
     events = list(
         Event.objects.filter(owner=user).order_by('-date', '-created_at')
@@ -505,6 +526,61 @@ class InvitationViewSet(viewsets.ModelViewSet):
         response = HttpResponse(output.getvalue(), content_type='text/csv')
         response['Content-Disposition'] = 'attachment; filename="youareinvited-analytics-report.csv"'
         return response
+
+    @action(detail=False, methods=['post'])
+    def bulk_send_whatsapp(self, request):
+        """
+        Bulk send WhatsApp invitation links to selected guests.
+
+        POST /api/invitations/bulk_send_whatsapp/
+        Accepts:
+          - event: event UUID (required)
+          - invitation_ids: list of invitation UUIDs (required)
+
+        Returns:
+          - invitation_count: number of invitations processed
+          - link_preview: example WhatsApp link for preview
+          - timestamp: when the bulk send was executed
+        """
+        event_id = request.data.get('event')
+        invitation_ids = request.data.get('invitation_ids', [])
+
+        if not event_id or not invitation_ids:
+            return Response(
+                {'detail': 'Both event and invitation_ids are required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            event = Event.objects.get(pk=event_id, owner=request.user)
+        except Event.DoesNotExist:
+            return Response({'detail': 'Event not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Fetch all invitations for this event
+        invitations = Invitation.objects.filter(
+            event=event,
+            id__in=invitation_ids
+        )
+
+        # Update whatsapp_sent_at timestamp for each invitation
+        now = timezone.now()
+        updated_count = 0
+        for invitation in invitations:
+            invitation.whatsapp_sent_at = now
+            invitation.save(update_fields=['whatsapp_sent_at'])
+            updated_count += 1
+
+        # Generate preview link (use first invitation as example)
+        preview_link = ''
+        if invitations.exists():
+            first_inv = invitations.first()
+            preview_link = _generate_whatsapp_link(first_inv, event)
+
+        return Response({
+            'invitation_count': updated_count,
+            'link_preview': preview_link,
+            'timestamp': now.isoformat(),
+        }, status=status.HTTP_200_OK)
 
 
 class EventViewSet(viewsets.ModelViewSet):
