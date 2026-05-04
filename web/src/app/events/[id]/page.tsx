@@ -11,6 +11,7 @@ import VerificationBanner from '@/components/VerificationBanner';
 import { resolveMediaUrl } from '@/lib/api';
 import ThemePicker from '@/components/ThemePicker';
 import InvitationPreviewModal from '@/components/InvitationPreviewModal';
+import BulkWhatsAppModal from '@/components/BulkWhatsAppModal';
 
 const NAV_LINKS = [
   { icon: 'dashboard', label: 'Dashboard', href: '/dashboard' },
@@ -89,6 +90,10 @@ export default function EventPage() {
   const [themeSaved, setThemeSaved] = useState(false);
   const [activeTab, setActiveTab] = useState<EventTab>('guests');
 
+  const [selectedInvitationIds, setSelectedInvitationIds] = useState<Set<string>>(new Set());
+  const [showBulkWhatsAppModal, setShowBulkWhatsAppModal] = useState(false);
+  const [bulkSendLoading, setBulkSendLoading] = useState(false);
+
   const loadData = async () => {
     try {
       const [me, ev, invs] = await Promise.all([
@@ -150,6 +155,54 @@ export default function EventPage() {
   const handleUndoCheckIn = async (invId: string) => {
     await invitationService.undoCheckIn(invId);
     await loadData();
+  };
+
+  const handleSelectInvitation = (invId: string) => {
+    setSelectedInvitationIds((prev) => {
+      const updated = new Set(prev);
+      if (updated.has(invId)) {
+        updated.delete(invId);
+      } else {
+        updated.add(invId);
+      }
+      return updated;
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (selectedInvitationIds.size === invitations.length) {
+      setSelectedInvitationIds(new Set());
+    } else {
+      setSelectedInvitationIds(new Set(invitations.map((inv) => inv.id)));
+    }
+  };
+
+  const handleBulkSendWhatsApp = async () => {
+    if (!event || selectedInvitationIds.size === 0) {
+      throw new Error('No event or invitations selected');
+    }
+
+    setBulkSendLoading(true);
+    try {
+      const result = await invitationService.bulkSendWhatsApp(
+        event.id,
+        Array.from(selectedInvitationIds)
+      );
+      // Close modal after 2 seconds and reload data
+      setTimeout(() => {
+        setShowBulkWhatsAppModal(false);
+        setSelectedInvitationIds(new Set());
+        loadData();
+      }, 2000);
+      return {
+        invitation_count: selectedInvitationIds.size,
+        link_preview: ''
+      };
+    } catch (err) {
+      throw err;
+    } finally {
+      setBulkSendLoading(false);
+    }
   };
 
   const handleCsvFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -599,10 +652,33 @@ export default function EventPage() {
                       ))}
                     </div>
 
+                    {selectedInvitationIds.size > 0 && (
+                      <div className="mb-4 p-3 bg-blue-50 rounded-lg flex items-center justify-between">
+                        <span className="text-sm text-blue-900">
+                          {selectedInvitationIds.size} guest{selectedInvitationIds.size !== 1 ? 's' : ''} selected
+                        </span>
+                        <button
+                          onClick={() => setShowBulkWhatsAppModal(true)}
+                          disabled={bulkSendLoading}
+                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 flex items-center gap-2"
+                        >
+                          📱 Send WhatsApp
+                        </button>
+                      </div>
+                    )}
+
                     <div className="hidden md:block overflow-x-auto">
                       <table className="w-full min-w-[760px] text-sm">
                         <thead>
                           <tr className="border-b border-outline-variant/10 bg-surface-container-low">
+                            <th className="px-4 py-3 text-left">
+                              <input
+                                type="checkbox"
+                                checked={selectedInvitationIds.size === invitations.length && invitations.length > 0}
+                                onChange={handleSelectAll}
+                                className="rounded"
+                              />
+                            </th>
                             {['Name', 'Seat', 'Tag', 'Status', 'Actions'].map((h) => (
                               <th key={h} className="text-left px-6 py-4 text-xs font-semibold uppercase tracking-widest text-on-surface-variant">{h}</th>
                             ))}
@@ -611,6 +687,14 @@ export default function EventPage() {
                         <tbody className="divide-y divide-outline-variant/10">
                           {invitations.map((inv) => (
                             <tr key={inv.id} className="hover:bg-surface-container-low/50 transition-colors group">
+                              <td className="px-4 py-3">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedInvitationIds.has(inv.id)}
+                                  onChange={() => handleSelectInvitation(inv.id)}
+                                  className="rounded"
+                                />
+                              </td>
                               <td className="px-6 py-4 font-medium text-on-surface">{inv.name}</td>
                               <td className="px-6 py-4 text-on-surface-variant">{inv.seat_number}</td>
                               <td className="px-6 py-4">
@@ -730,31 +814,6 @@ export default function EventPage() {
                   )}
                 </div>
 
-                {user?.plan === 'pro' && (
-                  <div className="bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-xl p-5 sm:p-6">
-                    <div className="flex items-center gap-2 mb-4">
-                      <div className="w-8 h-8 rounded-xl bg-brand-container/40 flex items-center justify-center">
-                        <span className="material-symbols-outlined text-brand text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>style</span>
-                      </div>
-                      <p className="text-xs font-label font-semibold text-on-surface uppercase tracking-widest">Invitation Theme</p>
-                    </div>
-                    <p className="text-xs text-on-surface-variant mb-4 leading-relaxed">
-                      Choose a styled card design that guests will see when they open their invite link.
-                    </p>
-                    <ThemePicker
-                      selectedTheme={selectedTheme}
-                      themeData={themeData}
-                      onChange={handleSaveTheme}
-                      saving={savingTheme}
-                    />
-                    {themeSaved && (
-                      <p className="text-xs text-green-600 text-center mt-3 flex items-center justify-center gap-1">
-                        <span className="material-symbols-outlined text-[14px]">check_circle</span>
-                        Theme saved
-                      </p>
-                    )}
-                  </div>
-                )}
               </div>
 
               <div className="contents">
@@ -771,6 +830,21 @@ export default function EventPage() {
                   </div>
                 </div>
               </div>
+
+              {user?.plan === 'pro' && (
+                <div className="lg:col-span-2">
+                  <ThemePicker
+                    selectedTheme={selectedTheme}
+                    themeData={themeData}
+                    onSave={handleSaveTheme}
+                    saving={savingTheme}
+                    saved={themeSaved}
+                    eventName={event?.name}
+                    eventDate={event?.date}
+                    hasTemplate={Boolean(event?.background_image)}
+                  />
+                </div>
+              )}
             </div>
           )}
 
@@ -1092,6 +1166,13 @@ export default function EventPage() {
         invitationId={previewingInvitation?.id ?? null}
         invitationName={previewingInvitation?.name}
         onClose={() => setPreviewingInvitation(null)}
+      />
+
+      <BulkWhatsAppModal
+        isOpen={showBulkWhatsAppModal}
+        selectedInvitations={invitations.filter((inv) => selectedInvitationIds.has(inv.id))}
+        onConfirm={handleBulkSendWhatsApp}
+        onCancel={() => setShowBulkWhatsAppModal(false)}
       />
 
       {/* FAB */}
