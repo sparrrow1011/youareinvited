@@ -484,6 +484,18 @@ export const invitationService = {
     });
     return response.data;
   },
+
+  // Bulk send WhatsApp messages
+  bulkSendWhatsApp: async (
+    eventId: string,
+    invitationIds: string[]
+  ): Promise<{ invitation_count: number; link_preview: string; timestamp: string }> => {
+    const response = await api.post('/invitations/bulk_send_whatsapp/', {
+      event: eventId,
+      invitation_ids: invitationIds,
+    });
+    return response.data;
+  },
 };
 
 export default invitationService;
