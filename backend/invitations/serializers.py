@@ -53,6 +53,8 @@ class InvitationSerializer(serializers.ModelSerializer):
             'e_invite_image',
             'checked_in',
             'checked_in_at',
+            'phone_number',
+            'whatsapp_sent_at',
             'created_at',
             'updated_at',
             'invitation_url',
@@ -64,6 +66,7 @@ class InvitationSerializer(serializers.ModelSerializer):
         read_only_fields = [
             'id', 'event', 'qr_code', 'e_invite_image',
             'checked_in_at', 'created_at', 'updated_at',
+            'whatsapp_sent_at',
         ]
 
     def get_event_has_template(self, obj):
@@ -116,7 +119,7 @@ class InvitationSerializer(serializers.ModelSerializer):
 class InvitationCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Invitation
-        fields = ['name', 'seat_number', 'tag', 'event']
+        fields = ['name', 'seat_number', 'tag', 'event', 'phone_number', 'whatsapp_sent_at']
 
 
 class CheckInSerializer(serializers.Serializer):
