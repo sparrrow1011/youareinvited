@@ -119,6 +119,8 @@ class Invitation(models.Model):
     link_share_count = models.PositiveIntegerField(default=0)
     checked_in = models.BooleanField(default=False)
     checked_in_at = models.DateTimeField(null=True, blank=True)
+    phone_number = models.CharField(max_length=20, blank=True, null=True)
+    whatsapp_sent_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
