@@ -188,7 +188,17 @@ class Invitation(models.Model):
     def generate_e_invite(self, show_watermark: bool = True):
         """Generate e-invite image. Uses uploaded template if available, else dark-theme card."""
         if self.event_id and self.event.has_template():
-            img = self._generate_from_template(show_watermark)
+            try:
+                img = self._generate_from_template(show_watermark)
+            except (FileNotFoundError, OSError) as exc:
+                logger.warning(
+                    'Falling back to default invitation card for %s because template %s '
+                    'could not be opened: %s',
+                    self.id,
+                    self.event.background_image.name,
+                    exc,
+                )
+                img = self._generate_default_card(show_watermark)
         else:
             img = self._generate_default_card(show_watermark)
 

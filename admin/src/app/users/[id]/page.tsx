@@ -34,7 +34,7 @@ export default function UserDetailPage() {
         }
         setEvents(ev);
       })
-      .catch(() => setError('Could not load this user. Check the admin backend URL and staff authentication.'))
+      .catch(() => setError('Could not load this user. Please sign in again or contact support if this keeps happening.'))
       .finally(() => setLoading(false));
   }, [id]);
 

@@ -33,7 +33,7 @@ export default function DashboardPage() {
         setStats(s);
         setGrowth(g);
       })
-      .catch(() => setError('Could not load platform stats. Check the admin backend URL and staff authentication.'))
+      .catch(() => setError('Could not load platform stats. Please sign in again or contact support if this keeps happening.'))
       .finally(() => setLoading(false));
   }, []);
 

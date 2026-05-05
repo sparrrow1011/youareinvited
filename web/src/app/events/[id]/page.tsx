@@ -66,6 +66,7 @@ export default function EventPage() {
   const [showCsvModal, setShowCsvModal] = useState(false);
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [csvPreview, setCsvPreview] = useState<{ name: string; seat_number: string; tag: string }[]>([]);
+  const [csvRowCount, setCsvRowCount] = useState(0);
   const [csvImporting, setCsvImporting] = useState(false);
   const [csvResult, setCsvResult] = useState<{ created: number; errors: string[] } | null>(null);
 
@@ -93,6 +94,7 @@ export default function EventPage() {
   const [selectedInvitationIds, setSelectedInvitationIds] = useState<Set<string>>(new Set());
   const [showBulkWhatsAppModal, setShowBulkWhatsAppModal] = useState(false);
   const [bulkSendLoading, setBulkSendLoading] = useState(false);
+  const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false);
 
   const loadData = async () => {
     try {
@@ -109,6 +111,9 @@ export default function EventPage() {
       setThemeData(ev.theme_data ?? {});
       const eventInvs = invs.filter((inv) => inv.event === id);
       setInvitations(eventInvs);
+      setSelectedInvitationIds((prev) => new Set(
+        Array.from(prev).filter((invId) => eventInvs.some((inv) => inv.id === invId))
+      ));
       const total = eventInvs.length;
       const checkedIn = eventInvs.filter((inv) => inv.checked_in).length;
       setStats({
@@ -150,6 +155,23 @@ export default function EventPage() {
     if (!confirm('Delete this invitation?')) return;
     await invitationService.delete(invId);
     await loadData();
+  };
+
+  const handleBulkDelete = async () => {
+    const count = selectedInvitationIds.size;
+    if (!event || count === 0) return;
+    if (!confirm(`Delete ${count} selected guest${count !== 1 ? 's' : ''}? This cannot be undone.`)) return;
+
+    setBulkDeleteLoading(true);
+    try {
+      await invitationService.bulkDelete(event.id, Array.from(selectedInvitationIds));
+      setSelectedInvitationIds(new Set());
+      await loadData();
+    } catch {
+      setError('Failed to delete selected guests.');
+    } finally {
+      setBulkDeleteLoading(false);
+    }
   };
 
   const handleUndoCheckIn = async (invId: string) => {
@@ -210,6 +232,7 @@ export default function EventPage() {
     if (!file) return;
     setCsvFile(file);
     setCsvResult(null);
+    setCsvRowCount(0);
     const reader = new FileReader();
     reader.onload = (ev) => {
       const text = ev.target?.result as string;
@@ -223,6 +246,7 @@ export default function EventPage() {
         const cols = line.split(',');
         return { name: cols[ni]?.trim() ?? '', seat_number: cols[si]?.trim() ?? '', tag: cols[ti]?.trim() ?? '' };
       }).filter((r) => r.name);
+      setCsvRowCount(rows.length);
       setCsvPreview(rows.slice(0, 5));
     };
     reader.readAsText(file);
@@ -237,6 +261,7 @@ export default function EventPage() {
       setCsvResult(result);
       setCsvFile(null);
       setCsvPreview([]);
+      setCsvRowCount(0);
       await loadData();
     } catch {
       setError('CSV import failed.');
@@ -593,11 +618,20 @@ export default function EventPage() {
                       {invitations.map((inv) => (
                         <div key={inv.id} className="p-5 space-y-4">
                           <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <p className="font-medium text-on-surface truncate">{inv.name}</p>
-                              <p className="text-xs text-on-surface-variant mt-1">
-                                {inv.seat_number ? `Seat ${inv.seat_number}` : 'No seat assigned'}
-                              </p>
+                            <div className="min-w-0 flex items-start gap-3">
+                              <input
+                                type="checkbox"
+                                checked={selectedInvitationIds.has(inv.id)}
+                                onChange={() => handleSelectInvitation(inv.id)}
+                                className="mt-1 rounded"
+                                aria-label={`Select ${inv.name}`}
+                              />
+                              <div className="min-w-0">
+                                <p className="font-medium text-on-surface truncate">{inv.name}</p>
+                                <p className="text-xs text-on-surface-variant mt-1">
+                                  {inv.seat_number ? `Seat ${inv.seat_number}` : 'No seat assigned'}
+                                </p>
+                              </div>
                             </div>
                             <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 ${inv.checked_in
                                 ? 'bg-brand-container/40 text-on-brand-container'
@@ -653,17 +687,28 @@ export default function EventPage() {
                     </div>
 
                     {selectedInvitationIds.size > 0 && (
-                      <div className="mb-4 p-3 bg-blue-50 rounded-lg flex items-center justify-between">
-                        <span className="text-sm text-blue-900">
+                      <div className="m-4 p-3 bg-surface-container rounded-2xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <span className="text-sm text-on-surface">
                           {selectedInvitationIds.size} guest{selectedInvitationIds.size !== 1 ? 's' : ''} selected
                         </span>
-                        <button
-                          onClick={() => setShowBulkWhatsAppModal(true)}
-                          disabled={bulkSendLoading}
-                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 flex items-center gap-2"
-                        >
-                          📱 Send WhatsApp
-                        </button>
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <button
+                            onClick={() => setShowBulkWhatsAppModal(true)}
+                            disabled={bulkSendLoading || bulkDeleteLoading}
+                            className="inline-flex items-center justify-center gap-2 rounded-full bg-brand px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-dim disabled:opacity-50"
+                          >
+                            <span className="material-symbols-outlined text-[18px]">send</span>
+                            Send WhatsApp
+                          </button>
+                          <button
+                            onClick={handleBulkDelete}
+                            disabled={bulkDeleteLoading || bulkSendLoading}
+                            className="inline-flex items-center justify-center gap-2 rounded-full bg-tertiary-container/30 px-4 py-2 text-sm font-medium text-tertiary transition hover:bg-tertiary-container/50 disabled:opacity-50"
+                          >
+                            <span className="material-symbols-outlined text-[18px]">delete</span>
+                            {bulkDeleteLoading ? 'Deleting...' : 'Delete Selected'}
+                          </button>
+                        </div>
                       </div>
                     )}
 
@@ -1053,7 +1098,7 @@ export default function EventPage() {
             <div className="flex items-center justify-between mb-6">
               <h2 className="font-headline text-2xl font-light">Import Guests</h2>
               <button
-                onClick={() => { setShowCsvModal(false); setCsvFile(null); setCsvPreview([]); setCsvResult(null); }}
+                onClick={() => { setShowCsvModal(false); setCsvFile(null); setCsvPreview([]); setCsvResult(null); setCsvRowCount(0); }}
                 className="text-on-surface-variant hover:text-on-surface transition-colors"
               >
                 <span className="material-symbols-outlined">close</span>
@@ -1081,8 +1126,17 @@ export default function EventPage() {
             ) : (
               <div className="space-y-5">
                 <div className="p-4 bg-surface-container rounded-2xl text-xs text-on-surface-variant">
-                  CSV must have columns: <code className="bg-surface-container-high px-1.5 py-0.5 rounded-md font-mono">name</code>, <code className="bg-surface-container-high px-1.5 py-0.5 rounded-md font-mono">seat_number</code>, <code className="bg-surface-container-high px-1.5 py-0.5 rounded-md font-mono">tag</code>
+                  CSV must have columns: <code className="bg-surface-container-high px-1.5 py-0.5 rounded-md font-mono">name</code>, <code className="bg-surface-container-high px-1.5 py-0.5 rounded-md font-mono">seat_number</code>, <code className="bg-surface-container-high px-1.5 py-0.5 rounded-md font-mono">tag</code>. Optional: <code className="bg-surface-container-high px-1.5 py-0.5 rounded-md font-mono">phone_number</code>
                 </div>
+
+                {csvFile && (
+                  <div className="flex items-center justify-between rounded-2xl bg-surface-container-low px-4 py-3 text-sm">
+                    <span className="truncate text-on-surface">{csvFile.name}</span>
+                    <span className="shrink-0 text-on-surface-variant">
+                      {csvRowCount} guest{csvRowCount !== 1 ? 's' : ''} ready
+                    </span>
+                  </div>
+                )}
 
                 {csvPreview.length > 0 && (
                   <div>
@@ -1116,12 +1170,15 @@ export default function EventPage() {
                   <button
                     onClick={handleCsvImport}
                     disabled={!csvFile || csvImporting}
-                    className="flex-1 py-3 bg-brand text-white rounded-full font-semibold text-sm hover:bg-brand-dim transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 inline-flex items-center justify-center gap-2 py-3 bg-brand text-white rounded-full font-semibold text-sm hover:bg-brand-dim transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {csvImporting ? 'Importing…' : 'Import All'}
+                    {csvImporting && <span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>}
+                    {csvImporting
+                      ? `Importing ${csvRowCount} guest${csvRowCount !== 1 ? 's' : ''}...`
+                      : 'Import All'}
                   </button>
                   <button
-                    onClick={() => { setShowCsvModal(false); setCsvFile(null); setCsvPreview([]); }}
+                    onClick={() => { setShowCsvModal(false); setCsvFile(null); setCsvPreview([]); setCsvRowCount(0); }}
                     className="flex-1 py-3 bg-surface-container rounded-full text-sm font-medium text-on-surface hover:bg-surface-container-high transition-colors"
                   >
                     Cancel

@@ -1,5 +1,6 @@
 import csv
 import io
+import logging
 from collections import Counter, defaultdict
 
 from django.conf import settings
@@ -13,6 +14,7 @@ from django.contrib.auth.hashers import make_password, check_password
 from django.core import signing
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.db import transaction
 from django.db.utils import OperationalError, ProgrammingError
 from .models import Invitation, Event
 from .serializers import (
@@ -22,6 +24,8 @@ from .serializers import (
     EventSerializer,
     SetSecurityPinSerializer,
 )
+
+logger = logging.getLogger(__name__)
 
 SECURITY_TOKEN_MAX_AGE = 43200  # 12 hours in seconds
 
@@ -65,6 +69,18 @@ def _generate_whatsapp_link(invitation: Invitation, event: Event) -> str:
 
     # Return wa.me link (guest will click and manually send)
     return f"https://wa.me/?text={encoded_message}"
+
+
+def _normalise_csv_header(value: str | None) -> str:
+    return (value or '').strip().lower()
+
+
+def _normalise_csv_row(row: dict) -> dict[str, str]:
+    return {
+        _normalise_csv_header(key): (value or '').strip()
+        for key, value in row.items()
+        if key is not None
+    }
 
 
 def _build_invitation_analytics(user):
@@ -349,12 +365,40 @@ class InvitationViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     @action(detail=False, methods=['post'])
+    def bulk_delete(self, request):
+        """
+        POST /api/invitations/bulk_delete/
+        Accepts:
+          - event: event UUID
+          - invitation_ids: list of invitation UUIDs
+        Returns { deleted: N }
+        """
+        event_id = request.data.get('event')
+        invitation_ids = request.data.get('invitation_ids')
+
+        if not event_id:
+            return Response({'detail': 'Event is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not isinstance(invitation_ids, list) or not invitation_ids:
+            return Response({'detail': 'invitation_ids must be a non-empty list.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            event = Event.objects.get(pk=event_id, owner=request.user)
+        except Event.DoesNotExist:
+            return Response({'detail': 'Event not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        deleted, _ = Invitation.objects.filter(
+            event=event,
+            id__in=invitation_ids,
+        ).delete()
+        return Response({'deleted': deleted}, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['post'])
     def bulk_import(self, request):
         """
         POST /api/invitations/bulk_import/
         Accepts a multipart form with:
           - event: event UUID
-          - file: CSV with columns name, seat_number, tag
+          - file: CSV with columns name, seat_number, tag, optional phone_number
         Returns { created: N, errors: [...] }
         """
         storage_error = media_storage_unavailable_response(
@@ -385,7 +429,8 @@ class InvitationViewSet(viewsets.ModelViewSet):
 
         reader = csv.DictReader(io.StringIO(text))
         required = {'name', 'seat_number', 'tag'}
-        if not required.issubset({c.strip().lower() for c in (reader.fieldnames or [])}):
+        headers = {_normalise_csv_header(c) for c in (reader.fieldnames or [])}
+        if not required.issubset(headers):
             return Response(
                 {'detail': f'CSV must have columns: {", ".join(sorted(required))}'},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -394,13 +439,27 @@ class InvitationViewSet(viewsets.ModelViewSet):
         created = 0
         errors = []
         for i, row in enumerate(reader, start=2):  # row 1 is header
-            name = row.get('name', '').strip()
-            seat = row.get('seat_number', '').strip()
-            tag = row.get('tag', '').strip()
+            row = _normalise_csv_row(row)
+            name = row.get('name', '')
+            seat = row.get('seat_number', '')
+            tag = row.get('tag', '')
+            phone_number = row.get('phone_number', '')
             if not name:
                 errors.append(f'Row {i}: name is required.')
                 continue
-            Invitation.objects.create(event=event, name=name, seat_number=seat, tag=tag)
+            try:
+                with transaction.atomic():
+                    Invitation.objects.create(
+                        event=event,
+                        name=name,
+                        seat_number=seat,
+                        tag=tag,
+                        phone_number=phone_number,
+                    )
+            except Exception as exc:
+                logger.exception('Bulk import failed on row %s for event %s.', i, event.id)
+                errors.append(f'Row {i}: could not create invitation ({exc}).')
+                continue
             created += 1
 
         return Response({'created': created, 'errors': errors}, status=status.HTTP_201_CREATED)

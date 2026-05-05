@@ -252,6 +252,187 @@ def test_bulk_import_accepts_blank_seat_and_tag(auth_client, user, monkeypatch):
 
 
 @pytest.mark.django_db
+def test_bulk_delete_removes_selected_event_invitations(auth_client, user, monkeypatch):
+    monkeypatch.setattr(Invitation, 'generate_qr_code', lambda self: None)
+    monkeypatch.setattr(Invitation, 'generate_e_invite', lambda self, **kwargs: None)
+    event = Event.objects.create(owner=user, name="Test Event", date="2025-12-01")
+    keep = Invitation.objects.create(event=event, name="Keep", seat_number="", tag="")
+    remove_one = Invitation.objects.create(event=event, name="Remove One", seat_number="", tag="")
+    remove_two = Invitation.objects.create(event=event, name="Remove Two", seat_number="", tag="")
+
+    response = auth_client.post(
+        "/api/invitations/bulk_delete/",
+        {
+            "event": str(event.id),
+            "invitation_ids": [str(remove_one.id), str(remove_two.id)],
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.data["deleted"] == 2
+    assert Invitation.objects.filter(id=keep.id).exists()
+    assert not Invitation.objects.filter(id=remove_one.id).exists()
+    assert not Invitation.objects.filter(id=remove_two.id).exists()
+
+
+@pytest.mark.django_db
+def test_bulk_delete_does_not_remove_other_users_invitations(auth_client, user, other_user, monkeypatch):
+    monkeypatch.setattr(Invitation, 'generate_qr_code', lambda self: None)
+    monkeypatch.setattr(Invitation, 'generate_e_invite', lambda self, **kwargs: None)
+    event = Event.objects.create(owner=user, name="Test Event", date="2025-12-01")
+    other_event = Event.objects.create(owner=other_user, name="Other Event", date="2025-12-01")
+    own_invitation = Invitation.objects.create(event=event, name="Own", seat_number="", tag="")
+    other_invitation = Invitation.objects.create(event=other_event, name="Other", seat_number="", tag="")
+
+    response = auth_client.post(
+        "/api/invitations/bulk_delete/",
+        {
+            "event": str(event.id),
+            "invitation_ids": [str(own_invitation.id), str(other_invitation.id)],
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.data["deleted"] == 1
+    assert not Invitation.objects.filter(id=own_invitation.id).exists()
+    assert Invitation.objects.filter(id=other_invitation.id).exists()
+
+
+@pytest.mark.django_db
+def test_bulk_import_accepts_rows_with_missing_trailing_cells(auth_client, user, monkeypatch):
+    """Rows with omitted optional trailing cells should not crash the importer."""
+    from invitations.models import Invitation
+    monkeypatch.setattr(Invitation, 'generate_qr_code', lambda self: None)
+    monkeypatch.setattr(Invitation, 'generate_e_invite', lambda self, **kwargs: None)
+    event = Event.objects.create(owner=user, name="Test Event", date="2025-12-01")
+    csv_content = "name,seat_number,tag\nAlice\nBob,B-1\n"
+    csv_file = io.BytesIO(csv_content.encode())
+    csv_file.name = "guests.csv"
+
+    response = auth_client.post(
+        "/api/invitations/bulk_import/",
+        {"event": str(event.id), "file": csv_file},
+        format="multipart",
+    )
+
+    assert response.status_code == 201
+    assert response.data["created"] == 2
+    assert response.data["errors"] == []
+    alice = Invitation.objects.get(event=event, name="Alice")
+    assert alice.seat_number == ""
+    assert alice.tag == ""
+
+
+@pytest.mark.django_db
+def test_bulk_import_normalises_header_names(auth_client, user, monkeypatch):
+    """Header casing and surrounding spaces should not make valid CSV rows empty."""
+    from invitations.models import Invitation
+    monkeypatch.setattr(Invitation, 'generate_qr_code', lambda self: None)
+    monkeypatch.setattr(Invitation, 'generate_e_invite', lambda self, **kwargs: None)
+    event = Event.objects.create(owner=user, name="Test Event", date="2025-12-01")
+    csv_content = " Name , Seat_Number , Tag \nAlice,A-1,VIP\n"
+    csv_file = io.BytesIO(csv_content.encode())
+    csv_file.name = "guests.csv"
+
+    response = auth_client.post(
+        "/api/invitations/bulk_import/",
+        {"event": str(event.id), "file": csv_file},
+        format="multipart",
+    )
+
+    assert response.status_code == 201
+    assert response.data["created"] == 1
+    assert response.data["errors"] == []
+    assert Invitation.objects.filter(event=event, name="Alice", seat_number="A-1", tag="VIP").exists()
+
+
+@pytest.mark.django_db
+def test_bulk_import_accepts_optional_phone_number(auth_client, user, monkeypatch):
+    """CSV imports should store phone_number when the optional column is present."""
+    from invitations.models import Invitation
+    monkeypatch.setattr(Invitation, 'generate_qr_code', lambda self: None)
+    monkeypatch.setattr(Invitation, 'generate_e_invite', lambda self, **kwargs: None)
+    event = Event.objects.create(owner=user, name="Test Event", date="2025-12-01")
+    csv_content = (
+        "name,seat_number,tag,phone_number\n"
+        "Brother Musa,,Orange,8060681740\n"
+        "Akehinde,,Orange,8033907516\n"
+    )
+    csv_file = io.BytesIO(csv_content.encode())
+    csv_file.name = "guests.csv"
+
+    response = auth_client.post(
+        "/api/invitations/bulk_import/",
+        {"event": str(event.id), "file": csv_file},
+        format="multipart",
+    )
+
+    assert response.status_code == 201
+    assert response.data["created"] == 2
+    assert response.data["errors"] == []
+    assert Invitation.objects.get(event=event, name="Brother Musa").phone_number == "8060681740"
+
+
+@pytest.mark.django_db
+def test_bulk_import_returns_row_error_when_invitation_creation_fails(auth_client, user, monkeypatch):
+    """Unexpected per-row create failures should be reported without a 500."""
+    event = Event.objects.create(owner=user, name="Test Event", date="2025-12-01")
+
+    def fail_create(*args, **kwargs):
+        raise RuntimeError("image generation failed")
+
+    monkeypatch.setattr(Invitation.objects, 'create', fail_create)
+    csv_content = "name,seat_number,tag,phone_number\nBrother Musa,,Orange,8060681740\n"
+    csv_file = io.BytesIO(csv_content.encode())
+    csv_file.name = "guests.csv"
+
+    response = auth_client.post(
+        "/api/invitations/bulk_import/",
+        {"event": str(event.id), "file": csv_file},
+        format="multipart",
+    )
+
+    assert response.status_code == 201
+    assert response.data["created"] == 0
+    assert len(response.data["errors"]) == 1
+    assert "could not create invitation" in response.data["errors"][0]
+
+
+@pytest.mark.django_db
+def test_bulk_import_falls_back_when_event_template_file_is_missing(auth_client, user, tmp_path):
+    """A stale template file reference should not block guest imports."""
+    local_storage = {
+        'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+        'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+    }
+
+    with override_settings(STORAGES=local_storage, MEDIA_ROOT=tmp_path, MEDIA_URL='/media/'):
+        event = Event.objects.create(
+            owner=user,
+            name="Missing Template Event",
+            date="2025-12-01",
+            background_image="missing/template/background.PNG",
+        )
+        csv_content = "name,seat_number,tag,phone_number\nBrother Musa,,Orange,8060681740\n"
+        csv_file = io.BytesIO(csv_content.encode())
+        csv_file.name = "guests.csv"
+
+        response = auth_client.post(
+            "/api/invitations/bulk_import/",
+            {"event": str(event.id), "file": csv_file},
+            format="multipart",
+        )
+
+    assert response.status_code == 201
+    assert response.data["created"] == 1
+    assert response.data["errors"] == []
+    invitation = Invitation.objects.get(event=event, name="Brother Musa")
+    assert invitation.e_invite_image.name
+
+
+@pytest.mark.django_db
 def test_bulk_import_still_rejects_blank_name(auth_client, user, monkeypatch):
     """name is still required — a row with a blank name must produce an error."""
     from invitations.models import Invitation

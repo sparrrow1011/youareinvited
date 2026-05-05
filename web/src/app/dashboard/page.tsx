@@ -34,6 +34,113 @@ const getPlanLabel = (plan?: AuthUser['plan']) => (
   plan === 'pro' ? 'Pro Organizer' : 'Free Organizer'
 );
 
+const EVENT_DATE_FORMATTER = new Intl.DateTimeFormat('en-US', {
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+});
+
+const formatThemeLabel = (theme?: string) => {
+  if (!theme || theme === 'none') return 'Unstyled';
+  return theme
+    .split(/[_-]/g)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+};
+
+const formatEventDate = (date?: string) => {
+  if (!date) return 'Date TBD';
+  const parsed = new Date(`${date}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return date;
+  return EVENT_DATE_FORMATTER.format(parsed);
+};
+
+const getEventStatus = (date?: string) => {
+  if (!date) {
+    return {
+      label: 'Draft',
+      icon: 'edit_square',
+      badgeClass: 'bg-white/85 text-on-surface',
+      dotClass: 'bg-outline',
+    };
+  }
+
+  const eventDate = new Date(`${date}T00:00:00`);
+  if (Number.isNaN(eventDate.getTime())) {
+    return {
+      label: 'Scheduled',
+      icon: 'event',
+      badgeClass: 'bg-white/85 text-on-surface',
+      dotClass: 'bg-outline',
+    };
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (eventDate.getTime() === today.getTime()) {
+    return {
+      label: 'Today',
+      icon: 'bolt',
+      badgeClass: 'bg-white/90 text-brand',
+      dotClass: 'bg-brand',
+    };
+  }
+
+  if (eventDate > today) {
+    return {
+      label: 'Upcoming',
+      icon: 'north_east',
+      badgeClass: 'bg-white/85 text-on-surface',
+      dotClass: 'bg-brand',
+    };
+  }
+
+  return {
+    label: 'Past',
+    icon: 'history',
+    badgeClass: 'bg-white/85 text-on-surface',
+    dotClass: 'bg-tertiary',
+  };
+};
+
+const getEventCategoryLabel = (event: Event) => {
+  if (event.background_image) return 'Custom Template';
+  if (event.theme && event.theme !== 'none') return `${formatThemeLabel(event.theme)} Theme`;
+  if (event.has_security_pin) return 'Protected Event';
+  return 'Event Draft';
+};
+
+const getEventDetailLine = (event: Event) => {
+  if (event.background_image) {
+    return { icon: 'photo', text: 'Template uploaded and ready for guest rendering' };
+  }
+
+  if (event.theme && event.theme !== 'none') {
+    return { icon: 'palette', text: `${formatThemeLabel(event.theme)} styling is active` };
+  }
+
+  return { icon: 'auto_fix_high', text: 'Ready for design, guest import, and QR setup' };
+};
+
+const getEventPills = (event: Event) => {
+  const pills = [
+    event.has_security_pin ? 'Security On' : 'Security Open',
+    event.whatsapp_message_template ? 'WhatsApp Ready' : 'Share Template Default',
+  ];
+
+  if (event.background_image) {
+    pills.unshift('Template Ready');
+  } else if (event.theme && event.theme !== 'none') {
+    pills.unshift(`${formatThemeLabel(event.theme)} Theme`);
+  } else {
+    pills.unshift('No Template Yet');
+  }
+
+  return pills;
+};
+
 export default function DashboardPage() {
   const router = useRouter();
   const [events, setEvents] = useState<Event[]>([]);
@@ -92,6 +199,7 @@ export default function DashboardPage() {
     ? `${displayName} · ${planLabel}`
     : planLabel;
   const workspaceBrandLogoUrl = resolveMediaUrl(user?.brand_logo_url);
+  const canCreateEvent = !!user?.email_verified;
 
   const notifications: DashboardNotification[] = loading ? [] : [
     events.length === 0
@@ -353,96 +461,176 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Two-col: events + feed */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-12">
-            {/* Events list */}
-            <div className="lg:col-span-2 space-y-8">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-                <h3 className="font-headline text-2xl font-normal">My Events</h3>
-                <button
-                  onClick={() => router.push('/events/new')}
-                  disabled={!user?.email_verified}
-                  className="text-sm font-medium text-brand hover:underline underline-offset-4 disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  + New Event
-                </button>
+          <div className="space-y-12 lg:space-y-14">
+            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+              <div>
+                <h3 className="font-headline text-2xl sm:text-3xl font-normal text-on-surface">My Events</h3>
+                <p className="text-sm text-on-surface-variant mt-2">
+                  Design, manage, and monitor each event from a single editorial-style workspace.
+                </p>
               </div>
+              <button
+                onClick={() => router.push('/events/new')}
+                disabled={!canCreateEvent}
+                className="inline-flex items-center gap-2 text-sm font-medium text-brand hover:underline underline-offset-4 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <span className="material-symbols-outlined text-base">add</span>
+                New Event
+              </button>
+            </div>
 
-              {loading && (
-                <p className="text-on-surface-variant text-sm">Loading events…</p>
-              )}
-
-              {!loading && events.length === 0 && (
-                <div className="text-center py-16 bg-surface-container-lowest rounded-[2rem] border border-outline-variant/10">
-                  <p className="text-on-surface-variant mb-4">No events yet.</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 lg:gap-8">
+              <div className="group relative overflow-hidden rounded-[2rem] p-[1px] bg-gradient-to-br from-brand-container via-tertiary-container to-secondary-container shadow-xl min-h-[420px] flex flex-col">
+                <div className="bg-white/90 backdrop-blur-md rounded-[calc(2rem-1px)] flex-1 flex flex-col items-center justify-center text-center p-10 sm:p-12">
+                  <div className="w-20 h-20 rounded-full bg-brand/10 flex items-center justify-center mb-6 transition-colors group-hover:bg-brand/20">
+                    <span className="material-symbols-outlined text-4xl text-brand">add</span>
+                  </div>
+                  <h4 className="font-headline text-2xl mb-2 text-on-surface">Design New Event</h4>
+                  <p className="text-on-surface-variant text-sm leading-relaxed max-w-xs mb-8">
+                    Begin a new celebration and step straight into the design studio.
+                  </p>
                   <button
                     onClick={() => router.push('/events/new')}
-                    disabled={!user?.email_verified}
-                    className="px-6 py-3 bg-brand text-white rounded-full font-semibold text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                    disabled={!canCreateEvent}
+                    className="bg-brand text-white px-10 py-3 rounded-full font-semibold shadow-md transition-all hover:bg-brand-dim disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    Create Your First Event
+                    Create Event
                   </button>
                 </div>
-              )}
+              </div>
 
-              {events.map((event, idx) => (
+              {loading && Array.from({ length: 2 }).map((_, index) => (
                 <div
-                  key={event.id}
-                  className="group relative bg-surface-container-lowest rounded-[2rem] overflow-hidden shadow-[0_12px_40px_rgba(47,51,54,0.03)] transition-all hover:shadow-[0_20px_60px_rgba(47,51,54,0.06)]"
+                  key={`event-skeleton-${index}`}
+                  className="rounded-[2rem] overflow-hidden bg-surface-container-lowest border border-outline-variant/10 shadow-[0_12px_40px_rgba(47,51,54,0.04)] min-h-[420px] animate-pulse"
                 >
-                  <div className="flex flex-col md:flex-row">
-                    <div className="md:w-2/5 h-48 md:h-auto min-h-[160px] relative overflow-hidden bg-surface-container">
-                      {event.background_image ? (
-                        <>
-                          <img
-                            src={resolveMediaUrl(event.background_image)}
-                            alt={`${event.name} template preview`}
-                            className="w-full h-full object-cover"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-on-lp-background/20 to-transparent" />
-                        </>
-                      ) : (
-                        <div
-                          className={`w-full h-full bg-gradient-to-br ${EVENT_GRADIENTS[idx % EVENT_GRADIENTS.length]}`}
-                        />
-                      )}
-                    </div>
-                    <div className="md:w-3/5 p-5 sm:p-8 flex flex-col justify-between">
-                      <div>
-                        <div className="mb-4">
-                          <span className="text-[10px] uppercase tracking-widest font-bold text-brand bg-brand-container/30 px-3 py-1 rounded-full">
-                            {event.date}
-                          </span>
-                        </div>
-                        <h4 className="font-headline text-2xl mb-2 text-on-surface">{event.name}</h4>
-                        {event.description && (
-                          <p className="text-on-surface-variant text-sm leading-relaxed">{event.description}</p>
-                        )}
-                      </div>
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-6 border-t border-outline-variant/10 mt-6">
-                        <button
-                          onClick={() => handleDelete(event.id)}
-                          disabled={!user?.email_verified}
-                          className="text-xs text-left text-on-surface-variant hover:text-tertiary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                          Delete
-                        </button>
-                        <button
-                          onClick={() => router.push(`/events/${event.id}`)}
-                          disabled={!user?.email_verified}
-                          className="flex items-center text-brand font-bold text-sm group-hover:translate-x-1 transition-transform disabled:opacity-40 disabled:cursor-not-allowed disabled:translate-x-0"
-                        >
-                          Manage Event <span className="material-symbols-outlined ml-1">arrow_forward</span>
-                        </button>
-                      </div>
-                    </div>
+                  <div className="h-64 bg-surface-container" />
+                  <div className="p-8 space-y-4">
+                    <div className="h-3 w-24 rounded-full bg-surface-container-high" />
+                    <div className="h-8 w-2/3 rounded-full bg-surface-container-high" />
+                    <div className="h-4 w-5/6 rounded-full bg-surface-container-high" />
+                    <div className="h-4 w-2/3 rounded-full bg-surface-container-high" />
                   </div>
                 </div>
               ))}
+
+              {!loading && events.length === 0 && (
+                <div className="md:col-span-1 xl:col-span-2 rounded-[2rem] border border-dashed border-outline-variant/20 bg-white/55 backdrop-blur-xl min-h-[420px] p-10 sm:p-12 flex flex-col justify-center">
+                  <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-brand mb-4">First Event</p>
+                  <h4 className="font-headline text-3xl text-on-surface mb-3">Your dashboard is ready for its first celebration.</h4>
+                  <p className="text-sm text-on-surface-variant max-w-lg leading-relaxed">
+                    Create an event to start designing invitations, importing guests, and unlocking QR check-in for the day itself.
+                  </p>
+                </div>
+              )}
+
+              {!loading && events.map((event, idx) => {
+                const status = getEventStatus(event.date);
+                const detailLine = getEventDetailLine(event);
+                const eventPills = getEventPills(event);
+                const imageUrl = resolveMediaUrl(event.background_image);
+
+                return (
+                  <article
+                    key={event.id}
+                    className="group relative bg-surface-container-lowest rounded-[2rem] overflow-hidden shadow-[0_12px_40px_rgba(47,51,54,0.04)] hover:shadow-2xl transition-all duration-500 flex flex-col min-h-[420px]"
+                  >
+                    <div className="h-40 overflow-hidden relative bg-surface-container">
+                      {imageUrl ? (
+                        <>
+                          <img
+                            src={imageUrl}
+                            alt={`${event.name} template preview`}
+                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-on-lp-background/25 via-on-lp-background/5 to-transparent" />
+                        </>
+                      ) : (
+                        <div className={`w-full h-full bg-gradient-to-br ${EVENT_GRADIENTS[idx % EVENT_GRADIENTS.length]}`} />
+                      )}
+
+                      <div className="absolute top-4 left-4 bg-white/80 backdrop-blur-md px-3 py-1 rounded-full">
+                        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface">
+                          {getEventCategoryLabel(event)}
+                        </span>
+                      </div>
+
+                      <div className={`absolute top-4 right-4 ${status.badgeClass} backdrop-blur-md px-3 py-1 rounded-full flex items-center gap-2`}>
+                        <span className={`w-2 h-2 rounded-full ${status.dotClass}`} />
+                        <span className="text-[10px] font-bold uppercase tracking-widest">{status.label}</span>
+                      </div>
+                    </div>
+
+                    <div className="p-6 sm:p-8 flex-1 flex flex-col">
+                      <div className="flex justify-between items-start gap-4 mb-4">
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-tertiary mb-1">
+                            {formatEventDate(event.date)}
+                          </p>
+                          <h4 className="font-headline text-2xl text-on-surface line-clamp-2">{event.name}</h4>
+                        </div>
+                        <button
+                          onClick={() => router.push(`/events/${event.id}`)}
+                          disabled={!canCreateEvent}
+                          aria-label={`Open ${event.name}`}
+                          className="w-10 h-10 rounded-full border border-outline-variant/20 bg-white/75 text-on-surface-variant flex items-center justify-center transition-colors hover:text-brand hover:border-brand/20 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+                        >
+                          <span className="material-symbols-outlined text-base">arrow_outward</span>
+                        </button>
+                      </div>
+
+                      <div className="space-y-2 text-on-surface-variant text-sm mb-5">
+                        <div className="flex items-center gap-2">
+                          <span className="material-symbols-outlined text-base">{status.icon}</span>
+                          <span>{status.label === 'Past' ? 'Event completed' : `Scheduled for ${formatEventDate(event.date)}`}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="material-symbols-outlined text-base">{detailLine.icon}</span>
+                          <span className="line-clamp-1">{detailLine.text}</span>
+                        </div>
+                      </div>
+
+                      {/* <p className="text-sm text-on-surface-variant leading-relaxed line-clamp-3">
+                        {event.description || 'Guest management, invitation design, and check-in flow are ready to customize from this event studio.'}
+                      </p> */}
+
+                      <div className="mt-auto pt-6 border-t border-outline-variant/10">
+                        <div className="flex flex-wrap gap-2">
+                          {eventPills.map((pill) => (
+                            <span
+                              key={`${event.id}-${pill}`}
+                              className="inline-flex items-center rounded-full bg-surface-container px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant"
+                            >
+                              {pill}
+                            </span>
+                          ))}
+                        </div>
+
+                        <div className="mt-5 flex items-center justify-between gap-4">
+                          <button
+                            onClick={() => handleDelete(event.id)}
+                            disabled={!canCreateEvent}
+                            className="text-xs font-bold uppercase tracking-[0.18em] text-on-surface-variant hover:text-tertiary transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            Delete
+                          </button>
+                          <button
+                            onClick={() => router.push(`/events/${event.id}`)}
+                            disabled={!canCreateEvent}
+                            className="inline-flex items-center gap-2 text-sm font-bold text-brand transition-transform group-hover:translate-x-1 disabled:opacity-40 disabled:cursor-not-allowed disabled:translate-x-0"
+                          >
+                            Manage Event
+                            <span className="material-symbols-outlined text-base">arrow_forward</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
 
-            {/* Curator's Feed */}
-            <div className="lg:col-span-1">
+            <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)] gap-8 lg:gap-10">
               <div className="bg-surface-container-low rounded-[2rem] p-8 border border-white/40">
                 <div className="flex items-center justify-between mb-8">
                   <h3 className="font-headline text-xl">{firstName}&apos;s Feed</h3>
@@ -491,13 +679,19 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 </div>
+              </div>
 
-                <div className="mt-16 pt-8 border-t border-outline-variant/20">
-                  <p className="text-[10px] uppercase tracking-widest font-bold text-on-surface-variant/60 mb-4">Quick Insights</p>
+              <div className="space-y-6">
+                <div className="bg-white/70 backdrop-blur-xl rounded-[2rem] border border-white/40 p-6 sm:p-8 shadow-sm">
+                  <p className="text-[10px] uppercase tracking-widest font-bold text-on-surface-variant/60 mb-5">Quick Insights</p>
                   <div className="space-y-4">
                     <div className="bg-white/40 p-4 rounded-2xl flex items-center justify-between">
                       <span className="text-xs font-medium">Total Guests</span>
                       <span className="text-brand font-bold">{stats?.total_invitations ?? 0}</span>
+                    </div>
+                    <div className="bg-white/40 p-4 rounded-2xl flex items-center justify-between">
+                      <span className="text-xs font-medium">Checked In</span>
+                      <span className="text-tertiary font-bold">{stats?.checked_in ?? 0}</span>
                     </div>
                     <div className="bg-white/40 p-4 rounded-2xl flex items-center justify-between">
                       <span className="text-xs font-medium">Check-in Rate</span>
@@ -505,6 +699,7 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 </div>
+
               </div>
             </div>
           </div>

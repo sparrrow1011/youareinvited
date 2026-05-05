@@ -16,7 +16,7 @@ export default function UsersPage() {
   useEffect(() => {
     usersApi.getAll()
       .then(setUsers)
-      .catch(() => setError('Could not load users. Check the admin backend URL and staff authentication.'))
+      .catch(() => setError('Could not load users. Please sign in again or contact support if this keeps happening.'))
       .finally(() => setLoading(false));
   }, []);
 

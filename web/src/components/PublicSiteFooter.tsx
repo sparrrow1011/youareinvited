@@ -26,6 +26,7 @@ export default function PublicSiteFooter({ id, className = '' }: PublicSiteFoote
             {[
               { label: 'Features', href: '/features' },
               { label: 'How It Works', href: '/how-it-works' },
+              { label: 'Templates', href: '/templates' },
               { label: 'Guest Experience', href: '/guest-experience' },
               { label: 'Create Event', href: '/signup' },
             ].map((item) => (

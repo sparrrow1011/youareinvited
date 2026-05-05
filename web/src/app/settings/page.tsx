@@ -326,7 +326,7 @@ export default function SettingsPage() {
               brand identity, and event defaults.
             </h1>
             <p className="text-sm sm:text-base text-on-surface-variant mt-4 max-w-2xl">
-              Shape how your workspace looks, decide whether your brand appears on guest-facing event surfaces, and review the infrastructure behind your events.
+              Shape how your workspace looks, decide whether your brand appears on guest-facing event surfaces, and review what is available for your events.
             </p>
           </div>
 
@@ -429,7 +429,7 @@ export default function SettingsPage() {
 
                 {!settings.can_upload_brand_logo && (
                   <p className="text-xs text-tertiary mt-3">
-                    Brand logo uploads need external media storage in production before they can be enabled.
+                    Brand logo uploads are not available on this account yet. Contact support if you want this enabled.
                   </p>
                 )}
 
@@ -665,24 +665,24 @@ export default function SettingsPage() {
               <div className="rounded-3xl bg-surface-container-low p-5 border border-outline-variant/10">
                 <p className="text-xs uppercase tracking-[0.18em] text-on-surface-variant mb-2">Brand uploads</p>
                 <p className="text-sm font-semibold text-on-lp-background">
-                  {settings.can_upload_brand_logo ? 'Ready for logo uploads' : 'Needs support setup'}
+                  {settings.can_upload_brand_logo ? 'Ready for logo uploads' : 'Available on request'}
                 </p>
                 <p className="text-xs text-on-surface-variant mt-2">
                   {settings.can_upload_brand_logo
                     ? 'You can upload and refresh your organizer logo whenever your brand changes.'
-                    : 'Logo uploads need production media setup first. Contact support if you want this enabled.'}
+                    : 'Logo uploads can be enabled for your account. Contact support if you want to add a brand logo.'}
                 </p>
               </div>
 
               <div className="rounded-3xl bg-surface-container-low p-5 border border-outline-variant/10">
                 <p className="text-xs uppercase tracking-[0.18em] text-on-surface-variant mb-2">Invitation templates</p>
                 <p className="text-sm font-semibold text-on-lp-background">
-                  {invitationAssetsReady ? 'Ready for uploads and generated invite assets' : 'Needs support setup'}
+                  {invitationAssetsReady ? 'Ready for uploads and generated invite assets' : 'Available on request'}
                 </p>
                 <p className="text-xs text-on-surface-variant mt-2">
                   {invitationAssetsReady
                     ? 'Your invitation templates, QR images, and generated invite assets are available for active events.'
-                    : 'Template uploads and generated invite assets need production media setup before they can be turned on.'}
+                    : 'Template uploads and generated invite assets can be enabled for your account. Contact support if you want this turned on.'}
                 </p>
               </div>
             </div>

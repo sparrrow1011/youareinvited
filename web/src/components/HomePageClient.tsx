@@ -532,22 +532,24 @@ export default function HomePageClient() {
               whileHover={prefersReducedMotion ? undefined : { y: -6 }}
               className="relative"
             >
-              <div className="rounded-[3rem] bg-surface-container-lowest p-6 shadow-xl border border-outline-variant/10 space-y-5">
-                <div className="flex items-center justify-between mb-2">
-                  <div>
+              <div className="rounded-[3rem] bg-surface-container-lowest p-6 shadow-xl border border-outline-variant/10 space-y-5 min-h-[36rem]">
+                <div className="flex items-start justify-between gap-4 mb-2 min-h-[3.5rem]">
+                  <div className="min-w-0">
                     <p className="font-semibold text-on-lp-background">Event Analytics</p>
-                    <AnimatePresence>
-                      <motion.p
-                        key={analyticsSnapshot.eventName}
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -8 }}
-                        transition={{ duration: 0.35, ease: EASE_OUT }}
-                        className="text-xs text-on-surface-variant"
-                      >
-                        {analyticsSnapshot.eventName} · Live
-                      </motion.p>
-                    </AnimatePresence>
+                    <div className="relative h-4 overflow-hidden">
+                      <AnimatePresence mode="wait" initial={false}>
+                        <motion.p
+                          key={analyticsSnapshot.eventName}
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -8 }}
+                          transition={{ duration: 0.35, ease: EASE_OUT }}
+                          className="absolute inset-0 truncate text-xs text-on-surface-variant"
+                        >
+                          {analyticsSnapshot.eventName} · Live
+                        </motion.p>
+                      </AnimatePresence>
+                    </div>
                   </div>
                   <div className="flex items-center gap-1.5 bg-green-100 px-3 py-1.5 rounded-full">
                     <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
@@ -560,22 +562,24 @@ export default function HomePageClient() {
                     { label: 'Checked In', value: analyticsSnapshot.totals.checkedIn, icon: 'how_to_reg', color: 'bg-secondary-container text-on-secondary-container' },
                     { label: 'Check-In Rate', value: analyticsSnapshot.totals.rate, icon: 'trending_up', color: 'bg-tertiary-container text-on-lp-background' },
                   ].map(({ label, value, icon, color }) => (
-                    <div key={label} className="rounded-2xl bg-surface-container p-4 space-y-2">
+                    <div key={label} className="rounded-2xl bg-surface-container p-4 space-y-2 min-h-[8.75rem]">
                       <div className={`w-8 h-8 rounded-xl ${color} flex items-center justify-center`}>
                         <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>{icon}</span>
                       </div>
-                      <AnimatePresence>
-                        <motion.div
-                          key={`${label}-${value}`}
-                          initial={{ opacity: 0, y: 8 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -8 }}
-                          transition={{ duration: 0.3, ease: EASE_OUT }}
-                          className="font-headline text-2xl text-on-lp-background"
-                        >
-                          {value}
-                        </motion.div>
-                      </AnimatePresence>
+                      <div className="relative h-8 overflow-hidden">
+                        <AnimatePresence mode="wait" initial={false}>
+                          <motion.div
+                            key={`${label}-${value}`}
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -8 }}
+                            transition={{ duration: 0.3, ease: EASE_OUT }}
+                            className="absolute inset-0 font-headline text-2xl text-on-lp-background"
+                          >
+                            {value}
+                          </motion.div>
+                        </AnimatePresence>
+                      </div>
                       <div className="text-xs text-on-surface-variant">{label}</div>
                     </div>
                   ))}
@@ -593,8 +597,8 @@ export default function HomePageClient() {
                     ))}
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <AnimatePresence mode="popLayout">
+                <div className="h-[10.5rem] space-y-2 overflow-hidden">
+                  <AnimatePresence mode="popLayout" initial={false}>
                     {analyticsSnapshot.guests.map(({ name, seat, status }) => (
                       <motion.div
                         key={`${analyticsSnapshot.eventName}-${name}`}
@@ -603,11 +607,11 @@ export default function HomePageClient() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
                         transition={{ duration: 0.35, ease: EASE_OUT }}
-                        className="flex items-center justify-between px-3 py-2 rounded-xl bg-surface-container"
+                        className="flex min-h-[3rem] items-center justify-between px-3 py-2 rounded-xl bg-surface-container"
                       >
                         <div className="flex items-center gap-3">
                           <div className="w-7 h-7 rounded-full bg-gradient-to-br from-brand-container/60 to-secondary-container/60" />
-                          <span className="text-sm font-medium text-on-lp-background">{name}</span>
+                          <span className="max-w-[9.5rem] truncate text-sm font-medium text-on-lp-background sm:max-w-[12rem]">{name}</span>
                         </div>
                         <div className="flex items-center gap-3">
                           <span className="text-xs text-on-surface-variant">Seat {seat}</span>

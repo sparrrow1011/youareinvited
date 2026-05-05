@@ -24,18 +24,18 @@ const STATUS_ITEMS = [
     name: 'Media Generation',
     status: 'Monitoring',
     tone: 'warm',
-    note: 'Template uploads and generated invite assets depend on media storage configuration.',
+    note: 'Template uploads and generated invite assets are being watched closely.',
   },
 ];
 
 const INCIDENTS = [
   {
     title: 'No active incidents reported',
-    detail: 'This is currently a manual status board. Connect uptime checks later if you want automated live monitoring.',
+    detail: 'This board is updated manually by our team whenever there is an important service change.',
   },
   {
     title: 'Deployment checks recommended',
-    detail: 'Before a live event, confirm backend env vars, media storage, and security PIN flow in production.',
+    detail: 'Before a live event, test one sample invitation, confirm the QR flow, and make sure your staff check-in access is ready.',
   },
 ];
 
@@ -75,7 +75,7 @@ export default function SupportStatusPage() {
           <p className="text-xs uppercase tracking-[0.24em] text-white/60 mb-3">Current Summary</p>
           <h2 className="font-headline text-3xl mb-2">All core organizer services are available.</h2>
           <p className="text-sm text-white/70 max-w-2xl">
-            Treat this as a manual readiness board. If you want real uptime signals later, connect external monitoring to the backend and public domains.
+            Treat this as a simple readiness board for upcoming events. If you need extra help before a live event, contact support.
           </p>
         </div>
 

@@ -432,6 +432,17 @@ export const invitationService = {
     await api.delete(`/invitations/${id}/`);
   },
 
+  bulkDelete: async (
+    eventId: string,
+    invitationIds: string[]
+  ): Promise<{ deleted: number }> => {
+    const response = await api.post('/invitations/bulk_delete/', {
+      event: eventId,
+      invitation_ids: invitationIds,
+    });
+    return response.data;
+  },
+
   // Check in guest
   checkIn: async (id: string, securityToken?: string): Promise<Invitation> => {
     const response = await api.post<Invitation>(`/invitations/${id}/check_in/`, {}, {

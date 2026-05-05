@@ -5,7 +5,7 @@ export const FAQ_ITEMS = [
   },
   {
     question: 'Why are invitation images not generating?',
-    answer: 'Image generation depends on a valid template or default invite layout and working media storage. On Vercel, Cloudinary must be configured for template uploads and generated assets.',
+    answer: 'Invitation images need either a saved template or the standard invite layout. If images still are not appearing, contact support and we will help enable image generation for your account.',
   },
   {
     question: 'Why does the QR code open the security flow instead of the guest page?',
@@ -17,7 +17,7 @@ export const FAQ_ITEMS = [
   },
   {
     question: 'Why is login not working even with the right password?',
-    answer: 'Check that the browser is calling the right backend URL and that your token is not stale. If the issue is production-only, confirm your CORS, CSRF, and backend env settings.',
+    answer: 'Refresh the page, try signing in again, and make sure you are using the correct app link. If it still fails, contact support so we can check your account access.',
   },
   {
     question: 'What should I test before the event goes live?',
