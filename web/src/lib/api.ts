@@ -308,6 +308,7 @@ export interface Invitation {
   name: string;
   seat_number: string;
   tag: string;
+  phone_number: string | null;
   qr_code: string;
   e_invite_image: string;
   checked_in: boolean;
@@ -325,6 +326,7 @@ export interface InvitationCreate {
   name: string;
   seat_number: string;
   tag: string;
+  phone_number?: string;
 }
 
 export interface InvitationStats {

@@ -57,7 +57,7 @@ export default function EventPage() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({ name: '', seat_number: '', tag: '' });
+  const [formData, setFormData] = useState({ name: '', seat_number: '', tag: '', phone_number: '' });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [previewingInvitation, setPreviewingInvitation] = useState<Pick<Invitation, 'id' | 'name'> | null>(null);
   const [error, setError] = useState('');
@@ -141,7 +141,7 @@ export default function EventPage() {
         await invitationService.create({ ...formData, event: id } as any);
       }
       setShowForm(false);
-      setFormData({ name: '', seat_number: '', tag: '' });
+      setFormData({ name: '', seat_number: '', tag: '', phone_number: '' });
       setEditingId(null);
       await loadData();
     } catch {
@@ -368,7 +368,7 @@ export default function EventPage() {
 
   const openAddForm = () => {
     setEditingId(null);
-    setFormData({ name: '', seat_number: '', tag: '' });
+    setFormData({ name: '', seat_number: '', tag: '', phone_number: '' });
     setShowForm(true);
   };
 
@@ -378,6 +378,7 @@ export default function EventPage() {
       name: inv.name,
       seat_number: inv.seat_number ?? '',
       tag: inv.tag ?? '',
+      phone_number: inv.phone_number ?? '',
     });
     setShowForm(true);
   };
@@ -1053,16 +1054,18 @@ export default function EventPage() {
             </div>
             <form onSubmit={handleSave} className="space-y-4">
               {[
-                { label: 'Full Name', key: 'name', placeholder: 'e.g. Sarah Al-Rashid' },
-                { label: 'Seat Number', key: 'seat_number', placeholder: 'e.g. A-12' },
-                { label: 'Tag', key: 'tag', placeholder: 'e.g. VIP, Family, Friend' },
-              ].map(({ label, key, placeholder }) => (
+                { label: 'Full Name', key: 'name', placeholder: 'e.g. Sarah Al-Rashid', required: true, type: 'text' },
+                { label: 'Seat Number', key: 'seat_number', placeholder: 'e.g. A-12', required: false, type: 'text' },
+                { label: 'Tag', key: 'tag', placeholder: 'e.g. VIP, Family, Friend', required: false, type: 'text' },
+                { label: 'Phone Number', key: 'phone_number', placeholder: 'e.g. 8060681740', required: false, type: 'tel' },
+              ].map(({ label, key, placeholder, required, type }) => (
                 <div key={key}>
                   <label className="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2">{label}</label>
                   <input
                     value={(formData as any)[key]}
                     onChange={(e) => setFormData({ ...formData, [key]: e.target.value })}
-                    required
+                    required={required}
+                    type={type}
                     disabled={savingGuest}
                     placeholder={placeholder}
                     className="w-full px-4 py-3 rounded-2xl bg-surface-container border border-outline-variant/20 text-on-surface placeholder:text-on-surface-variant/50 outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand/40 transition-all text-sm"
