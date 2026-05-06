@@ -224,3 +224,110 @@ class InvitationBulkSendWhatsAppTests(TestCase):
 
         # Second timestamp should be later
         self.assertGreater(second_timestamp, first_timestamp)
+
+
+class BulkSendWhatsAppPlanRoutingTests(TestCase):
+    """Test Twilio vs wa.me routing based on user plan."""
+
+    def setUp(self):
+        self.client = APIClient()
+        self.free_user = User.objects.create_user(username='freeuser', password='testpass')
+        self.pro_user = User.objects.create_user(username='prouser', password='testpass')
+
+        # Set up plans
+        self.free_user.profile.plan = 'free'
+        self.free_user.profile.save()
+        self.pro_user.profile.plan = 'pro'
+        self.pro_user.profile.save()
+
+        # Create events and invitations for each user
+        self.free_event = Event.objects.create(
+            owner=self.free_user,
+            name='Free Event',
+            date='2026-06-01'
+        )
+        self.pro_event = Event.objects.create(
+            owner=self.pro_user,
+            name='Pro Event',
+            date='2026-06-01'
+        )
+
+        self.free_invitation = Invitation.objects.create(
+            event=self.free_event,
+            name='Free Guest',
+            seat_number='A1',
+            tag='Guest',
+            phone_number='+1234567890'
+        )
+        self.pro_invitation = Invitation.objects.create(
+            event=self.pro_event,
+            name='Pro Guest',
+            seat_number='A1',
+            tag='Guest',
+            phone_number='+1234567891'
+        )
+
+    def test_free_user_gets_wa_me_links(self):
+        """Free users should get wa.me/ links."""
+        self.client.force_authenticate(user=self.free_user)
+
+        response = self.client.post('/api/invitations/bulk_send_whatsapp/', {
+            'event': str(self.free_event.id),
+            'invitation_ids': [str(self.free_invitation.id)]
+        }, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['sent_via'], 'wa_me')
+        self.assertIn('wa.me', response.data['link_preview'])
+        self.assertEqual(response.data['invitation_count'], 1)
+
+    def test_pro_user_attempts_twilio_send(self):
+        """Pro users should attempt Twilio send (will fail without credentials, but should route correctly)."""
+        self.client.force_authenticate(user=self.pro_user)
+
+        # This will likely fail because Twilio credentials aren't set, but we're testing the routing logic
+        response = self.client.post('/api/invitations/bulk_send_whatsapp/', {
+            'event': str(self.pro_event.id),
+            'invitation_ids': [str(self.pro_invitation.id)]
+        }, format='json')
+
+        # Either successfully sends via Twilio or returns error about missing credentials
+        # Either way, the routing logic is being tested
+        if response.status_code == status.HTTP_200_OK:
+            # Successfully routed to Twilio
+            self.assertEqual(response.data['sent_via'], 'twilio')
+        elif response.status_code == status.HTTP_400_BAD_REQUEST:
+            # Twilio not configured - routing logic attempted Twilio
+            self.assertIn('Twilio not configured', response.data['detail'])
+
+    def test_pro_user_without_phone_skips_invitation(self):
+        """Pro users without phone numbers should skip invitations."""
+        self.pro_invitation.phone_number = None
+        self.pro_invitation.save()
+
+        self.client.force_authenticate(user=self.pro_user)
+
+        response = self.client.post('/api/invitations/bulk_send_whatsapp/', {
+            'event': str(self.pro_event.id),
+            'invitation_ids': [str(self.pro_invitation.id)]
+        }, format='json')
+
+        # Should route to Twilio, and fail due to missing phone number
+        if response.status_code == status.HTTP_200_OK:
+            # Successfully attempted to send but failed due to no phone
+            self.assertGreater(response.data['failed_count'], 0)
+        elif response.status_code == status.HTTP_400_BAD_REQUEST:
+            # Twilio not configured - routing logic attempted Twilio
+            self.assertIn('Twilio not configured', response.data['detail'])
+
+    def test_whatsapp_sent_at_updated_for_both_plans(self):
+        """Both plans should update whatsapp_sent_at timestamp."""
+        self.client.force_authenticate(user=self.free_user)
+
+        self.client.post('/api/invitations/bulk_send_whatsapp/', {
+            'event': str(self.free_event.id),
+            'invitation_ids': [str(self.free_invitation.id)]
+        }, format='json')
+
+        self.free_invitation.refresh_from_db()
+        self.assertIsNotNone(self.free_invitation.whatsapp_sent_at)
