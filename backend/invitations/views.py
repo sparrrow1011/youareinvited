@@ -24,6 +24,7 @@ from .serializers import (
     EventSerializer,
     SetSecurityPinSerializer,
 )
+from invitations.twilio_service import TwilioWhatsAppSender
 
 logger = logging.getLogger(__name__)
 
@@ -592,6 +593,9 @@ class InvitationViewSet(viewsets.ModelViewSet):
         """
         Bulk send WhatsApp invitation links to selected guests.
 
+        - Pro accounts: Send via Twilio API (requires phone_number)
+        - Free accounts: Generate wa.me/ links (manual send)
+
         POST /api/invitations/bulk_send_whatsapp/
         Accepts:
           - event: event UUID (required)
@@ -599,8 +603,9 @@ class InvitationViewSet(viewsets.ModelViewSet):
 
         Returns:
           - invitation_count: number of invitations processed
-          - link_preview: example WhatsApp link for preview
+          - link_preview: example WhatsApp link or Twilio message preview
           - timestamp: when the bulk send was executed
+          - sent_via: 'twilio' or 'wa_me' (indicates send method)
         """
         event_id = request.data.get('event')
         invitation_ids = request.data.get('invitation_ids', [])
@@ -616,30 +621,90 @@ class InvitationViewSet(viewsets.ModelViewSet):
         except Event.DoesNotExist:
             return Response({'detail': 'Event not found.'}, status=status.HTTP_404_NOT_FOUND)
 
-        # Fetch all invitations for this event
+        # Check user's plan to determine send method
+        user_plan = request.user.profile.plan if hasattr(request.user, 'profile') else 'free'
+        send_via_twilio = user_plan == 'pro'
+
+        # Fetch invitations for this event
         invitations = Invitation.objects.filter(
             event=event,
             id__in=invitation_ids
         )
 
-        # Update whatsapp_sent_at timestamp for each invitation
+        # Prepare message template
+        message_template = event.whatsapp_message_template.strip() if event.whatsapp_message_template else ''
+        if not message_template:
+            message_template = "{name} invited you! 🎉\nView your invitation: {link}"
+
+        # Track results
         now = timezone.now()
         updated_count = 0
-        for invitation in invitations:
-            invitation.whatsapp_sent_at = now
-            invitation.save(update_fields=['whatsapp_sent_at'])
-            updated_count += 1
-
-        # Generate preview link (use first invitation as example)
+        failed_count = 0
         preview_link = ''
-        if invitations.exists():
-            first_inv = invitations.first()
-            preview_link = _generate_whatsapp_link(first_inv, event)
+        sent_via = 'wa_me'  # default
+
+        if send_via_twilio:
+            # Pro account: Send via Twilio
+            sent_via = 'twilio'
+            twilio_sender = TwilioWhatsAppSender()
+
+            for invitation in invitations:
+                # Validate phone number exists
+                if not invitation.phone_number:
+                    logger.warning(f"Skipping invitation {invitation.id}: no phone number provided")
+                    failed_count += 1
+                    continue
+
+                # Prepare personalized message
+                personalized_message = message_template.replace('{name}', invitation.name)
+                personalized_message = personalized_message.replace('{link}', invitation.get_invitation_url())
+
+                # Send via Twilio
+                success, response = twilio_sender.send_whatsapp_message(
+                    invitation.phone_number,
+                    personalized_message
+                )
+
+                if success:
+                    invitation.whatsapp_sent_at = now
+                    invitation.save(update_fields=['whatsapp_sent_at'])
+                    updated_count += 1
+
+                    # Use first successful send as preview
+                    if not preview_link:
+                        preview_link = f"Twilio SID: {response.get('sid', 'unknown')}"
+                else:
+                    failed_count += 1
+                    logger.error(f"Failed to send to {invitation.id}: {response.get('error')}")
+
+        else:
+            # Free account: Generate wa.me/ links
+            from urllib.parse import quote
+
+            for invitation in invitations:
+                # Prepare personalized message
+                personalized_message = message_template.replace('{name}', invitation.name)
+                personalized_message = personalized_message.replace('{link}', invitation.get_invitation_url())
+
+                # Encode for wa.me/
+                encoded_message = quote(personalized_message)
+                wa_link = f"https://wa.me/?text={encoded_message}"
+
+                # Update timestamp
+                invitation.whatsapp_sent_at = now
+                invitation.save(update_fields=['whatsapp_sent_at'])
+                updated_count += 1
+
+                # Use first link as preview
+                if not preview_link:
+                    preview_link = wa_link
 
         return Response({
             'invitation_count': updated_count,
+            'failed_count': failed_count,
             'link_preview': preview_link,
             'timestamp': now.isoformat(),
+            'sent_via': sent_via,
         }, status=status.HTTP_200_OK)
 
 
