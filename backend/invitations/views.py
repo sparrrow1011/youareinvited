@@ -2,6 +2,7 @@ import csv
 import io
 import logging
 from collections import Counter, defaultdict
+from urllib.parse import quote
 
 from django.conf import settings
 from django.http import HttpResponse
@@ -65,7 +66,6 @@ def _generate_whatsapp_link(invitation: Invitation, event: Event) -> str:
     message_template = message_template.replace('{link}', invitation_url)
 
     # Encode message for URL
-    from urllib.parse import quote
     encoded_message = quote(message_template)
 
     # Return wa.me link (guest will click and manually send)
@@ -646,58 +646,64 @@ class InvitationViewSet(viewsets.ModelViewSet):
         if send_via_twilio:
             # Pro account: Send via Twilio
             sent_via = 'twilio'
-            twilio_sender = TwilioWhatsAppSender()
-
-            for invitation in invitations:
-                # Validate phone number exists
-                if not invitation.phone_number:
-                    logger.warning(f"Skipping invitation {invitation.id}: no phone number provided")
-                    failed_count += 1
-                    continue
-
-                # Prepare personalized message
-                personalized_message = message_template.replace('{name}', invitation.name)
-                personalized_message = personalized_message.replace('{link}', invitation.get_invitation_url())
-
-                # Send via Twilio
-                success, response = twilio_sender.send_whatsapp_message(
-                    invitation.phone_number,
-                    personalized_message
+            try:
+                twilio_sender = TwilioWhatsAppSender()
+            except ValueError as e:
+                return Response(
+                    {'detail': f'Twilio not configured: {str(e)}'},
+                    status=status.HTTP_400_BAD_REQUEST
                 )
 
-                if success:
+            with transaction.atomic():
+                for invitation in invitations:
+                    # Validate phone number exists
+                    if not invitation.phone_number:
+                        logger.warning(f"Skipping invitation {invitation.id}: no phone number provided")
+                        failed_count += 1
+                        continue
+
+                    # Prepare personalized message
+                    personalized_message = message_template.replace('{name}', invitation.name)
+                    personalized_message = personalized_message.replace('{link}', invitation.get_invitation_url())
+
+                    # Send via Twilio
+                    success, response = twilio_sender.send_whatsapp_message(
+                        invitation.phone_number,
+                        personalized_message
+                    )
+
+                    if success:
+                        invitation.whatsapp_sent_at = now
+                        invitation.save(update_fields=['whatsapp_sent_at'])
+                        updated_count += 1
+
+                        # Use first successful send as preview
+                        if not preview_link:
+                            preview_link = f"Twilio SID: {response.get('sid', 'unknown')}"
+                    else:
+                        failed_count += 1
+                        logger.error(f"Failed to send to {invitation.id}: {response.get('error')}")
+
+        else:
+            # Free account: Generate wa.me/ links
+            with transaction.atomic():
+                for invitation in invitations:
+                    # Prepare personalized message
+                    personalized_message = message_template.replace('{name}', invitation.name)
+                    personalized_message = personalized_message.replace('{link}', invitation.get_invitation_url())
+
+                    # Encode for wa.me/
+                    encoded_message = quote(personalized_message)
+                    wa_link = f"https://wa.me/?text={encoded_message}"
+
+                    # Update timestamp
                     invitation.whatsapp_sent_at = now
                     invitation.save(update_fields=['whatsapp_sent_at'])
                     updated_count += 1
 
-                    # Use first successful send as preview
+                    # Use first link as preview
                     if not preview_link:
-                        preview_link = f"Twilio SID: {response.get('sid', 'unknown')}"
-                else:
-                    failed_count += 1
-                    logger.error(f"Failed to send to {invitation.id}: {response.get('error')}")
-
-        else:
-            # Free account: Generate wa.me/ links
-            from urllib.parse import quote
-
-            for invitation in invitations:
-                # Prepare personalized message
-                personalized_message = message_template.replace('{name}', invitation.name)
-                personalized_message = personalized_message.replace('{link}', invitation.get_invitation_url())
-
-                # Encode for wa.me/
-                encoded_message = quote(personalized_message)
-                wa_link = f"https://wa.me/?text={encoded_message}"
-
-                # Update timestamp
-                invitation.whatsapp_sent_at = now
-                invitation.save(update_fields=['whatsapp_sent_at'])
-                updated_count += 1
-
-                # Use first link as preview
-                if not preview_link:
-                    preview_link = wa_link
+                        preview_link = wa_link
 
         return Response({
             'invitation_count': updated_count,
