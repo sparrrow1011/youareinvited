@@ -23,11 +23,6 @@ def _public_brand_payload(profile):
     }
 
 
-# Note: bulk_send_whatsapp endpoint returns additional fields:
-# - sent_via: 'twilio' (Pro) or 'wa_me' (Free)
-# - failed_count: number of failed sends (Twilio only)
-# - link_preview: example WhatsApp link or Twilio SID
-# - timestamp: ISO datetime string of when bulk send was executed
 class InvitationSerializer(serializers.ModelSerializer):
     event = serializers.UUIDField(source='event_id', read_only=True)
     event_name = serializers.CharField(source='event.name', read_only=True)

@@ -602,10 +602,11 @@ class InvitationViewSet(viewsets.ModelViewSet):
           - invitation_ids: list of invitation UUIDs (required)
 
         Returns:
-          - invitation_count: number of invitations processed
-          - link_preview: example WhatsApp link or Twilio message preview
-          - timestamp: when the bulk send was executed
-          - sent_via: 'twilio' or 'wa_me' (indicates send method)
+          - invitation_count: number of invitations successfully processed
+          - failed_count: number of invitations that failed to send
+          - link_preview: example WhatsApp link (free) or Twilio SID (pro)
+          - timestamp: ISO datetime string of when bulk send was executed
+          - sent_via: 'twilio' (Pro accounts) or 'wa_me' (Free accounts)
         """
         event_id = request.data.get('event')
         invitation_ids = request.data.get('invitation_ids', [])
