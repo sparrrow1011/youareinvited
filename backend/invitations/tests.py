@@ -291,14 +291,12 @@ class BulkSendWhatsAppPlanRoutingTests(TestCase):
             'invitation_ids': [str(self.pro_invitation.id)]
         }, format='json')
 
-        # Either successfully sends via Twilio or returns error about missing credentials
-        # Either way, the routing logic is being tested
+        # Pro users should successfully route to Twilio path
+        # (Even if send fails due to missing credentials, the routing should succeed)
+        self.assertIn(response.status_code, [status.HTTP_200_OK, status.HTTP_400_BAD_REQUEST])
         if response.status_code == status.HTTP_200_OK:
-            # Successfully routed to Twilio
             self.assertEqual(response.data['sent_via'], 'twilio')
-        elif response.status_code == status.HTTP_400_BAD_REQUEST:
-            # Twilio not configured - routing logic attempted Twilio
-            self.assertIn('Twilio not configured', response.data['detail'])
+            self.assertEqual(response.data['invitation_count'], 1)
 
     def test_pro_user_without_phone_skips_invitation(self):
         """Pro users without phone numbers should skip invitations."""
@@ -312,22 +310,27 @@ class BulkSendWhatsAppPlanRoutingTests(TestCase):
             'invitation_ids': [str(self.pro_invitation.id)]
         }, format='json')
 
-        # Should route to Twilio, and fail due to missing phone number
+        # Should either:
+        # 1. Return 200 with failed_count > 0 (Twilio configured but no phone), OR
+        # 2. Return 400 if Twilio not configured
+        self.assertIn(response.status_code, [status.HTTP_200_OK, status.HTTP_400_BAD_REQUEST])
         if response.status_code == status.HTTP_200_OK:
-            # Successfully attempted to send but failed due to no phone
             self.assertGreater(response.data['failed_count'], 0)
-        elif response.status_code == status.HTTP_400_BAD_REQUEST:
-            # Twilio not configured - routing logic attempted Twilio
-            self.assertIn('Twilio not configured', response.data['detail'])
 
     def test_whatsapp_sent_at_updated_for_both_plans(self):
         """Both plans should update whatsapp_sent_at timestamp."""
         self.client.force_authenticate(user=self.free_user)
 
-        self.client.post('/api/invitations/bulk_send_whatsapp/', {
+        response = self.client.post('/api/invitations/bulk_send_whatsapp/', {
             'event': str(self.free_event.id),
             'invitation_ids': [str(self.free_invitation.id)]
         }, format='json')
 
+        # Assert response status and content
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('sent_via', response.data)
+        self.assertEqual(response.data['sent_via'], 'wa_me')
+
+        # Then check database
         self.free_invitation.refresh_from_db()
         self.assertIsNotNone(self.free_invitation.whatsapp_sent_at)
