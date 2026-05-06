@@ -13,3 +13,4 @@ requests==2.31.0
 pytest==8.1.1
 pytest-django==4.8.0
 google-auth==2.29.0
+twilio>=9.0.0
