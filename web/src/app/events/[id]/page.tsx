@@ -69,6 +69,8 @@ export default function EventPage() {
   const [csvRowCount, setCsvRowCount] = useState(0);
   const [csvImporting, setCsvImporting] = useState(false);
   const [csvResult, setCsvResult] = useState<{ created: number; errors: string[] } | null>(null);
+  const [generatingImages, setGeneratingImages] = useState(false);
+  const [imageProgress, setImageProgress] = useState({ done: 0, total: 0 });
 
   const [showZoneEditor, setShowZoneEditor] = useState(false);
   const [templateFile, setTemplateFile] = useState<File | null>(null);
@@ -130,6 +132,35 @@ export default function EventPage() {
   };
 
   useEffect(() => { loadData(); }, [id]);
+
+  // Poll for pending image generation after bulk import
+  useEffect(() => {
+    if (!generatingImages || !event) return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const response = await api.post(`/invitations/generate_pending_images/`, {
+          event: event.id,
+          batch_size: 10,
+        });
+        const { processed, remaining } = response.data;
+        setImageProgress((prev) => ({
+          done: prev.done + processed,
+          total: prev.total,
+        }));
+
+        if (remaining === 0) {
+          setGeneratingImages(false);
+          await loadData();
+        }
+      } catch (err) {
+        console.error('Error polling for image generation', err);
+        // Continue polling on error
+      }
+    }, 2000);
+
+    return () => clearInterval(pollInterval);
+  }, [generatingImages, event?.id]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -262,7 +293,14 @@ export default function EventPage() {
       setCsvFile(null);
       setCsvPreview([]);
       setCsvRowCount(0);
-      await loadData();
+
+      // If pending images, start polling for generation
+      if (result.pending_images && result.pending_images > 0) {
+        setGeneratingImages(true);
+        setImageProgress({ done: 0, total: result.pending_images });
+      } else {
+        await loadData();
+      }
     } catch {
       setError('CSV import failed.');
     } finally {
@@ -1114,16 +1152,34 @@ export default function EventPage() {
                   <span className="material-symbols-outlined text-brand" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
                   <p className="text-brand font-semibold text-sm">{csvResult.created} guests imported successfully</p>
                 </div>
+
+                {generatingImages && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <p className="text-on-surface font-medium">Generating invitation cards</p>
+                      <p className="text-on-surface-variant text-xs">{imageProgress.done} / {imageProgress.total}</p>
+                    </div>
+                    <div className="w-full bg-surface-container rounded-full h-2 overflow-hidden">
+                      <div
+                        className="h-full bg-brand transition-all duration-300"
+                        style={{ width: `${imageProgress.total > 0 ? (imageProgress.done / imageProgress.total) * 100 : 0}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
                 {csvResult.errors.length > 0 && (
                   <div className="p-4 bg-secondary-container/30 rounded-2xl text-sm text-on-secondary-container space-y-1">
                     {csvResult.errors.map((e, i) => <p key={i}>{e}</p>)}
                   </div>
                 )}
+
                 <button
                   onClick={() => { setShowCsvModal(false); setCsvResult(null); }}
-                  className="w-full py-3 bg-brand text-white rounded-full font-semibold text-sm hover:bg-brand-dim transition-colors"
+                  disabled={generatingImages}
+                  className="w-full py-3 bg-brand text-white rounded-full font-semibold text-sm hover:bg-brand-dim disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                  Done
+                  {generatingImages ? 'Generating…' : 'Done'}
                 </button>
               </div>
             ) : (

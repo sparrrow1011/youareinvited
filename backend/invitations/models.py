@@ -121,6 +121,7 @@ class Invitation(models.Model):
     checked_in_at = models.DateTimeField(null=True, blank=True)
     phone_number = models.CharField(max_length=20, blank=True, null=True)
     whatsapp_sent_at = models.DateTimeField(null=True, blank=True)
+    images_generated = models.BooleanField(default=False, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -430,12 +431,14 @@ class Invitation(models.Model):
         return img
 
     def save(self, *args, **kwargs):
-        if not self.qr_code:
+        skip = getattr(self, '_skip_image_generation', False)
+
+        if not self.qr_code and not skip:
             self.generate_qr_code()
 
         super().save(*args, **kwargs)
 
-        if not self.e_invite_image:
+        if not self.e_invite_image and not skip:
             show_watermark = True
             if self.event_id:
                 try:
@@ -446,3 +449,7 @@ class Invitation(models.Model):
                     pass
             self.generate_e_invite(show_watermark=show_watermark)
             super().save(update_fields=['e_invite_image'])
+
+        # Mark images done if both fields are populated
+        if self.qr_code and self.e_invite_image and not self.images_generated:
+            type(self).objects.filter(pk=self.pk).update(images_generated=True)

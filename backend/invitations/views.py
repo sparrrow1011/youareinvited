@@ -366,6 +366,80 @@ class InvitationViewSet(viewsets.ModelViewSet):
         return Response(serializer.data)
 
     @action(detail=False, methods=['post'])
+    def generate_pending_images(self, request):
+        """
+        POST /api/invitations/generate_pending_images/
+        Generates pending QR codes and e-invite images asynchronously.
+        Accepts:
+          - event: event UUID (required)
+          - batch_size: number of invitations to process (default 10, max 20, optional)
+        Returns:
+          - processed: number of invitations processed in this call
+          - remaining: number of invitations still pending
+        """
+        event_id = request.data.get('event')
+        batch_size = request.data.get('batch_size', 10)
+
+        if not event_id:
+            return Response({'detail': 'Event is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Validate batch_size
+        try:
+            batch_size = int(batch_size)
+            batch_size = max(1, min(batch_size, 20))  # clamp between 1 and 20
+        except (TypeError, ValueError):
+            batch_size = 10
+
+        try:
+            event = Event.objects.get(pk=event_id, owner=request.user)
+        except Event.DoesNotExist:
+            return Response({'detail': 'Event not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Fetch pending invitations
+        pending = Invitation.objects.filter(
+            event=event,
+            images_generated=False
+        ).order_by('created_at')[:batch_size]
+
+        processed = 0
+        for invitation in pending:
+            try:
+                # Generate QR code if missing
+                if not invitation.qr_code:
+                    invitation.generate_qr_code()
+                    invitation.save(update_fields=['qr_code'])
+
+                # Generate e-invite if missing
+                if not invitation.e_invite_image:
+                    show_watermark = True
+                    try:
+                        owner = invitation.event.owner
+                        profile = owner.profile
+                        show_watermark = not profile.watermark_override and profile.plan == 'free'
+                    except Exception:
+                        pass
+                    invitation.generate_e_invite(show_watermark=show_watermark)
+                    invitation.save(update_fields=['e_invite_image'])
+
+                # Mark as generated
+                Invitation.objects.filter(pk=invitation.pk).update(images_generated=True)
+                processed += 1
+            except Exception as e:
+                logger.exception('Failed to generate images for invitation %s: %s', invitation.id, e)
+                continue
+
+        # Count remaining pending
+        remaining = Invitation.objects.filter(
+            event=event,
+            images_generated=False
+        ).count()
+
+        return Response({
+            'processed': processed,
+            'remaining': remaining,
+        }, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['post'])
     def bulk_delete(self, request):
         """
         POST /api/invitations/bulk_delete/
@@ -450,20 +524,26 @@ class InvitationViewSet(viewsets.ModelViewSet):
                 continue
             try:
                 with transaction.atomic():
-                    Invitation.objects.create(
+                    inv = Invitation(
                         event=event,
                         name=name,
                         seat_number=seat,
                         tag=tag,
                         phone_number=phone_number,
                     )
+                    inv._skip_image_generation = True
+                    inv.save()
             except Exception as exc:
                 logger.exception('Bulk import failed on row %s for event %s.', i, event.id)
                 errors.append(f'Row {i}: could not create invitation ({exc}).')
                 continue
             created += 1
 
-        return Response({'created': created, 'errors': errors}, status=status.HTTP_201_CREATED)
+        return Response({
+            'created': created,
+            'errors': errors,
+            'pending_images': created,
+        }, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=['get'])
     def stats(self, request):
