@@ -488,7 +488,7 @@ export const invitationService = {
   },
 
   // Bulk import from CSV
-  bulkImport: async (eventId: string, file: File): Promise<{ created: number; errors: string[] }> => {
+  bulkImport: async (eventId: string, file: File): Promise<{ created: number; errors: string[]; pending_images: number }> => {
     const form = new FormData();
     form.append('event', eventId);
     form.append('file', file);
