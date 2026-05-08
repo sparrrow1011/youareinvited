@@ -137,6 +137,7 @@ class SetSecurityPinSerializer(serializers.Serializer):
 
 class EventSerializer(serializers.ModelSerializer):
     has_security_pin = serializers.SerializerMethodField()
+    background_image = serializers.SerializerMethodField()
 
     class Meta:
         model = Event
@@ -150,6 +151,11 @@ class EventSerializer(serializers.ModelSerializer):
 
     def get_has_security_pin(self, obj):
         return obj.security_pin is not None
+
+    def get_background_image(self, obj):
+        if obj.background_image:
+            return obj.background_image.url
+        return None
 
     def _parse_zone(self, value):
         if isinstance(value, str):
