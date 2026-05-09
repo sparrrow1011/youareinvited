@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: youareinvited-postgres
+    environment:
+      POSTGRES_DB: youareinvited
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_dev_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: youareinvited-backend
+    environment:
+      DIGITALOCEAN: "True"
+      DEBUG: "False"
+      SECRET_KEY: dev-secret-key-change-in-production
+      DATABASE_URL: postgresql://postgres:postgres_dev_password@postgres:5432/youareinvited
+      ALLOWED_HOSTS: localhost,127.0.0.1,backend
+      BACKEND_URL: http://localhost:8000
+      FRONTEND_URL: http://localhost:3000
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_STORAGE_BUCKET_NAME: ${AWS_STORAGE_BUCKET_NAME:-}
+      USE_S3_STORAGE: ${USE_S3_STORAGE:-False}
+      CLOUDINARY_URL: ${CLOUDINARY_URL:-}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    command: >
+      sh -c "python manage.py migrate &&
+             gunicorn api.wsgi:application --bind 0.0.0.0:8000"
+
+  frontend:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: youareinvited-frontend
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+      NEXT_PUBLIC_FRONTEND_URL: http://localhost:3000
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    volumes:
+      - ./web:/app
+
+volumes:
+  postgres_data:
+
+networks:
+  default:
+    name: youareinvited-network
