@@ -453,3 +453,22 @@ class Invitation(models.Model):
         # Mark images done if both fields are populated
         if self.qr_code and self.e_invite_image and not self.images_generated:
             type(self).objects.filter(pk=self.pk).update(images_generated=True)
+
+    def delete(self, *args, **kwargs):
+        """Delete invitation and clean up associated image files."""
+        # Delete QR code file if it exists
+        if self.qr_code:
+            try:
+                self.qr_code.delete(save=False)
+            except Exception as e:
+                logger.warning(f'Failed to delete QR code for invitation {self.id}: {e}')
+
+        # Delete e-invite image file if it exists
+        if self.e_invite_image:
+            try:
+                self.e_invite_image.delete(save=False)
+            except Exception as e:
+                logger.warning(f'Failed to delete e-invite image for invitation {self.id}: {e}')
+
+        # Call parent delete
+        super().delete(*args, **kwargs)
