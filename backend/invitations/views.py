@@ -413,7 +413,6 @@ class InvitationViewSet(viewsets.ModelViewSet):
                 # Generate QR code if missing
                 if not invitation.qr_code:
                     invitation.generate_qr_code()
-                    invitation.save(update_fields=['qr_code'])
 
                 # Generate e-invite if missing
                 if not invitation.e_invite_image:
@@ -425,11 +424,25 @@ class InvitationViewSet(viewsets.ModelViewSet):
                     except Exception:
                         pass
                     invitation.generate_e_invite(show_watermark=show_watermark)
-                    invitation.save(update_fields=['e_invite_image'])
 
-                # Mark as generated
-                Invitation.objects.filter(pk=invitation.pk).update(images_generated=True)
-                processed += 1
+                # Save both fields if either was updated
+                if not invitation.qr_code or not invitation.e_invite_image:
+                    # If still missing after generation, skip this one
+                    logger.warning(f'Invitation {invitation.id} missing images after generation: qr={bool(invitation.qr_code)}, e_invite={bool(invitation.e_invite_image)}')
+                    continue
+
+                # Save with both fields
+                invitation.save(update_fields=['qr_code', 'e_invite_image'])
+
+                # Refresh from DB to confirm save worked
+                invitation.refresh_from_db()
+
+                # Mark as generated only if both images are present
+                if invitation.qr_code and invitation.e_invite_image:
+                    Invitation.objects.filter(pk=invitation.pk).update(images_generated=True)
+                    processed += 1
+                else:
+                    logger.warning(f'Failed to persist images for {invitation.id}')
             except Exception as e:
                 logger.exception('Failed to generate images for invitation %s: %s', invitation.id, e)
                 continue
