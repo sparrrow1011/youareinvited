@@ -36,7 +36,6 @@ ALLOWED_HOSTS = config(
 )
 
 IS_VERCEL = bool(os.getenv('VERCEL'))
-IS_RAILWAY = bool(os.getenv('RAILWAY_ENVIRONMENT'))
 IS_DIGITALOCEAN = bool(os.getenv('DIGITALOCEAN'))
 BACKEND_URL = config('BACKEND_URL', default='').strip()
 FRONTEND_URL = config('FRONTEND_URL', default='https://www.youare-invited.com').strip().rstrip('/')
@@ -44,10 +43,6 @@ FRONTEND_URL = config('FRONTEND_URL', default='https://www.youare-invited.com').
 # Add Vercel domain
 for host in (host_from_url(os.getenv('VERCEL_URL', '')), host_from_url(BACKEND_URL)):
     ALLOWED_HOSTS = append_unique(ALLOWED_HOSTS, host)
-
-# Add Railway domain (if RAILWAY_DOMAIN is set)
-if IS_RAILWAY and os.getenv('RAILWAY_DOMAIN'):
-    ALLOWED_HOSTS = append_unique(ALLOWED_HOSTS, os.getenv('RAILWAY_DOMAIN', ''))
 
 # Add DigitalOcean domain (if BACKEND_URL is set)
 if IS_DIGITALOCEAN and BACKEND_URL:
@@ -72,7 +67,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # Serve static files on Railway/production
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Serve static files in production
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -144,8 +139,8 @@ MEDIA_ROOT = BASE_DIR / 'media'
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 USE_X_FORWARDED_HOST = True
 
-# Enable secure settings for Vercel, Railway, and DigitalOcean production environments
-IS_PRODUCTION = IS_VERCEL or (IS_RAILWAY and os.getenv('RAILWAY_ENVIRONMENT') == 'production') or IS_DIGITALOCEAN
+# Enable secure settings for Vercel and DigitalOcean production environments
+IS_PRODUCTION = IS_VERCEL or IS_DIGITALOCEAN
 SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', default=IS_PRODUCTION, cast=bool)
 SESSION_COOKIE_SECURE = config('SESSION_COOKIE_SECURE', default=IS_PRODUCTION, cast=bool)
 CSRF_COOKIE_SECURE = config('CSRF_COOKIE_SECURE', default=IS_PRODUCTION, cast=bool)

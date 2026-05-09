@@ -246,7 +246,7 @@ theme: {
 ## Deployment
 
 ### Backend (Django)
-- Deploy to: Heroku, Railway, DigitalOcean, AWS, etc.
+- Deploy to: DigitalOcean, Heroku, AWS, etc.
 - Use Gunicorn as WSGI server
 - Set up PostgreSQL database
 - Configure static/media file serving (S3, Cloudinary)

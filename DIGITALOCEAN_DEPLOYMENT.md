@@ -412,7 +412,6 @@ sudo tail -f /var/log/letsencrypt/letsencrypt.log
 
 DigitalOcean doesn't offer auto-scaling for Droplets. For auto-scaling, consider:
 - Kubernetes (DigitalOcean DOKS)
-- Railway (easier)
 - Heroku
 
 ## Backup Strategy
