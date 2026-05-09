@@ -101,7 +101,14 @@ class InvitationSerializer(serializers.ModelSerializer):
                 f"Name: {obj.name}\nSeat: {obj.seat_number}\n\n"
                 f"View your invitation: {invitation_url}"
             )
-        return f"https://wa.me/?text={urllib.parse.quote(message)}"
+
+        # Include phone number in wa.me link if available
+        encoded_message = urllib.parse.quote(message)
+        if obj.phone_number:
+            phone = ''.join(filter(str.isdigit, obj.phone_number))
+            return f"https://wa.me/{phone}?text={encoded_message}"
+        else:
+            return f"https://wa.me/?text={encoded_message}"
 
     def get_brand_name(self, obj):
         profile = getattr(obj.event.owner, 'profile', None) if obj.event_id else None

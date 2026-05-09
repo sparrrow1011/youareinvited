@@ -68,8 +68,14 @@ def _generate_whatsapp_link(invitation: Invitation, event: Event) -> str:
     # Encode message for URL
     encoded_message = quote(message_template)
 
-    # Return wa.me link (guest will click and manually send)
-    return f"https://wa.me/?text={encoded_message}"
+    # Return wa.me link with phone number if available
+    if invitation.phone_number:
+        # Remove any non-digit characters from phone number
+        phone = ''.join(filter(str.isdigit, invitation.phone_number))
+        return f"https://wa.me/{phone}?text={encoded_message}"
+    else:
+        # Fallback to wa.me without phone number
+        return f"https://wa.me/?text={encoded_message}"
 
 
 def _normalise_csv_header(value: str | None) -> str:
@@ -775,7 +781,13 @@ class InvitationViewSet(viewsets.ModelViewSet):
 
                     # Encode for wa.me/
                     encoded_message = quote(personalized_message)
-                    wa_link = f"https://wa.me/?text={encoded_message}"
+
+                    # Generate wa.me link with phone number if available
+                    if invitation.phone_number:
+                        phone = ''.join(filter(str.isdigit, invitation.phone_number))
+                        wa_link = f"https://wa.me/{phone}?text={encoded_message}"
+                    else:
+                        wa_link = f"https://wa.me/?text={encoded_message}"
 
                     # Update timestamp
                     invitation.whatsapp_sent_at = now
