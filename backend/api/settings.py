@@ -36,11 +36,17 @@ ALLOWED_HOSTS = config(
 )
 
 IS_VERCEL = bool(os.getenv('VERCEL'))
+IS_RAILWAY = bool(os.getenv('RAILWAY_ENVIRONMENT'))
 BACKEND_URL = config('BACKEND_URL', default='').strip()
 FRONTEND_URL = config('FRONTEND_URL', default='https://www.youare-invited.com').strip().rstrip('/')
 
+# Add Vercel domain
 for host in (host_from_url(os.getenv('VERCEL_URL', '')), host_from_url(BACKEND_URL)):
     ALLOWED_HOSTS = append_unique(ALLOWED_HOSTS, host)
+
+# Add Railway domain (if RAILWAY_DOMAIN is set)
+if IS_RAILWAY and os.getenv('RAILWAY_DOMAIN'):
+    ALLOWED_HOSTS = append_unique(ALLOWED_HOSTS, os.getenv('RAILWAY_DOMAIN', ''))
 
 # Application definition
 
@@ -61,6 +67,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Serve static files on Railway/production
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -131,17 +138,20 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 USE_X_FORWARDED_HOST = True
-SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', default=IS_VERCEL, cast=bool)
-SESSION_COOKIE_SECURE = config('SESSION_COOKIE_SECURE', default=IS_VERCEL, cast=bool)
-CSRF_COOKIE_SECURE = config('CSRF_COOKIE_SECURE', default=IS_VERCEL, cast=bool)
+
+# Enable secure settings for Vercel and Railway production environments
+IS_PRODUCTION = IS_VERCEL or (IS_RAILWAY and os.getenv('RAILWAY_ENVIRONMENT') == 'production')
+SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', default=IS_PRODUCTION, cast=bool)
+SESSION_COOKIE_SECURE = config('SESSION_COOKIE_SECURE', default=IS_PRODUCTION, cast=bool)
+CSRF_COOKIE_SECURE = config('CSRF_COOKIE_SECURE', default=IS_PRODUCTION, cast=bool)
 SECURE_HSTS_SECONDS = config(
     'SECURE_HSTS_SECONDS',
-    default=31536000 if IS_VERCEL else 0,
+    default=31536000 if IS_PRODUCTION else 0,
     cast=int,
 )
 SECURE_HSTS_INCLUDE_SUBDOMAINS = config(
     'SECURE_HSTS_INCLUDE_SUBDOMAINS',
-    default=IS_VERCEL,
+    default=IS_PRODUCTION,
     cast=bool,
 )
 SECURE_HSTS_PRELOAD = config('SECURE_HSTS_PRELOAD', default=False, cast=bool)
