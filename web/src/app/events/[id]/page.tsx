@@ -687,9 +687,16 @@ export default function EventPage() {
                               />
                               <div className="min-w-0">
                                 <p className="font-medium text-on-surface truncate">{inv.name}</p>
-                                <p className="text-xs text-on-surface-variant mt-1">
-                                  {inv.seat_number ? `Seat ${inv.seat_number}` : 'No seat assigned'}
-                                </p>
+                                <div className="mt-1 flex flex-wrap items-center gap-2">
+                                  <span className="text-xs text-on-surface-variant">
+                                    {inv.seat_number ? `Seat ${inv.seat_number}` : 'No seat assigned'}
+                                  </span>
+                                  {inv.tag && (
+                                    <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-secondary-container text-on-secondary-container">
+                                      {inv.tag}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
                             <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 ${inv.checked_in
@@ -700,14 +707,6 @@ export default function EventPage() {
                               {inv.checked_in ? 'Checked In' : 'Pending'}
                             </span>
                           </div>
-
-                          {inv.tag && (
-                            <div className="flex flex-wrap gap-2">
-                              <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-secondary-container text-on-secondary-container">
-                                {inv.tag}
-                              </span>
-                            </div>
-                          )}
 
                           <div className="flex flex-wrap gap-2">
                             <button
@@ -783,7 +782,7 @@ export default function EventPage() {
                                 className="rounded"
                               />
                             </th>
-                            {['Name', 'Seat', 'Tag', 'Status', 'Actions'].map((h) => (
+                            {['Name', 'Status', 'Actions'].map((h) => (
                               <th key={h} className="text-left px-6 py-4 text-xs font-semibold uppercase tracking-widest text-on-surface-variant">{h}</th>
                             ))}
                           </tr>
@@ -799,12 +798,18 @@ export default function EventPage() {
                                   className="rounded"
                                 />
                               </td>
-                              <td className="px-6 py-4 font-medium text-on-surface">{inv.name}</td>
-                              <td className="px-6 py-4 text-on-surface-variant">{inv.seat_number}</td>
                               <td className="px-6 py-4">
-                                <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-secondary-container text-on-secondary-container">
-                                  {inv.tag}
-                                </span>
+                                <p className="font-medium text-on-surface">{inv.name}</p>
+                                <div className="mt-1 flex flex-wrap items-center gap-2">
+                                  <span className="text-xs text-on-surface-variant">
+                                    {inv.seat_number ? `Seat ${inv.seat_number}` : 'No seat assigned'}
+                                  </span>
+                                  {inv.tag && (
+                                    <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-secondary-container text-on-secondary-container">
+                                      {inv.tag}
+                                    </span>
+                                  )}
+                                </div>
                               </td>
                               <td className="px-6 py-4">
                                 <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${inv.checked_in

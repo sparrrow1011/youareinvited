@@ -169,6 +169,22 @@ export default function InviteClient({ id }: { id: string }) {
         <div className="text-center">
           <p className="text-xs font-semibold uppercase tracking-widest text-brand mb-1">You're Invited</p>
           <h1 className="font-headline text-3xl sm:text-4xl text-on-lp-background">{invitation.name}</h1>
+          {(invitation.seat_number || invitation.tag) && (
+            <div className="mt-3 flex flex-wrap justify-center gap-3">
+              {invitation.seat_number && (
+                <div className="flex items-center gap-1.5 bg-brand-container/40 px-3 py-1.5 rounded-full">
+                  <span className="material-symbols-outlined text-brand text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>chair</span>
+                  <span className="text-sm font-semibold text-brand">Seat {invitation.seat_number}</span>
+                </div>
+              )}
+              {invitation.tag && (
+                <div className="flex items-center gap-1.5 bg-secondary-container/40 px-3 py-1.5 rounded-full">
+                  <span className="material-symbols-outlined text-on-surface text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>label</span>
+                  <span className="text-sm font-semibold text-on-surface">{invitation.tag}</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* PIL invitation image */}
@@ -182,24 +198,6 @@ export default function InviteClient({ id }: { id: string }) {
               className="w-full h-auto object-contain"
               priority
             />
-          </div>
-        )}
-
-        {/* Seat + Tag badges */}
-        {(invitation.seat_number || invitation.tag) && (
-          <div className="flex flex-wrap justify-center gap-3">
-            {invitation.seat_number && (
-              <div className="flex items-center gap-1.5 bg-brand-container/40 px-3 py-1.5 rounded-full">
-                <span className="material-symbols-outlined text-brand text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>chair</span>
-                <span className="text-sm font-semibold text-brand">Seat {invitation.seat_number}</span>
-              </div>
-            )}
-            {invitation.tag && (
-              <div className="flex items-center gap-1.5 bg-secondary-container/40 px-3 py-1.5 rounded-full">
-                <span className="material-symbols-outlined text-on-surface text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>label</span>
-                <span className="text-sm font-semibold text-on-surface">{invitation.tag}</span>
-              </div>
-            )}
           </div>
         )}
 
