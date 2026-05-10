@@ -508,63 +508,63 @@ export default function EventPage() {
       <main className="ml-0 lg:ml-64 min-h-screen relative z-10">
         <OrganizerWorkspaceHeader>
           <div className="px-4 sm:px-6 lg:px-12 py-4 flex flex-col gap-4 lg:h-20 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-start gap-3 min-w-0">
-            <button onClick={() => router.push('/dashboard')} className="shrink-0 text-on-surface-variant hover:text-brand transition-colors">
-              <span className="material-symbols-outlined">arrow_back</span>
-            </button>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 text-on-surface-variant text-xs sm:text-sm overflow-x-auto whitespace-nowrap">
-                <Link href="/dashboard" className="hover:text-brand transition-colors">Dashboard</Link>
-                <span className="material-symbols-outlined text-xs">chevron_right</span>
-                <span className="text-on-surface font-medium truncate">{event?.name}</span>
+            <div className="flex items-start gap-3 min-w-0">
+              <button onClick={() => router.push('/dashboard')} className="shrink-0 text-on-surface-variant hover:text-brand transition-colors">
+                <span className="material-symbols-outlined">arrow_back</span>
+              </button>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 text-on-surface-variant text-xs sm:text-sm overflow-x-auto whitespace-nowrap">
+                  <Link href="/dashboard" className="hover:text-brand transition-colors">Dashboard</Link>
+                  <span className="material-symbols-outlined text-xs">chevron_right</span>
+                  <span className="text-on-surface font-medium truncate">{event?.name}</span>
+                </div>
+                <p className="lg:hidden text-xs text-on-surface-variant mt-1">
+                  {activeEventTab.description}
+                </p>
               </div>
-              <p className="lg:hidden text-xs text-on-surface-variant mt-1">
-                {activeEventTab.description}
-              </p>
             </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-            {activeTab === 'guests' && (
-              <>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              {activeTab === 'guests' && (
+                <>
+                  <button
+                    onClick={openAddForm}
+                    className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 bg-brand text-white rounded-full text-xs sm:text-sm font-medium hover:bg-brand-dim transition-colors shadow-md shadow-brand/20"
+                  >
+                    <span className="material-symbols-outlined text-sm">person_add</span>
+                    Add Guest
+                  </button>
+                  <a
+                    href="/guest-import-template.csv"
+                    download="guest-import-template.csv"
+                    className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 bg-surface-container rounded-full text-xs sm:text-sm font-medium text-on-surface hover:bg-surface-container-high transition-colors border border-outline-variant/20"
+                  >
+                    <span className="material-symbols-outlined text-sm">download</span>
+                    CSV Template
+                  </a>
+                  <label className="cursor-pointer inline-flex items-center gap-2 px-3 sm:px-4 py-2 bg-surface-container rounded-full text-xs sm:text-sm font-medium text-on-surface hover:bg-surface-container-high transition-colors border border-outline-variant/20">
+                    <span className="material-symbols-outlined text-sm">upload_file</span>
+                    Import CSV
+                    <input type="file" accept=".csv" onChange={handleCsvFileChange} className="hidden" />
+                  </label>
+                </>
+              )}
+              {activeTab === 'design' && (
+                <label className="cursor-pointer inline-flex items-center gap-2 px-3 sm:px-4 py-2 bg-brand text-white rounded-full text-xs sm:text-sm font-medium hover:bg-brand-dim transition-colors shadow-md shadow-brand/20">
+                  <span className="material-symbols-outlined text-sm">{event?.background_image ? 'upload' : 'upload_file'}</span>
+                  {event?.background_image ? 'Replace Template' : 'Upload Graphic'}
+                  <input type="file" accept="image/*" onChange={handleTemplateFileChange} className="hidden" />
+                </label>
+              )}
+              {activeTab === 'sharing' && (
                 <button
-                  onClick={openAddForm}
-                  className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 bg-brand text-white rounded-full text-xs sm:text-sm font-medium hover:bg-brand-dim transition-colors shadow-md shadow-brand/20"
-                >
-                  <span className="material-symbols-outlined text-sm">person_add</span>
-                  Add Guest
-                </button>
-                <a
-                  href="/guest-import-template.csv"
-                  download="guest-import-template.csv"
+                  onClick={handleCopyStaffLink}
                   className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 bg-surface-container rounded-full text-xs sm:text-sm font-medium text-on-surface hover:bg-surface-container-high transition-colors border border-outline-variant/20"
                 >
-                  <span className="material-symbols-outlined text-sm">download</span>
-                  CSV Template
-                </a>
-                <label className="cursor-pointer inline-flex items-center gap-2 px-3 sm:px-4 py-2 bg-surface-container rounded-full text-xs sm:text-sm font-medium text-on-surface hover:bg-surface-container-high transition-colors border border-outline-variant/20">
-                  <span className="material-symbols-outlined text-sm">upload_file</span>
-                  Import CSV
-                  <input type="file" accept=".csv" onChange={handleCsvFileChange} className="hidden" />
-                </label>
-              </>
-            )}
-            {activeTab === 'design' && (
-              <label className="cursor-pointer inline-flex items-center gap-2 px-3 sm:px-4 py-2 bg-brand text-white rounded-full text-xs sm:text-sm font-medium hover:bg-brand-dim transition-colors shadow-md shadow-brand/20">
-                <span className="material-symbols-outlined text-sm">{event?.background_image ? 'upload' : 'upload_file'}</span>
-                {event?.background_image ? 'Replace Template' : 'Upload Graphic'}
-                <input type="file" accept="image/*" onChange={handleTemplateFileChange} className="hidden" />
-              </label>
-            )}
-            {activeTab === 'sharing' && (
-              <button
-                onClick={handleCopyStaffLink}
-                className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 bg-surface-container rounded-full text-xs sm:text-sm font-medium text-on-surface hover:bg-surface-container-high transition-colors border border-outline-variant/20"
-              >
-                <span className="material-symbols-outlined text-sm">link</span>
-                Copy Staff Link
-              </button>
-            )}
-          </div>
+                  <span className="material-symbols-outlined text-sm">link</span>
+                  Copy Staff Link
+                </button>
+              )}
+            </div>
           </div>
         </OrganizerWorkspaceHeader>
 
@@ -623,8 +623,8 @@ export default function EventPage() {
                     type="button"
                     onClick={() => setActiveTab(tab.id)}
                     className={`inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium transition-all ${isActive
-                        ? 'bg-brand text-white shadow-md shadow-brand/20'
-                        : 'text-on-surface-variant hover:bg-surface-container hover:text-on-surface'
+                      ? 'bg-brand text-white shadow-md shadow-brand/20'
+                      : 'text-on-surface-variant hover:bg-surface-container hover:text-on-surface'
                       }`}
                   >
                     <span className="material-symbols-outlined text-[18px]" style={isActive ? { fontVariationSettings: "'FILL' 1" } : undefined}>
@@ -700,8 +700,8 @@ export default function EventPage() {
                               </div>
                             </div>
                             <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold shrink-0 ${inv.checked_in
-                                ? 'bg-brand-container/40 text-on-brand-container'
-                                : 'bg-surface-container text-on-surface-variant'
+                              ? 'bg-brand-container/40 text-on-brand-container'
+                              : 'bg-surface-container text-on-surface-variant'
                               }`}>
                               <span className={`w-1.5 h-1.5 rounded-full ${inv.checked_in ? 'bg-brand' : 'bg-outline-variant'}`} />
                               {inv.checked_in ? 'Checked In' : 'Pending'}
@@ -813,8 +813,8 @@ export default function EventPage() {
                               </td>
                               <td className="px-6 py-4">
                                 <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${inv.checked_in
-                                    ? 'bg-brand-container/40 text-on-brand-container'
-                                    : 'bg-surface-container text-on-surface-variant'
+                                  ? 'bg-brand-container/40 text-on-brand-container'
+                                  : 'bg-surface-container text-on-surface-variant'
                                   }`}>
                                   <span className={`w-1.5 h-1.5 rounded-full ${inv.checked_in ? 'bg-brand' : 'bg-outline-variant'}`} />
                                   {inv.checked_in ? 'Checked In' : 'Pending'}
@@ -1052,7 +1052,7 @@ export default function EventPage() {
                   <textarea
                     value={waTemplate}
                     onChange={e => { setWaTemplate(e.target.value); setWaTemplateSaved(false); }}
-                    rows={5}
+                    rows={20}
                     placeholder={`{{brand_name}} invited you! 🎉\n\nName: {{name}}\nSeat: {{seat_number}}\n\nView your invitation: {{link}}`}
                     className="w-full rounded-2xl bg-surface-container border border-outline-variant/30 px-4 py-3 text-sm text-on-lp-background placeholder:text-on-surface-variant/40 focus:outline-none focus:ring-2 focus:ring-brand/40 transition-all resize-none font-mono"
                   />

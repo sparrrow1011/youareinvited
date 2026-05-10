@@ -454,7 +454,7 @@ export default function SettingsPage() {
                   <textarea
                     value={brandForm.defaultWhatsAppMessage}
                     onChange={(event) => setBrandForm((current) => ({ ...current, defaultWhatsAppMessage: event.target.value }))}
-                    rows={6}
+                    rows={20}
                     className="mt-2 w-full rounded-2xl border border-outline-variant/20 bg-surface-container px-4 py-3 text-sm text-on-surface outline-none resize-none focus:ring-2 focus:ring-brand/30"
                     placeholder="Use {{brand_name}}, {{name}}, {{seat_number}}, {{tag}}, and {{link}} placeholders."
                   />

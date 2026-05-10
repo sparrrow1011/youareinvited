@@ -53,7 +53,7 @@ class UserProfile(models.Model):
     show_branding_on_event_surfaces = models.BooleanField(default=False)
     watermark_override = models.BooleanField(default=False)
     email_verified = models.BooleanField(default=True)
-    default_whatsapp_message_template = models.CharField(max_length=500, blank=True, default='')
+    default_whatsapp_message_template = models.CharField(max_length=5000, blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
