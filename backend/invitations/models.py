@@ -85,7 +85,7 @@ class Event(models.Model):
     name_zone = models.JSONField(null=True, blank=True)
     tag_zone = models.JSONField(null=True, blank=True)
     security_pin = models.CharField(max_length=128, null=True, blank=True)
-    whatsapp_message_template = models.CharField(max_length=500, blank=True, default='')
+    whatsapp_message_template = models.CharField(max_length=5000, blank=True, default='')
     theme = models.CharField(max_length=64, blank=True, default='')
     theme_data = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
