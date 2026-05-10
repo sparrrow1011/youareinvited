@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import { buildApiUrl, resolveMediaUrl } from '@/lib/api';
+import jsQR from 'jsqr';
 
 interface Guest {
   id: string;
@@ -75,8 +76,10 @@ function CheckInContent() {
   const [scannerStarting, setScannerStarting] = useState(false);
   const [scannerError, setScannerError] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const detectorRef = useRef<BarcodeDetectorInstance | null>(null);
+  const useJsQrRef = useRef(false); // true = jsQR fallback (iOS/Firefox), false = native BarcodeDetector
   const scanFrameRef = useRef<number | null>(null);
   const scanPendingRef = useRef(false);
 
@@ -147,23 +150,42 @@ function CheckInContent() {
   }, []);
 
   const scanForQrCode = useCallback(() => {
-    if (!videoRef.current || !detectorRef.current) {
-      return;
-    }
-
     const scan = async () => {
-      if (!videoRef.current || !detectorRef.current) {
+      if (!videoRef.current || videoRef.current.readyState < 2) {
+        scanFrameRef.current = requestAnimationFrame(scan);
         return;
       }
 
-      if (videoRef.current.readyState >= 2 && !scanPendingRef.current) {
+      if (!scanPendingRef.current) {
         scanPendingRef.current = true;
         try {
-          const barcodes = await detectorRef.current.detect(videoRef.current);
-          const match = barcodes
-            .map((barcode) => barcode.rawValue || '')
-            .map(extractInvitationId)
-            .find((candidate): candidate is string => !!candidate);
+          let match: string | null = null;
+
+          if (useJsQrRef.current) {
+            // ── jsQR fallback (iOS Safari, Firefox, any browser without BarcodeDetector)
+            const video = videoRef.current;
+            const canvas = canvasRef.current;
+            if (canvas && video.videoWidth > 0) {
+              canvas.width = video.videoWidth;
+              canvas.height = video.videoHeight;
+              const ctx = canvas.getContext('2d');
+              if (ctx) {
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const code = jsQR(imageData.data, imageData.width, imageData.height);
+                if (code?.data) {
+                  match = extractInvitationId(code.data);
+                }
+              }
+            }
+          } else if (detectorRef.current) {
+            // ── Native BarcodeDetector (Chrome/Edge on Android & desktop)
+            const barcodes = await detectorRef.current.detect(videoRef.current);
+            match = barcodes
+              .map((b) => b.rawValue || '')
+              .map(extractInvitationId)
+              .find((c): c is string => !!c) ?? null;
+          }
 
           if (match) {
             setInvitationInput(match);
@@ -173,7 +195,7 @@ function CheckInContent() {
             return;
           }
         } catch {
-          setScannerError('Could not read the QR code. Try moving closer or improving lighting.');
+          // Keep scanning — transient decode errors are normal
         } finally {
           scanPendingRef.current = false;
         }
@@ -189,37 +211,30 @@ function CheckInContent() {
     setScannerError(null);
     setScannerStarting(true);
 
-    if (
-      typeof window === 'undefined' ||
-      !navigator.mediaDevices?.getUserMedia
-    ) {
+    if (typeof window === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
       setScannerSupported(false);
       setScannerStarting(false);
-      setScannerError('This browser does not support camera access for scanning.');
+      setScannerError('Camera access is not available in this browser.');
       return;
     }
 
+    // Use native BarcodeDetector if available (Chrome/Edge on Android & desktop),
+    // otherwise fall back to jsQR which works in every browser including iOS Safari.
     const BarcodeDetectorApi = (
       window as Window & { BarcodeDetector?: BarcodeDetectorCtor }
     ).BarcodeDetector;
-
-    if (!BarcodeDetectorApi) {
-      setScannerSupported(false);
-      setScannerStarting(false);
-      setScannerError('QR scanning is not supported in this browser. Paste the invitation ID instead.');
-      return;
-    }
+    useJsQrRef.current = !BarcodeDetectorApi;
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { exact: 'environment' },
-        },
+        video: { facingMode: { ideal: 'environment' } }, // ideal = prefer rear, don't fail on desktop
         audio: false,
       });
 
       streamRef.current = stream;
-      detectorRef.current = new BarcodeDetectorApi({ formats: ['qr_code'] });
+      if (BarcodeDetectorApi) {
+        detectorRef.current = new BarcodeDetectorApi({ formats: ['qr_code'] });
+      }
       setScannerSupported(true);
       setScannerOpen(true);
       setScannerStarting(false);
@@ -432,6 +447,8 @@ function CheckInContent() {
                   playsInline
                   className="h-72 w-full object-cover"
                 />
+                {/* Hidden canvas used by jsQR fallback to capture frames */}
+                <canvas ref={canvasRef} className="hidden" aria-hidden="true" />
                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                   <div className="h-44 w-44 rounded-[2rem] border-2 border-white/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.28)]" />
                 </div>
