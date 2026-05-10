@@ -153,13 +153,11 @@ for i in \$(seq 1 30); do
 done
 
 # ── SSL certificates ──────────────────────────────────────────
-if [ ! -d "/etc/letsencrypt/live/\${BACKEND_DOMAIN}" ]; then
-  echo "🔒  Obtaining SSL for \${BACKEND_DOMAIN}..."
-  certbot --nginx -d \${BACKEND_DOMAIN} \
-    --non-interactive --agree-tos -m \${CERTBOT_EMAIL} --redirect
-else
-  echo "✅  SSL already configured for \${BACKEND_DOMAIN}."
-fi
+# Always run certbot after copying nginx config — it is idempotent and will
+# re-apply the SSL block even if the cert already exists (fixing redeploy overwrites).
+echo "🔒  Ensuring SSL for \${BACKEND_DOMAIN}..."
+certbot --nginx -d \${BACKEND_DOMAIN} \
+  --non-interactive --agree-tos -m \${CERTBOT_EMAIL} --redirect || true
 
 # Frontend is on Vercel — no SSL cert needed here for the frontend domain.
 
