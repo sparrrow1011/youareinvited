@@ -80,9 +80,9 @@ function CheckInContent() {
   const scanFrameRef = useRef<number | null>(null);
   const scanPendingRef = useRef(false);
 
-  // Read token from sessionStorage on mount
+  // Read token from localStorage on mount
   useEffect(() => {
-    const stored = sessionStorage.getItem(`security_token_${eventId}`);
+    const stored = localStorage.getItem(`security_token_${eventId}`);
     if (!stored) {
       router.replace(`/security/event/${eventId}`);
       return;
@@ -213,7 +213,7 @@ function CheckInContent() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          facingMode: { ideal: 'environment' },
+          facingMode: { exact: 'environment' },
         },
         audio: false,
       });
@@ -282,7 +282,7 @@ function CheckInContent() {
 
   const handleLogout = async () => {
     stopScanner();
-    sessionStorage.removeItem(`security_token_${eventId}`);
+    localStorage.removeItem(`security_token_${eventId}`);
     await fetch('/api/auth/security/logout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

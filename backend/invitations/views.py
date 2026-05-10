@@ -558,10 +558,16 @@ class InvitationViewSet(viewsets.ModelViewSet):
                 continue
             created += 1
 
+        # Count total pending across the whole event (pre-existing + new)
+        # so the frontend progress bar total matches what generate_pending_images will process.
+        total_pending = Invitation.objects.filter(
+            event=event, images_generated=False
+        ).count()
+
         return Response({
             'created': created,
             'errors': errors,
-            'pending_images': created,
+            'pending_images': total_pending,
         }, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=['get'])

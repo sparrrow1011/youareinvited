@@ -145,11 +145,14 @@ export default function EventPage() {
         });
         const { processed, remaining } = response.data;
         setImageProgress((prev) => ({
-          done: prev.done + processed,
+          // Cap done at total so counter never overflows (e.g. 430/314)
+          done: Math.min(prev.done + processed, prev.total),
           total: prev.total,
         }));
 
         if (remaining === 0) {
+          // Force progress to 100% then finish
+          setImageProgress((prev) => ({ done: prev.total, total: prev.total }));
           setGeneratingImages(false);
           await loadData();
         }

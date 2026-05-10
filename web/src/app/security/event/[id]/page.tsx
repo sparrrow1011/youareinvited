@@ -22,6 +22,14 @@ export default function SecurityPinPage() {
   const [error, setError] = useState<string | null>(null);
   const [fetchError, setFetchError] = useState(false);
 
+  // If a token is already saved, skip PIN entry and go straight to check-in
+  useEffect(() => {
+    const stored = localStorage.getItem(`security_token_${eventId}`);
+    if (stored) {
+      router.replace(`/security/event/${eventId}/checkin`);
+    }
+  }, [eventId, router]);
+
   useEffect(() => {
     fetch(buildApiUrl(`/events/${eventId}/public_info/`))
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
@@ -56,8 +64,8 @@ export default function SecurityPinPage() {
 
       const { token } = await res.json();
 
-      // Store token in sessionStorage for API calls (httpOnly cookie can't be read by JS)
-      sessionStorage.setItem(`security_token_${eventId}`, token);
+      // Store token in localStorage so the session persists across browser restarts
+      localStorage.setItem(`security_token_${eventId}`, token);
 
       // Set httpOnly cookie via Next.js API route (for middleware gating only)
       await fetch('/api/auth/security/token', {

@@ -144,7 +144,8 @@ class SetSecurityPinSerializer(serializers.Serializer):
 
 class EventSerializer(serializers.ModelSerializer):
     has_security_pin = serializers.SerializerMethodField()
-    background_image = serializers.SerializerMethodField()
+    # background_image uses the default ImageField for writes (so uploads are
+    # saved) and to_representation converts it to a URL for reads.
 
     class Meta:
         model = Event
@@ -159,10 +160,14 @@ class EventSerializer(serializers.ModelSerializer):
     def get_has_security_pin(self, obj):
         return obj.security_pin is not None
 
-    def get_background_image(self, obj):
-        if obj.background_image:
-            return obj.background_image.url
-        return None
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # Convert the ImageField to a URL string (or None)
+        try:
+            data['background_image'] = instance.background_image.url if instance.background_image else None
+        except Exception:
+            data['background_image'] = None
+        return data
 
     def _parse_zone(self, value):
         if isinstance(value, str):

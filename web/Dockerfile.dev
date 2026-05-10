@@ -1,0 +1,11 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy package files and install ALL dependencies (including devDependencies for next dev)
+COPY package*.json ./
+RUN npm ci
+
+EXPOSE 3000
+
+CMD ["npm", "run", "dev"]

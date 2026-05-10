@@ -7,9 +7,9 @@ services:
     environment:
       POSTGRES_DB: youareinvited
       POSTGRES_USER: youareinvited
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-change-me-in-production}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -25,50 +25,39 @@ services:
       dockerfile: Dockerfile
     container_name: youareinvited-backend
     environment:
-      DEBUG: ${DEBUG:-False}
-      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
-      DATABASE_URL: postgresql://youareinvited:${DB_PASSWORD:-change-me-in-production}@postgres:5432/youareinvited
-      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,youareinvited-backend}
-      BACKEND_URL: ${BACKEND_URL:-http://localhost:8000}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      DIGITALOCEAN: "True"
+      DEBUG: "False"
+      SECRET_KEY: ${SECRET_KEY}
+      DATABASE_URL: postgresql://youareinvited:${DB_PASSWORD}@postgres:5432/youareinvited?sslmode=disable
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS}
+      BACKEND_URL: ${BACKEND_URL}
+      FRONTEND_URL: ${FRONTEND_URL}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN}
+      TWILIO_WHATSAPP_NUMBER: ${TWILIO_WHATSAPP_NUMBER}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
       AWS_STORAGE_BUCKET_NAME: ${AWS_STORAGE_BUCKET_NAME:-}
       USE_S3_STORAGE: ${USE_S3_STORAGE:-False}
-      CLOUDINARY_URL: ${CLOUDINARY_URL:-}
-      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
-      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+    # Bind to localhost only — nginx handles public traffic
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
     volumes:
-      - ./backend:/app
       - static_files:/app/staticfiles
       - media_files:/app/media
     command: >
       sh -c "python manage.py migrate &&
              python manage.py collectstatic --noinput &&
-             gunicorn api.wsgi:app --bind 0.0.0.0:8000 --workers 4"
+             gunicorn api.wsgi:app --bind 0.0.0.0:8000 --workers 4 --timeout 60"
     restart: unless-stopped
 
-  frontend:
-    build:
-      context: ./web
-      dockerfile: Dockerfile.dev
-    container_name: youareinvited-frontend
-    environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000/api}
-      NEXT_PUBLIC_FRONTEND_URL: ${NEXT_PUBLIC_FRONTEND_URL:-http://localhost:3000}
-    ports:
-      - "3000:3000"
-    depends_on:
-      - backend
-    volumes:
-      - ./web:/app
-      - /app/node_modules
-    restart: unless-stopped
+  # Frontend runs on Vercel — not deployed to this Droplet.
+  # Only postgres + backend run here.
 
 volumes:
   postgres_data:

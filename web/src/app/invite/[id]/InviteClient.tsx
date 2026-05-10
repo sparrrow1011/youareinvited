@@ -185,6 +185,24 @@ export default function InviteClient({ id }: { id: string }) {
           </div>
         )}
 
+        {/* Seat + Tag badges */}
+        {(invitation.seat_number || invitation.tag) && (
+          <div className="flex flex-wrap justify-center gap-3">
+            {invitation.seat_number && (
+              <div className="flex items-center gap-1.5 bg-brand-container/40 px-3 py-1.5 rounded-full">
+                <span className="material-symbols-outlined text-brand text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>chair</span>
+                <span className="text-sm font-semibold text-brand">Seat {invitation.seat_number}</span>
+              </div>
+            )}
+            {invitation.tag && (
+              <div className="flex items-center gap-1.5 bg-secondary-container/40 px-3 py-1.5 rounded-full">
+                <span className="material-symbols-outlined text-on-surface text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>label</span>
+                <span className="text-sm font-semibold text-on-surface">{invitation.tag}</span>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* QR code */}
         {invitation.qr_code && (
           <div className="w-full bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-xl p-5 text-center">
