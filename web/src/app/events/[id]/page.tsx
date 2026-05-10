@@ -86,6 +86,7 @@ export default function EventPage() {
   const [waTemplate, setWaTemplate] = useState('');
   const [savingWaTemplate, setSavingWaTemplate] = useState(false);
   const [waTemplateSaved, setWaTemplateSaved] = useState(false);
+  const [waTemplateError, setWaTemplateError] = useState<string | null>(null);
 
   const [selectedTheme, setSelectedTheme] = useState('');
   const [themeData, setThemeData] = useState<Record<string, unknown>>({});
@@ -381,27 +382,43 @@ export default function EventPage() {
     if (!event) return;
     setSavingWaTemplate(true);
     setWaTemplateSaved(false);
+    setWaTemplateError(null);
     try {
-      await api.patch(`/events/${event.id}/`, { whatsapp_message_template: waTemplate });
+      const response = await api.patch<Event>(`/events/${event.id}/`, { whatsapp_message_template: waTemplate });
+      setEvent(response.data);
+      setWaTemplate(response.data.whatsapp_message_template ?? '');
       setWaTemplateSaved(true);
-    } catch {
-      // keep current value
+    } catch (err: unknown) {
+      const axiosErr = err as { response?: { data?: { whatsapp_message_template?: string[]; detail?: string } } };
+      const msg =
+        axiosErr?.response?.data?.whatsapp_message_template?.[0] ||
+        axiosErr?.response?.data?.detail ||
+        'Failed to save. Please try again.';
+      setWaTemplateError(msg);
     } finally {
       setSavingWaTemplate(false);
     }
   };
 
   const handleSaveTheme = async (theme: string, data: Record<string, unknown>) => {
+    // Optimistic update so the ThemePicker shows the selection immediately
     setSelectedTheme(theme);
     setThemeData(data);
     setSavingTheme(true);
     setThemeSaved(false);
     try {
-      await eventService.update(id, { theme, theme_data: data });
+      const updated = await eventService.update(id, { theme, theme_data: data });
+      // Sync local state from server-confirmed response
+      setEvent(updated);
+      setSelectedTheme(updated.theme ?? '');
+      setThemeData(updated.theme_data ?? {});
       setThemeSaved(true);
       window.setTimeout(() => setThemeSaved(false), 2000);
     } catch {
       setError('Failed to save theme.');
+      // Revert optimistic update to last confirmed values
+      setSelectedTheme(event?.theme ?? '');
+      setThemeData(event?.theme_data ?? {});
     } finally {
       setSavingTheme(false);
     }
@@ -1045,6 +1062,12 @@ export default function EventPage() {
                     <p className="text-xs text-green-600 text-center mt-2 flex items-center justify-center gap-1">
                       <span className="material-symbols-outlined text-[14px]">check_circle</span>
                       Saved
+                    </p>
+                  )}
+                  {waTemplateError && (
+                    <p className="text-xs text-red-600 text-center mt-2 flex items-center justify-center gap-1">
+                      <span className="material-symbols-outlined text-[14px]">error</span>
+                      {waTemplateError}
                     </p>
                   )}
                 </div>
