@@ -5,6 +5,7 @@ from collections import Counter, defaultdict
 from urllib.parse import quote
 
 from django.conf import settings
+from django.core.paginator import EmptyPage, Paginator
 from django.http import HttpResponse
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
@@ -16,6 +17,7 @@ from django.core import signing
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.db import transaction
+from django.db.models import Q
 from django.db.utils import OperationalError, ProgrammingError
 from .models import Invitation, Event
 from .serializers import (
@@ -233,9 +235,73 @@ class InvitationViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         if self.action in ('admin_undo_check_in', 'regenerate_images'):
             return Invitation.objects.all().select_related('event__owner__profile')
-        return Invitation.objects.filter(
+        queryset = Invitation.objects.filter(
             event__owner=self.request.user
-        ).select_related('event__owner__profile')
+        ).select_related('event__owner__profile').order_by('-created_at')
+
+        event_id = self.request.query_params.get('event')
+        if event_id:
+            queryset = queryset.filter(event_id=event_id)
+
+        search = self.request.query_params.get('search', '').strip()
+        if search:
+            queryset = queryset.filter(
+                Q(name__icontains=search) |
+                Q(seat_number__icontains=search) |
+                Q(tag__icontains=search) |
+                Q(phone_number__icontains=search)
+            )
+
+        return queryset
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        page_size_param = request.query_params.get('page_size')
+        if not page_size_param:
+            serializer = self.get_serializer(queryset, many=True)
+            return Response(serializer.data)
+
+        try:
+            page_size = min(max(int(page_size_param), 1), 100)
+        except (TypeError, ValueError):
+            return Response({'detail': 'page_size must be a positive integer.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            page_number = max(int(request.query_params.get('page', 1)), 1)
+        except (TypeError, ValueError):
+            return Response({'detail': 'page must be a positive integer.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        paginator = Paginator(queryset, page_size)
+        try:
+            page = paginator.page(page_number)
+        except EmptyPage:
+            page = paginator.page(paginator.num_pages or 1)
+
+        serializer = self.get_serializer(page.object_list, many=True)
+        payload = {
+            'count': paginator.count,
+            'page': page.number,
+            'page_size': page_size,
+            'total_pages': paginator.num_pages,
+            'results': serializer.data,
+        }
+
+        event_id = request.query_params.get('event')
+        if event_id:
+            event_queryset = Invitation.objects.filter(
+                event_id=event_id,
+                event__owner=request.user,
+            )
+            total = event_queryset.count()
+            checked_in = event_queryset.filter(checked_in=True).count()
+            payload['stats'] = {
+                'total_invitations': total,
+                'checked_in': checked_in,
+                'pending': total - checked_in,
+                'check_in_rate': _rate(checked_in, total),
+            }
+
+        return Response(payload)
 
     def get_permissions(self):
         if self.action in ('retrieve', 'check_in', 'track_share'):

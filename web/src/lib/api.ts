@@ -336,6 +336,15 @@ export interface InvitationStats {
   check_in_rate: number;
 }
 
+export interface PaginatedInvitations {
+  count: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+  results: Invitation[];
+  stats?: InvitationStats;
+}
+
 export interface AnalyticsTotals {
   total_events: number;
   invitations_sent: number;
@@ -406,6 +415,21 @@ export const invitationService = {
   // Get all invitations
   getAll: async (): Promise<Invitation[]> => {
     const response = await api.get<Invitation[]>('/invitations/');
+    return response.data;
+  },
+
+  getForEvent: async (
+    eventId: string,
+    options?: { page?: number; pageSize?: number; search?: string }
+  ): Promise<PaginatedInvitations> => {
+    const response = await api.get<PaginatedInvitations>('/invitations/', {
+      params: {
+        event: eventId,
+        page: options?.page ?? 1,
+        page_size: options?.pageSize ?? 20,
+        search: options?.search || undefined,
+      },
+    });
     return response.data;
   },
 

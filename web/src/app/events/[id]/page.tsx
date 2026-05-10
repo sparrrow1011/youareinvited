@@ -43,6 +43,7 @@ const EVENT_TABS = [
 ] as const;
 
 type EventTab = (typeof EVENT_TABS)[number]['id'];
+const INVITATIONS_PAGE_SIZE = 20;
 
 const getPlanLabel = (plan?: AuthUser['plan']) => (
   plan === 'pro' ? 'Pro Organizer' : 'Free Organizer'
@@ -98,13 +99,48 @@ export default function EventPage() {
   const [showBulkWhatsAppModal, setShowBulkWhatsAppModal] = useState(false);
   const [bulkSendLoading, setBulkSendLoading] = useState(false);
   const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false);
+  const [invitationSearch, setInvitationSearch] = useState('');
+  const [debouncedInvitationSearch, setDebouncedInvitationSearch] = useState('');
+  const [invitationPage, setInvitationPage] = useState(1);
+  const [invitationCount, setInvitationCount] = useState(0);
+  const [invitationTotalPages, setInvitationTotalPages] = useState(1);
+  const [invitationsLoading, setInvitationsLoading] = useState(false);
+
+  const loadInvitations = async (page = invitationPage, search = debouncedInvitationSearch) => {
+    setInvitationsLoading(true);
+    try {
+      const result = await invitationService.getForEvent(id, {
+        page,
+        pageSize: INVITATIONS_PAGE_SIZE,
+        search,
+      });
+      setInvitations(result.results);
+      setInvitationCount(result.count);
+      setInvitationPage(result.page);
+      setInvitationTotalPages(Math.max(result.total_pages, 1));
+      if (result.stats) {
+        setStats(result.stats);
+      }
+      setSelectedInvitationIds((prev) => new Set(
+        Array.from(prev).filter((invId) => result.results.some((inv) => inv.id === invId))
+      ));
+    } catch {
+      setError('Failed to load guests.');
+    } finally {
+      setInvitationsLoading(false);
+    }
+  };
 
   const loadData = async () => {
     try {
       const [me, ev, invs] = await Promise.all([
         authService.me(),
         eventService.getById(id),
-        invitationService.getAll(),
+        invitationService.getForEvent(id, {
+          page: invitationPage,
+          pageSize: INVITATIONS_PAGE_SIZE,
+          search: debouncedInvitationSearch,
+        }),
       ]);
       setUser(me);
       setEvent(ev);
@@ -112,19 +148,16 @@ export default function EventPage() {
       setWaTemplate(ev.whatsapp_message_template ?? '');
       setSelectedTheme(ev.theme ?? '');
       setThemeData(ev.theme_data ?? {});
-      const eventInvs = invs.filter((inv) => inv.event === id);
-      setInvitations(eventInvs);
+      setInvitations(invs.results);
+      setInvitationCount(invs.count);
+      setInvitationPage(invs.page);
+      setInvitationTotalPages(Math.max(invs.total_pages, 1));
       setSelectedInvitationIds((prev) => new Set(
-        Array.from(prev).filter((invId) => eventInvs.some((inv) => inv.id === invId))
+        Array.from(prev).filter((invId) => invs.results.some((inv) => inv.id === invId))
       ));
-      const total = eventInvs.length;
-      const checkedIn = eventInvs.filter((inv) => inv.checked_in).length;
-      setStats({
-        total_invitations: total,
-        checked_in: checkedIn,
-        pending: total - checkedIn,
-        check_in_rate: total > 0 ? (checkedIn / total) * 100 : 0,
-      });
+      if (invs.stats) {
+        setStats(invs.stats);
+      }
     } catch {
       setError('Failed to load event.');
     } finally {
@@ -133,6 +166,20 @@ export default function EventPage() {
   };
 
   useEffect(() => { loadData(); }, [id]);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setDebouncedInvitationSearch(invitationSearch.trim());
+      setInvitationPage(1);
+    }, 300);
+
+    return () => window.clearTimeout(timeout);
+  }, [invitationSearch]);
+
+  useEffect(() => {
+    if (!event) return;
+    loadInvitations(invitationPage, debouncedInvitationSearch);
+  }, [invitationPage, debouncedInvitationSearch]);
 
   // Poll for pending image generation after bulk import
   useEffect(() => {
@@ -648,7 +695,11 @@ export default function EventPage() {
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-xs text-on-surface-variant">{invitations.length} guest{invitations.length !== 1 ? 's' : ''}</span>
+                  <span className="text-xs text-on-surface-variant">
+                    {debouncedInvitationSearch
+                      ? `${invitationCount} match${invitationCount !== 1 ? 'es' : ''}`
+                      : `${stats?.total_invitations ?? invitationCount} guest${(stats?.total_invitations ?? invitationCount) !== 1 ? 's' : ''}`}
+                  </span>
                   <button
                     onClick={openAddForm}
                     className="inline-flex items-center gap-2 rounded-full bg-brand px-4 py-2 text-sm font-medium text-white shadow-md shadow-brand/20 transition-colors hover:bg-brand-dim"
@@ -659,17 +710,48 @@ export default function EventPage() {
                 </div>
               </div>
 
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <label className="relative block w-full sm:max-w-md">
+                  <span className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-on-surface-variant">
+                    search
+                  </span>
+                  <input
+                    type="search"
+                    value={invitationSearch}
+                    onChange={(event) => setInvitationSearch(event.target.value)}
+                    placeholder="Search guests, seats, tags, or phone numbers"
+                    className="h-11 w-full rounded-full border border-outline-variant/20 bg-white/70 pl-10 pr-4 text-sm text-on-surface outline-none transition focus:border-brand/40 focus:ring-2 focus:ring-brand/20"
+                  />
+                </label>
+                {invitationCount > 0 && (
+                  <span className="text-xs text-on-surface-variant">
+                    Showing {(invitationPage - 1) * INVITATIONS_PAGE_SIZE + 1}-{Math.min(invitationPage * INVITATIONS_PAGE_SIZE, invitationCount)} of {invitationCount}
+                  </span>
+                )}
+              </div>
+
               <div className="bg-surface-container-lowest rounded-[2rem] overflow-hidden border border-outline-variant/10 shadow-sm">
-                {invitations.length === 0 ? (
+                {invitationsLoading ? (
                   <div className="py-16 sm:py-20 px-6 text-center">
-                    <span className="material-symbols-outlined text-4xl text-outline-variant mb-4 block">group_add</span>
-                    <p className="text-on-surface-variant text-sm mb-4">No guests yet.</p>
-                    <button
-                      onClick={openAddForm}
-                      className="px-6 py-2.5 bg-brand text-white rounded-full text-sm font-medium"
-                    >
-                      Add First Guest
-                    </button>
+                    <span className="material-symbols-outlined text-4xl text-outline-variant mb-4 block animate-pulse">hourglass_empty</span>
+                    <p className="text-on-surface-variant text-sm">Loading guests...</p>
+                  </div>
+                ) : invitations.length === 0 ? (
+                  <div className="py-16 sm:py-20 px-6 text-center">
+                    <span className="material-symbols-outlined text-4xl text-outline-variant mb-4 block">
+                      {debouncedInvitationSearch ? 'search_off' : 'group_add'}
+                    </span>
+                    <p className="text-on-surface-variant text-sm mb-4">
+                      {debouncedInvitationSearch ? 'No guests match your search.' : 'No guests yet.'}
+                    </p>
+                    {!debouncedInvitationSearch && (
+                      <button
+                        onClick={openAddForm}
+                        className="px-6 py-2.5 bg-brand text-white rounded-full text-sm font-medium"
+                      >
+                        Add First Guest
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <>
@@ -859,6 +941,34 @@ export default function EventPage() {
                         </tbody>
                       </table>
                     </div>
+
+                    {invitationTotalPages > 1 && (
+                      <div className="flex flex-col gap-3 border-t border-outline-variant/10 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+                        <p className="text-xs text-on-surface-variant">
+                          Page {invitationPage} of {invitationTotalPages}
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setInvitationPage((page) => Math.max(page - 1, 1))}
+                            disabled={invitationPage <= 1 || invitationsLoading}
+                            className="inline-flex h-9 items-center gap-1.5 rounded-full border border-outline-variant/20 bg-white/70 px-3 text-xs font-semibold text-on-surface transition hover:bg-surface-container disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            <span className="material-symbols-outlined text-[16px]">chevron_left</span>
+                            Previous
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setInvitationPage((page) => Math.min(page + 1, invitationTotalPages))}
+                            disabled={invitationPage >= invitationTotalPages || invitationsLoading}
+                            className="inline-flex h-9 items-center gap-1.5 rounded-full border border-outline-variant/20 bg-white/70 px-3 text-xs font-semibold text-on-surface transition hover:bg-surface-container disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            Next
+                            <span className="material-symbols-outlined text-[16px]">chevron_right</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </>
                 )}
               </div>

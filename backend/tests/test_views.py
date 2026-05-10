@@ -51,6 +51,29 @@ def test_invitation_list_scoped_to_owner(auth_client, user, other_user, monkeypa
 
 
 @pytest.mark.django_db
+def test_invitation_list_supports_event_pagination_and_search(auth_client, user, monkeypatch):
+    monkeypatch.setattr(Invitation, 'generate_qr_code', lambda self: None)
+    monkeypatch.setattr(Invitation, 'generate_e_invite', lambda self, **kwargs: None)
+    event = Event.objects.create(owner=user, name='Mine', date='2026-06-01')
+    other_event = Event.objects.create(owner=user, name='Other', date='2026-07-01')
+
+    Invitation.objects.create(name='Ada Lovelace', seat_number='A1', tag='VIP', event=event)
+    Invitation.objects.create(name='Grace Hopper', seat_number='B2', tag='Family', event=event)
+    Invitation.objects.create(name='Alan Turing', seat_number='C3', tag='VIP', event=event)
+    Invitation.objects.create(name='Other Guest', seat_number='D4', tag='VIP', event=other_event)
+
+    response = auth_client.get(f'/api/invitations/?event={event.id}&page=1&page_size=2&search=vip')
+
+    assert response.status_code == 200
+    assert response.data['count'] == 2
+    assert response.data['page'] == 1
+    assert response.data['page_size'] == 2
+    assert response.data['total_pages'] == 1
+    assert response.data['stats']['total_invitations'] == 3
+    assert [inv['name'] for inv in response.data['results']] == ['Alan Turing', 'Ada Lovelace']
+
+
+@pytest.mark.django_db
 def test_stats_scoped_to_owner(auth_client, user, other_user, monkeypatch):
     from invitations.models import Invitation
     monkeypatch.setattr(Invitation, 'generate_qr_code', lambda self: None)
