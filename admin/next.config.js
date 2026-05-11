@@ -5,6 +5,10 @@ const BACKEND_URL =
   'http://localhost:8000';
 
 const nextConfig = {
+  // Prevent Next.js from issuing 308 redirects to strip trailing slashes.
+  // Without this, /api/superadmin/users/ gets redirected before the rewrite runs,
+  // and the browser caches that 308 permanently.
+  skipTrailingSlashRedirect: true,
   async rewrites() {
     return [
       {
