@@ -188,7 +188,7 @@ export default function UserTable({ users, onUserUpdated }: UserTableProps) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-700">Watermark Override</p>
-                <p className="text-xs text-gray-500">Remove watermark from this user's invitations</p>
+                <p className="text-xs text-gray-500">Remove watermark from this user&apos;s invitations</p>
               </div>
               <Switch checked={watermark} onCheckedChange={setWatermark} />
             </div>
