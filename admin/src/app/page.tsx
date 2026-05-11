@@ -1,35 +1,33 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import dynamic from 'next/dynamic';
+// NOTE: We intentionally avoid useSearchParams() here to prevent the Next.js 14
+// Suspense boundary requirement. We read query params from window.location instead.
 
-const ThreeHero = dynamic(() => import('@/components/ThreeHero'), { ssr: false });
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 
 export default function LoginPage() {
+  const router = useRouter();
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [nextPath, setNextPath] = useState('/dashboard');
-  const router = useRouter();
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const reason = params.get('reason');
-    const next = params.get('next');
-
-    if (next && next.startsWith('/')) {
-      setNextPath(next);
-    }
-
-    if (reason === 'session-expired') {
-      setError('Your admin session expired. Sign in again.');
-      return;
-    }
-    if (reason === 'access-denied') {
-      setError('This account does not have admin access.');
-    }
+    if (reason === 'session-expired') setError('Your session expired. Please sign in again.');
+    else if (reason === 'access-denied') setError('Access denied — staff accounts only.');
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -42,68 +40,69 @@ export default function LoginPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
-      if (res.ok) {
-        router.push(nextPath);
-      } else {
-        const data = await res.json().catch(() => ({}));
-        setError(data.error || 'Sign in failed.');
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Invalid email or password.');
+        return;
       }
+      router.push('/dashboard');
     } catch {
-      setError('Connection error. Try again.');
+      setError('Could not reach server. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen relative flex items-center justify-center">
-      <div className="absolute inset-0 z-0">
-        <ThreeHero />
-      </div>
-
-      <div className="relative z-10 bg-secondary rounded-2xl p-8 w-full max-w-sm shadow-2xl">
-        <p className="text-accent font-bold tracking-widest text-xs uppercase mb-1">
-          YouAreInvited
-        </p>
-        <h1 className="text-2xl font-bold text-white mb-6">Platform Admin</h1>
-
-        <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label className="block text-light text-sm mb-2">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-primary border text-white rounded-lg px-4 py-3 focus:outline-none focus:border-accent transition-colors"
-              style={{ borderColor: '#0f3460' }}
-              placeholder="you@youareinvited.com"
-              required
-              autoFocus
-            />
-          </div>
-          <div className="mb-4">
-            <label className="block text-light text-sm mb-2">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-primary border text-white rounded-lg px-4 py-3 focus:outline-none focus:border-accent transition-colors"
-              style={{ borderColor: '#0f3460' }}
-              required
-            />
-          </div>
-
-          {error && <p className="text-accent text-sm mb-4">{error}</p>}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-accent text-white font-bold py-3 rounded-lg hover:bg-opacity-90 transition-all disabled:opacity-50"
-          >
-            {loading ? 'Signing in…' : 'Sign In'}
-          </button>
-        </form>
-      </div>
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <Card className="w-full max-w-md shadow-sm">
+        <CardHeader className="space-y-1">
+          <p className="text-xs font-bold tracking-widest text-[#e94560] uppercase">
+            YouAreInvited
+          </p>
+          <CardTitle className="text-2xl font-bold text-gray-900">Platform Admin</CardTitle>
+          <CardDescription>Sign in to access the admin dashboard</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <label htmlFor="email" className="text-sm font-medium text-gray-700">
+                Email
+              </label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="admin@youareinvited.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+              />
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="password" className="text-sm font-medium text-gray-700">
+                Password
+              </label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                autoComplete="current-password"
+              />
+            </div>
+            {error && <p className="text-sm text-red-600">{error}</p>}
+            <Button
+              type="submit"
+              className="w-full bg-[#e94560] hover:bg-[#d63d56] text-white"
+              disabled={loading}
+            >
+              {loading ? 'Signing in…' : 'Sign In'}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }
