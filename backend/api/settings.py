@@ -139,7 +139,10 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-USE_X_FORWARDED_HOST = True
+# Do NOT use X-Forwarded-Host: nginx already sets Host: $host correctly, and
+# Next.js rewrites add X-Forwarded-Host: localhost:* which would cause
+# Django's ALLOWED_HOSTS check to reject API requests from the admin proxy.
+USE_X_FORWARDED_HOST = False
 
 # Enable secure settings for Vercel and DigitalOcean production environments
 IS_PRODUCTION = IS_VERCEL or IS_DIGITALOCEAN
