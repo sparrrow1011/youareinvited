@@ -980,7 +980,7 @@ class EventViewSet(viewsets.ModelViewSet):
         )
         return Response({'token': token})
 
-    @action(detail=True, methods=['get', 'post'], url_path='photos', throttle_classes=[])
+    @action(detail=True, methods=['get', 'post'], url_path='photos', permission_classes=[], throttle_classes=[])
     def photos(self, request, pk=None):
         """
         GET  /api/events/{id}/photos/?invitation={uuid}  — list photos (guest or owner)
@@ -1004,7 +1004,7 @@ class EventViewSet(viewsets.ModelViewSet):
                 )
             try:
                 invitation = Invitation.objects.get(pk=invitation_id, event=event)
-            except (Invitation.DoesNotExist, Exception):
+            except (Invitation.DoesNotExist, ValueError):
                 return Response(
                     {'detail': 'Invalid invitation.'},
                     status=status.HTTP_403_FORBIDDEN,

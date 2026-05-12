@@ -165,3 +165,34 @@ def test_uploaded_photo_appears_in_list(api_client, event, checked_in_invitation
     )
     assert response.status_code == 200
     assert len(response.data) == 1
+
+
+@pytest.mark.django_db
+@override_settings(DEFAULT_FILE_STORAGE='django.core.files.storage.InMemoryStorage')
+def test_owner_cannot_upload_photo(auth_client, event):
+    image = _make_jpeg()
+    response = auth_client.post(
+        f'/api/events/{event.id}/photos/',
+        {'image': image},
+        format='multipart',
+    )
+    assert response.status_code == 400
+    assert 'guest invitation' in response.data['detail']
+
+
+@pytest.mark.django_db
+@override_settings(DEFAULT_FILE_STORAGE='django.core.files.storage.InMemoryStorage')
+def test_owner_can_list_photos_without_invitation(auth_client, event, checked_in_invitation):
+    from rest_framework.test import APIClient
+    # Upload as guest (unauthenticated client)
+    guest_client = APIClient()
+    image = _make_jpeg()
+    guest_client.post(
+        f'/api/events/{event.id}/photos/?invitation={checked_in_invitation.id}',
+        {'image': image},
+        format='multipart',
+    )
+    # List as owner (no invitation param needed)
+    response = auth_client.get(f'/api/events/{event.id}/photos/')
+    assert response.status_code == 200
+    assert len(response.data) == 1
