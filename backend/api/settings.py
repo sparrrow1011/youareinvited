@@ -185,7 +185,8 @@ CSRF_TRUSTED_ORIGINS = config(
 
 # Super-admin
 SUPER_ADMIN_SECRET = config('SUPER_ADMIN_SECRET', default='')
-SUPER_ADMIN_ORIGIN = config('SUPER_ADMIN_ORIGIN', default='')
+# Strip trailing slash — browsers send Origin without it, so CORS matching must be exact
+SUPER_ADMIN_ORIGIN = config('SUPER_ADMIN_ORIGIN', default='').rstrip('/')
 
 # Extend CORS/CSRF to include the admin Vercel deployment if set
 if SUPER_ADMIN_ORIGIN and SUPER_ADMIN_ORIGIN not in CORS_ALLOWED_ORIGINS:
