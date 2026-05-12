@@ -39,11 +39,11 @@ export default function DashboardPage() {
   }, [load]);
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Platform Overview</h1>
+    <div className="min-w-0">
+      <h1 className="mb-5 text-xl font-bold text-gray-900 sm:mb-6 sm:text-2xl">Platform Overview</h1>
 
       {error && (
-        <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between">
+        <div className="mb-6 flex flex-col gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 sm:flex-row sm:items-center sm:justify-between">
           <span>{error}</span>
           <button
             onClick={load}
@@ -55,7 +55,7 @@ export default function DashboardPage() {
       )}
 
       {/* KPI cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:mb-8 lg:grid-cols-4 lg:gap-4">
         {loading ? (
           Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="bg-white rounded-lg border border-gray-200 p-6">
@@ -74,8 +74,8 @@ export default function DashboardPage() {
       </div>
 
       {/* Charts */}
-      <div className="grid lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
+      <div className="grid gap-4 lg:grid-cols-2 lg:gap-6">
+        <div className="min-w-0 rounded-lg border border-gray-200 bg-white p-4 sm:p-6">
           <h2 className="text-sm font-semibold text-gray-700 mb-4">New Signups — last 30 days</h2>
           {loading ? (
             <Skeleton className="h-48 w-full" />
@@ -103,7 +103,7 @@ export default function DashboardPage() {
           )}
         </div>
 
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <div className="min-w-0 rounded-lg border border-gray-200 bg-white p-4 sm:p-6">
           <h2 className="text-sm font-semibold text-gray-700 mb-4">
             Events Created — last 30 days
           </h2>

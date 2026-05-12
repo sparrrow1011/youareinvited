@@ -1,0 +1,38 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - main [ref=e3]:
+      - generic [ref=e4]:
+        - paragraph [ref=e5]: You're Invited
+        - heading "SEGUN" [level=1] [ref=e6]
+        - generic [ref=e7]:
+          - generic [ref=e8]:
+            - generic [ref=e9]: chair
+            - generic [ref=e10]: Seat 45
+          - generic [ref=e11]:
+            - generic [ref=e12]: label
+            - generic [ref=e13]: Yellow
+      - img "Your invitation" [ref=e15]
+      - generic [ref=e16]:
+        - generic [ref=e17]:
+          - generic [ref=e18]:
+            - paragraph [ref=e19]: RSVP
+            - heading "Will you attend?" [level=2] [ref=e20]
+            - paragraph [ref=e21]: You are attending
+          - checkbox "Yes, I will be attending" [checked] [ref=e23]
+        - generic [ref=e26]:
+          - generic [ref=e27]: event_available
+          - generic [ref=e28]: Yes, I will be attending
+      - generic [ref=e29]:
+        - paragraph [ref=e30]: Your Entry QR Code
+        - img "QR Code" [ref=e33]
+        - paragraph [ref=e34]: Present this at the venue entrance to check in
+    - contentinfo [ref=e35]:
+      - paragraph [ref=e36]: Powered by youareinvited
+      - generic [ref=e37]:
+        - link "Privacy Policy" [ref=e38] [cursor=pointer]:
+          - /url: /privacy
+        - link "Terms of Service" [ref=e39] [cursor=pointer]:
+          - /url: /terms
+        - link "Cookie Settings" [ref=e40] [cursor=pointer]:
+          - /url: /cookies
+  - alert [ref=e41]

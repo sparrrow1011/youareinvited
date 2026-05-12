@@ -76,19 +76,90 @@ export default function UserTable({ users, onUserUpdated }: UserTableProps) {
   return (
     <>
       {/* Search */}
-      <div className="flex justify-between items-center mb-4">
-        <p className="text-sm text-gray-500">{filtered.length} users</p>
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-gray-500">
+          {filtered.length} user{filtered.length !== 1 ? 's' : ''}
+        </p>
         <input
           type="search"
           placeholder="Search by email…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="border border-gray-200 rounded-md px-3 py-1.5 text-sm w-64 focus:outline-none focus:ring-2 focus:ring-[#e94560]/30 focus:border-[#e94560]"
+          className="h-10 w-full rounded-md border border-gray-200 px-3 text-sm focus:border-[#e94560] focus:outline-none focus:ring-2 focus:ring-[#e94560]/30 sm:w-72"
         />
       </div>
 
+      {/* Mobile cards */}
+      <div className="space-y-3 md:hidden">
+        {filtered.length === 0 ? (
+          <div className="rounded-lg border border-gray-200 bg-white py-12 text-center text-sm text-gray-400">
+            No users found.
+          </div>
+        ) : (
+          filtered.map((user) => (
+            <div key={user.id} className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-gray-900">{user.email}</p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Joined{' '}
+                    {new Date(user.created_at).toLocaleDateString('en-GB', {
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric',
+                    })}
+                  </p>
+                </div>
+                {user.plan === 'pro' ? (
+                  <Badge className="shrink-0 bg-[#e94560] text-white hover:bg-[#e94560]">Pro</Badge>
+                ) : (
+                  <Badge variant="secondary" className="shrink-0">Free</Badge>
+                )}
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <p className="text-xs text-gray-500">Events</p>
+                  <p className="font-semibold text-gray-900">{user.event_count}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Invitations</p>
+                  <p className="font-semibold text-gray-900">{user.invitation_count}</p>
+                </div>
+                <div className="col-span-2">
+                  <p className="mb-1 text-xs text-gray-500">Watermark</p>
+                  {user.watermark_override ? (
+                    <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">
+                      Override
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary">Default</Badge>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-4 flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => openEdit(user)}
+                  className="flex-1 text-xs"
+                >
+                  Edit
+                </Button>
+                <Link href={`/users/${user.id}`} className="flex-1">
+                  <Button size="sm" variant="ghost" className="w-full text-xs text-gray-500">
+                    View
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
       {/* Table */}
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+      <div className="hidden overflow-hidden rounded-lg border border-gray-200 bg-white md:block">
         <Table>
           <TableHeader>
             <TableRow className="bg-gray-50">
@@ -163,7 +234,7 @@ export default function UserTable({ users, onUserUpdated }: UserTableProps) {
 
       {/* Edit dialog */}
       <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] overflow-y-auto rounded-lg sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Edit User</DialogTitle>
             {editingUser && (
@@ -196,7 +267,7 @@ export default function UserTable({ users, onUserUpdated }: UserTableProps) {
             {saveError && <p className="text-sm text-red-600">{saveError}</p>}
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setEditingUser(null)} disabled={saving}>
               Cancel
             </Button>

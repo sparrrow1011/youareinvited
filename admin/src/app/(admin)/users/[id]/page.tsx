@@ -111,7 +111,7 @@ export default function UserDetailPage() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
+      <div className="min-w-0 space-y-6">
         <Skeleton className="h-6 w-48" />
         <div className="grid gap-6">
           <Skeleton className="h-48 w-full rounded-lg" />
@@ -130,14 +130,14 @@ export default function UserDetailPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-2 text-sm text-gray-500">
+      <nav className="flex min-w-0 items-center gap-2 text-sm text-gray-500">
         <Link href="/users" className="hover:text-gray-900 transition-colors">
           Users
         </Link>
         <span>/</span>
-        <span className="text-gray-900 font-medium truncate max-w-xs">{user.email}</span>
+        <span className="min-w-0 truncate font-medium text-gray-900">{user.email}</span>
       </nav>
 
       {/* Profile card */}
@@ -146,7 +146,7 @@ export default function UserDetailPage() {
           <CardTitle className="text-lg">Profile</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <p className="text-xs text-gray-500 mb-1">Email</p>
               <p className="text-sm font-medium text-gray-900 truncate">{user.email}</p>
@@ -178,11 +178,11 @@ export default function UserDetailPage() {
           {/* Inline edit */}
           <div className="border-t border-gray-100 pt-4 space-y-4">
             <h3 className="text-sm font-semibold text-gray-700">Edit</h3>
-            <div className="flex flex-wrap gap-6 items-end">
-              <div className="space-y-2">
+            <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:gap-6">
+              <div className="space-y-2 sm:w-36">
                 <label className="text-sm font-medium text-gray-700">Plan</label>
                 <Select value={plan} onValueChange={(v) => setPlan(v as 'free' | 'pro')}>
-                  <SelectTrigger className="w-36">
+                  <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -198,7 +198,7 @@ export default function UserDetailPage() {
               <Button
                 onClick={handleSave}
                 disabled={saving}
-                className="bg-[#e94560] hover:bg-[#d63d56] text-white"
+                className="bg-[#e94560] text-white hover:bg-[#d63d56] sm:w-auto"
               >
                 {saving ? 'Saving…' : 'Save changes'}
               </Button>
@@ -214,6 +214,7 @@ export default function UserDetailPage() {
           <CardTitle className="text-lg">Events ({events.length})</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
+          <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="bg-gray-50">
@@ -256,6 +257,7 @@ export default function UserDetailPage() {
               )}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
 
@@ -265,7 +267,7 @@ export default function UserDetailPage() {
           <CardTitle className="text-lg text-red-700">Danger Zone</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-sm font-medium text-gray-900">Delete this account</p>
               <p className="text-xs text-gray-500 mt-0.5">
@@ -274,7 +276,7 @@ export default function UserDetailPage() {
             </div>
             <Button
               variant="outline"
-              className="border-red-300 text-red-700 hover:bg-red-50 hover:border-red-400"
+              className="w-full border-red-300 text-red-700 hover:border-red-400 hover:bg-red-50 sm:w-auto"
               onClick={() => {
                 setDeleteConfirm('');
                 setDeleteError('');
@@ -289,7 +291,7 @@ export default function UserDetailPage() {
 
       {/* Delete confirmation dialog */}
       <Dialog open={deleteOpen} onOpenChange={(open) => !open && setDeleteOpen(false)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-h-[90vh] w-[calc(100vw-2rem)] overflow-y-auto rounded-lg sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-red-700">Delete account</DialogTitle>
           </DialogHeader>
@@ -311,7 +313,7 @@ export default function UserDetailPage() {
             </div>
             {deleteError && <p className="text-sm text-red-600">{deleteError}</p>}
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setDeleteOpen(false)} disabled={deleting}>
               Cancel
             </Button>

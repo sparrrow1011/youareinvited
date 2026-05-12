@@ -1,0 +1,41 @@
+- generic [ref=e2]:
+  - navigation "navbar" [ref=e3]:
+    - generic [ref=e4]:
+      - link "Django REST framework" [ref=e5] [cursor=pointer]:
+        - /url: https://www.django-rest-framework.org/
+      - list
+  - generic [ref=e6]:
+    - list [ref=e7]:
+      - listitem [ref=e8]:
+        - link "Api Root" [ref=e9] [cursor=pointer]:
+          - /url: /api/
+      - listitem [ref=e10]:
+        - text: /
+        - link "Login" [ref=e11] [cursor=pointer]:
+          - /url: /api/auth/login/
+    - main "content" [ref=e12]:
+      - generic "request form":
+        - button "OPTIONS" [ref=e14] [cursor=pointer]
+      - main "main content" [ref=e15]:
+        - heading "Login" [level=1] [ref=e17]
+        - generic:
+          - paragraph
+        - generic "request info" [ref=e18]:
+          - generic [ref=e19]:
+            - generic [ref=e20]: GET
+            - text: /api/auth/login/
+        - generic "response info" [ref=e21]:
+          - generic [ref=e22]:
+            - generic [ref=e23]: "HTTP 405 Method Not Allowed Allow: POST, OPTIONS Content-Type: application/json Vary: Accept"
+            - text: "{ \"detail\": \"Method \\\"GET\\\" not allowed.\" }"
+      - group [ref=e28]:
+        - generic [ref=e29]:
+          - generic [ref=e30]: "Media type:"
+          - combobox "Media type:" [ref=e32]:
+            - option "application/json" [selected]
+            - option "application/x-www-form-urlencoded"
+            - option "multipart/form-data"
+        - generic [ref=e33]:
+          - generic [ref=e34]: "Content:"
+          - textbox "Content:" [ref=e36]
+        - button "POST" [ref=e38] [cursor=pointer]

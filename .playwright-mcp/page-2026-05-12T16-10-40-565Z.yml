@@ -1,0 +1,6 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e4]: sentiment_dissatisfied
+    - heading "Invitation Not Found" [level=1] [ref=e5]
+    - paragraph [ref=e6]: This invitation doesn't exist or may have been removed.
+  - alert [ref=e7]

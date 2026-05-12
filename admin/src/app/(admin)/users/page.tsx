@@ -29,11 +29,11 @@ export default function UsersPage() {
   };
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Users</h1>
+    <div className="min-w-0">
+      <h1 className="mb-5 text-xl font-bold text-gray-900 sm:mb-6 sm:text-2xl">Users</h1>
 
       {error && (
-        <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 flex items-center justify-between">
+        <div className="mb-6 flex flex-col gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 sm:flex-row sm:items-center sm:justify-between">
           <span>{error}</span>
           <button
             onClick={load}
@@ -45,9 +45,9 @@ export default function UsersPage() {
       )}
 
       {loading ? (
-        <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-4">
+        <div className="space-y-4 rounded-lg border border-gray-200 bg-white p-4 sm:p-6">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-4">
+            <div key={i} className="flex flex-wrap items-center gap-4">
               <Skeleton className="h-4 w-48" />
               <Skeleton className="h-5 w-12 rounded-full" />
               <Skeleton className="h-5 w-16 rounded-full" />
