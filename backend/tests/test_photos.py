@@ -233,17 +233,34 @@ def test_non_owner_cannot_delete_photo(api_client, other_user, event, checked_in
 @override_settings(DEFAULT_FILE_STORAGE='django.core.files.storage.InMemoryStorage')
 def test_owner_can_download_zip(auth_client, event, checked_in_invitation):
     image = _make_jpeg()
-    EventPhoto.objects.create(event=event, uploaded_by=checked_in_invitation, image=image)
+    photo = EventPhoto.objects.create(event=event, uploaded_by=checked_in_invitation, image=image)
     response = auth_client.get(f'/api/events/{event.id}/photos-download/')
     assert response.status_code == 200
     assert response['Content-Type'] == 'application/zip'
     assert 'attachment' in response['Content-Disposition']
+    # Verify it's a valid ZIP containing the photo
+    import zipfile as zf
+    import io
+    zip_bytes = io.BytesIO(response.content)
+    with zf.ZipFile(zip_bytes, 'r') as z:
+        names = z.namelist()
+    assert len(names) == 1
+    assert str(photo.id) in names[0]
 
 
 @pytest.mark.django_db
 def test_download_empty_album_returns_404(auth_client, event):
     response = auth_client.get(f'/api/events/{event.id}/photos-download/')
     assert response.status_code == 404
+
+
+@pytest.mark.django_db
+def test_non_owner_cannot_download_zip(other_user, event):
+    from rest_framework.test import APIClient
+    other_client = APIClient()
+    other_client.force_authenticate(user=other_user)
+    response = other_client.get(f'/api/events/{event.id}/photos-download/')
+    assert response.status_code in (403, 404)
 
 
 # ── VENUE QR ──────────────────────────────────────────────────────────────────
@@ -259,3 +276,12 @@ def test_owner_can_get_venue_qr(auth_client, event):
 def test_unauthenticated_cannot_get_venue_qr(api_client, event):
     response = api_client.get(f'/api/events/{event.id}/photo-qr/')
     assert response.status_code in (401, 403)
+
+
+@pytest.mark.django_db
+def test_non_owner_cannot_get_venue_qr(other_user, event):
+    from rest_framework.test import APIClient
+    other_client = APIClient()
+    other_client.force_authenticate(user=other_user)
+    response = other_client.get(f'/api/events/{event.id}/photo-qr/')
+    assert response.status_code in (403, 404)

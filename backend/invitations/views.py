@@ -1105,7 +1105,7 @@ class EventViewSet(viewsets.ModelViewSet):
                     ext = photo.image.name.rsplit('.', 1)[-1] if '.' in photo.image.name else 'jpg'
                     with photo.image.open('rb') as f:
                         zf.writestr(f"{photo.id}.{ext}", f.read())
-                except Exception:
+                except OSError:
                     continue  # skip unreadable files rather than aborting the whole zip
         buf.seek(0)
 
