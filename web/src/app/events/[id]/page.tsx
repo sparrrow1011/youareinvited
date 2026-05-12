@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { eventService, invitationService, authService, api, Event, Invitation, InvitationStats, AuthUser } from '@/lib/api';
+import { eventService, invitationService, authService, api, Event, Invitation, InvitationStats, AuthUser, EventPhoto } from '@/lib/api';
+import PhotoGallery from '@/components/PhotoGallery';
 import OrganizerWorkspaceHeader from '@/components/OrganizerWorkspaceHeader';
 import OrganizerWorkspaceSidebar from '@/components/OrganizerWorkspaceSidebar';
 import ZoneEditor, { Zones } from '@/components/ZoneEditor';
@@ -39,6 +40,12 @@ const EVENT_TABS = [
     label: 'Sharing',
     icon: 'share',
     description: 'Security access, WhatsApp copy, and event logistics.',
+  },
+  {
+    id: 'photos',
+    label: 'Photos',
+    icon: 'photo_camera',
+    description: 'Guest photo gallery, venue QR, and album download.',
   },
 ] as const;
 
@@ -94,6 +101,11 @@ export default function EventPage() {
   const [savingTheme, setSavingTheme] = useState(false);
   const [themeSaved, setThemeSaved] = useState(false);
   const [activeTab, setActiveTab] = useState<EventTab>('guests');
+
+  const [eventPhotos, setEventPhotos] = useState<EventPhoto[]>([]);
+  const [photosLoading, setPhotosLoading] = useState(false);
+  const [photosError, setPhotosError] = useState('');
+  const [showVenueQr, setShowVenueQr] = useState(false);
 
   const [selectedInvitationIds, setSelectedInvitationIds] = useState<Set<string>>(new Set());
   const [showBulkWhatsAppModal, setShowBulkWhatsAppModal] = useState(false);
@@ -180,6 +192,17 @@ export default function EventPage() {
     if (!event) return;
     loadInvitations(invitationPage, debouncedInvitationSearch);
   }, [invitationPage, debouncedInvitationSearch]);
+
+  useEffect(() => {
+    if (activeTab !== 'photos' || !event) return;
+    setPhotosLoading(true);
+    setPhotosError('');
+    eventService
+      .listPhotosAsOwner(event.id)
+      .then(setEventPhotos)
+      .catch(() => setPhotosError('Failed to load photos.'))
+      .finally(() => setPhotosLoading(false));
+  }, [activeTab, event]);
 
   // Poll for pending image generation after bulk import
   useEffect(() => {
@@ -1062,6 +1085,117 @@ export default function EventPage() {
                     eventDate={event?.date}
                     hasTemplate={Boolean(event?.background_image)}
                   />
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'photos' && event && (
+            <div className="space-y-6">
+              {/* Header row */}
+              <div className="flex flex-wrap items-center gap-3">
+                <h2 className="text-lg font-bold text-on-surface flex-1">
+                  Photo Gallery
+                  {eventPhotos.length > 0 && (
+                    <span className="ml-2 text-sm font-normal text-on-surface/50">
+                      {eventPhotos.length} photo{eventPhotos.length !== 1 ? 's' : ''}
+                    </span>
+                  )}
+                </h2>
+
+                {/* Venue QR button */}
+                <button
+                  onClick={() => setShowVenueQr(true)}
+                  className="flex items-center gap-1.5 h-9 px-4 rounded-full border border-outline/30
+                             text-sm font-medium text-on-surface hover:bg-surface-container transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[18px]">qr_code</span>
+                  Venue QR
+                </button>
+
+                {/* Download all */}
+                {eventPhotos.length > 0 && (
+                  <a
+                    href={eventService.photosDownloadUrl(event.id)}
+                    download
+                    className="flex items-center gap-1.5 h-9 px-4 rounded-full bg-brand text-white
+                               text-sm font-medium hover:bg-brand/90 transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-[18px]">download</span>
+                    Download All
+                  </a>
+                )}
+              </div>
+
+              {/* Error */}
+              {photosError && (
+                <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3">
+                  <p className="text-sm text-red-700">{photosError}</p>
+                </div>
+              )}
+
+              {/* Loading */}
+              {photosLoading ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <div key={i} className="aspect-square rounded-xl bg-surface-container animate-pulse" />
+                  ))}
+                </div>
+              ) : (
+                <PhotoGallery
+                  photos={eventPhotos}
+                  onDelete={async (photoId) => {
+                    if (!confirm('Delete this photo?')) return;
+                    try {
+                      await eventService.deletePhoto(event.id, photoId);
+                      setEventPhotos((prev) => prev.filter((p) => p.id !== photoId));
+                    } catch {
+                      alert('Could not delete the photo. Please try again.');
+                    }
+                  }}
+                />
+              )}
+
+              {/* Venue QR modal */}
+              {showVenueQr && (
+                <div
+                  className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+                  onClick={() => setShowVenueQr(false)}
+                >
+                  <div
+                    className="bg-surface rounded-3xl p-6 max-w-xs w-full shadow-xl"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-bold text-on-surface">Venue QR Code</h3>
+                      <button
+                        onClick={() => setShowVenueQr(false)}
+                        className="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center"
+                      >
+                        <span className="material-symbols-outlined text-base">close</span>
+                      </button>
+                    </div>
+                    <p className="text-xs text-on-surface/60 mb-4">
+                      Display this at your venue. Guests scan it with their camera app, then use their
+                      personal invite QR to verify check-in.
+                    </p>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={eventService.photoQrUrl(event.id)}
+                      alt="Venue QR code"
+                      className="w-full rounded-2xl"
+                    />
+                    <a
+                      href={eventService.photoQrUrl(event.id)}
+                      download={`${event.name}-photo-qr.png`}
+                      className="mt-3 w-full h-10 rounded-full border border-outline/30 text-sm font-medium
+                                 text-on-surface flex items-center justify-center gap-1.5 hover:bg-surface-container
+                                 transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-[16px]">download</span>
+                      Save QR Image
+                    </a>
+                  </div>
                 </div>
               )}
             </div>
