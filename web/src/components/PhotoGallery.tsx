@@ -7,9 +7,10 @@ import { EventPhoto } from '@/lib/api';
 interface PhotoGalleryProps {
   photos: EventPhoto[];
   onDelete?: (photoId: string) => void; // if provided, shows ✕ button per photo
+  showUploaderName?: boolean;           // if true, shows uploader name below each thumbnail
 }
 
-export default function PhotoGallery({ photos, onDelete }: PhotoGalleryProps) {
+export default function PhotoGallery({ photos, onDelete, showUploaderName }: PhotoGalleryProps) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   const closeLightbox = useCallback(() => setLightboxIndex(null), []);
@@ -54,33 +55,41 @@ export default function PhotoGallery({ photos, onDelete }: PhotoGalleryProps) {
       {/* Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
         {photos.map((photo, index) => (
-          <div key={photo.id} className="relative group aspect-square">
-            <button
-              onClick={() => setLightboxIndex(index)}
-              className="w-full h-full rounded-xl overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={resolveMediaUrl(photo.image_url)}
-                alt={`Event photo ${index + 1}`}
-                className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                loading="lazy"
-              />
-            </button>
-
-            {onDelete && (
+          <div key={photo.id} className="relative group flex flex-col">
+            <div className="relative aspect-square">
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete(photo.id);
-                }}
-                className="absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-black/60 text-white
-                           flex items-center justify-center opacity-0 group-hover:opacity-100
-                           transition-opacity hover:bg-red-600"
-                title="Delete photo"
+                onClick={() => setLightboxIndex(index)}
+                className="w-full h-full rounded-xl overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
               >
-                <span className="material-symbols-outlined text-[14px]">close</span>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={resolveMediaUrl(photo.image_url)}
+                  alt={`Event photo ${index + 1}`}
+                  className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                  loading="lazy"
+                />
               </button>
+
+              {onDelete && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(photo.id);
+                  }}
+                  className="absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-black/60 text-white
+                             flex items-center justify-center opacity-0 group-hover:opacity-100
+                             transition-opacity hover:bg-red-600"
+                  title="Delete photo"
+                >
+                  <span className="material-symbols-outlined text-[14px]">close</span>
+                </button>
+              )}
+            </div>
+
+            {showUploaderName && photo.uploaded_by_name && (
+              <p className="text-[11px] text-on-surface-variant truncate mt-1 px-0.5">
+                {photo.uploaded_by_name}
+              </p>
             )}
           </div>
         ))}
@@ -123,9 +132,17 @@ export default function PhotoGallery({ photos, onDelete }: PhotoGalleryProps) {
               alt={`Event photo ${lightboxIndex + 1}`}
               className="max-w-full max-h-[90vh] object-contain rounded-lg"
             />
-            <p className="text-center text-white/50 text-xs mt-2">
-              {lightboxIndex + 1} / {photos.length}
-            </p>
+            <div className="flex items-center justify-center gap-3 mt-2">
+              {showUploaderName && photos[lightboxIndex].uploaded_by_name && (
+                <p className="text-white/70 text-xs">
+                  <span className="text-white/40 mr-1">by</span>
+                  {photos[lightboxIndex].uploaded_by_name}
+                </p>
+              )}
+              <p className="text-white/40 text-xs">
+                {lightboxIndex + 1} / {photos.length}
+              </p>
+            </div>
           </div>
 
           {/* Next */}

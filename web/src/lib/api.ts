@@ -367,6 +367,7 @@ export interface EventPhoto {
   id: string;
   image_url: string;
   uploaded_at: string;
+  uploaded_by_name?: string | null;
 }
 
 export interface InvitationCreate {

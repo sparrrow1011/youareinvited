@@ -1049,12 +1049,13 @@ class EventViewSet(viewsets.ModelViewSet):
 
         # ── GET — list all photos ──────────────────────────────────────────────
         if request.method == 'GET':
-            photos_qs = EventPhoto.objects.filter(event=event)
+            photos_qs = EventPhoto.objects.filter(event=event).select_related('uploaded_by')
             data = [
                 {
                     'id': str(p.id),
                     'image_url': p.image.url,
                     'uploaded_at': p.uploaded_at.isoformat(),
+                    'uploaded_by_name': p.uploaded_by.name if p.uploaded_by else None,
                 }
                 for p in photos_qs
             ]

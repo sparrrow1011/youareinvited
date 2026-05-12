@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
-import { invitationService, Invitation, resolveMediaUrl } from '@/lib/api';
+import { invitationService, eventService, Invitation, EventPhoto, resolveMediaUrl } from '@/lib/api';
 import PoweredByFooter from '@/components/PoweredByFooter';
 import ThemeRenderer from '@/components/ThemeRenderer';
+import PhotoGallery from '@/components/PhotoGallery';
 
 export default function InviteClient({ id }: { id: string }) {
   const [invitation, setInvitation] = useState<Invitation | null>(null);
@@ -12,12 +13,30 @@ export default function InviteClient({ id }: { id: string }) {
   const [savingRsvp, setSavingRsvp] = useState(false);
   const [rsvpError, setRsvpError] = useState('');
 
+  // Photo gallery state
+  const [photos, setPhotos] = useState<EventPhoto[]>([]);
+  const [photosLoading, setPhotosLoading] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [uploadError, setUploadError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     invitationService.getById(id, { trackView: true })
       .then(setInvitation)
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [id]);
+
+  // Load photos once we know the guest is checked in
+  useEffect(() => {
+    if (!invitation?.checked_in) return;
+    setPhotosLoading(true);
+    eventService.listPhotos(invitation.event, invitation.id)
+      .then(setPhotos)
+      .catch(() => {})
+      .finally(() => setPhotosLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [invitation?.checked_in, invitation?.event, invitation?.id]);
 
   // ── Loading ──────────────────────────────────────────────────────────────
   if (loading) {
@@ -63,6 +82,23 @@ export default function InviteClient({ id }: { id: string }) {
     }
   };
 
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    // Reset input so the same file can be re-selected if needed
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    setUploadError('');
+    setUploadingPhoto(true);
+    try {
+      const newPhoto = await eventService.uploadPhoto(invitation.event, invitation.id, file);
+      setPhotos((prev) => [newPhoto, ...prev]);
+    } catch {
+      setUploadError('Could not upload photo. Please try again.');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
   const rsvpLabel = !invitation.rsvp_responded_at
     ? 'No RSVP yet'
     : invitation.rsvp_attending
@@ -101,6 +137,67 @@ export default function InviteClient({ id }: { id: string }) {
     </div>
   );
 
+  // ── Guest photo gallery (only visible after check-in) ────────────────────
+  const guestPhotoSection = invitation.checked_in ? (
+    <div className="w-full bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-xl overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-5 pt-5 pb-4">
+        <div>
+          <p className="text-xs font-label font-semibold text-brand uppercase tracking-widest mb-0.5">
+            Event Photos
+          </p>
+          <p className="font-headline text-lg text-on-lp-background">
+            {photos.length > 0
+              ? `${photos.length} photo${photos.length !== 1 ? 's' : ''}`
+              : 'Gallery'}
+          </p>
+        </div>
+
+        {/* Upload button — hidden file input */}
+        <label className="cursor-pointer">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="sr-only"
+            onChange={handlePhotoUpload}
+            disabled={uploadingPhoto}
+          />
+          <span
+            className={`flex items-center gap-1.5 bg-brand text-white text-sm font-semibold
+                        px-4 py-2 rounded-full transition-all select-none
+                        ${uploadingPhoto ? 'opacity-60 cursor-not-allowed' : 'hover:bg-brand/90 active:scale-95 cursor-pointer'}`}
+          >
+            <span
+              className="material-symbols-outlined text-[16px]"
+              style={{ fontVariationSettings: "'FILL' 1" }}
+            >
+              add_a_photo
+            </span>
+            {uploadingPhoto ? 'Uploading…' : 'Add Photo'}
+          </span>
+        </label>
+      </div>
+
+      {uploadError && (
+        <p className="px-5 pb-3 text-xs text-red-500">{uploadError}</p>
+      )}
+
+      {/* Gallery grid */}
+      <div className="px-5 pb-5">
+        {photosLoading ? (
+          <div className="grid grid-cols-3 gap-2">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="aspect-square bg-surface-container rounded-xl animate-pulse" />
+            ))}
+          </div>
+        ) : (
+          <PhotoGallery photos={photos} showUploaderName />
+        )}
+      </div>
+    </div>
+  ) : null;
+
   // ── Themed full-page experience ──────────────────────────────────────────
   if (invitation.event_theme) {
     const qrContent = invitation.qr_code ? (
@@ -125,8 +222,9 @@ export default function InviteClient({ id }: { id: string }) {
             ...invitation.event_theme_data,
           }}
         />
-        <div className="w-full max-w-lg px-4 sm:px-5 pb-10">
+        <div className="w-full max-w-lg px-4 sm:px-5 pb-10 flex flex-col gap-5">
           {rsvpCard}
+          {guestPhotoSection}
         </div>
       </div>
     );
@@ -195,6 +293,8 @@ export default function InviteClient({ id }: { id: string }) {
           </div>
 
           {rsvpCard}
+
+          {guestPhotoSection}
 
           {invitation.qr_code && (
             <div className="w-full bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-xl p-5 sm:p-6">
@@ -267,6 +367,8 @@ export default function InviteClient({ id }: { id: string }) {
         )}
 
         {rsvpCard}
+
+        {guestPhotoSection}
 
         {/* QR code */}
         {invitation.qr_code && (

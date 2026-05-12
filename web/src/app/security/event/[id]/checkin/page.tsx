@@ -414,7 +414,7 @@ function CheckInContent() {
               ) : 'Load'}
             </button>
           </div>
-          <div className="mt-3 flex flex-wrap items-center gap-3">
+          {/* <div className="mt-3 flex flex-wrap items-center gap-3">
             <button
               onClick={() => {
                 if (scannerOpen) {
@@ -436,7 +436,7 @@ function CheckInContent() {
                 QR scanning is not supported in this browser.
               </p>
             )}
-          </div>
+          </div> */}
           {scannerOpen && (
             <div className="mt-4 rounded-3xl border border-outline-variant/20 bg-on-lp-background p-3 text-white">
               <div className="relative overflow-hidden rounded-2xl bg-black">
@@ -511,19 +511,6 @@ function CheckInContent() {
                     )}
                   </div>
                 </div>
-                <a
-                  href={`/events/${eventId}/photos?invitation=${guest.id}`}
-                  className="w-full h-12 rounded-full border-2 border-brand text-brand font-semibold text-sm
-                             hover:bg-brand/5 active:bg-brand/10 transition-all flex items-center justify-center gap-2"
-                >
-                  <span
-                    className="material-symbols-outlined text-[18px]"
-                    style={{ fontVariationSettings: "'FILL' 1" }}
-                  >
-                    photo_camera
-                  </span>
-                  View &amp; Upload Event Photos
-                </a>
               </>
             ) : (
               <>
