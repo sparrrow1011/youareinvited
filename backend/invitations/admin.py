@@ -4,8 +4,8 @@ from .models import Invitation, UserProfile, Event
 
 @admin.register(Invitation)
 class InvitationAdmin(admin.ModelAdmin):
-    list_display = ['name', 'seat_number', 'tag', 'checked_in', 'checked_in_at', 'created_at']
-    list_filter = ['checked_in', 'tag', 'created_at']
+    list_display = ['name', 'seat_number', 'tag', 'rsvp_status', 'checked_in', 'checked_in_at', 'created_at']
+    list_filter = ['rsvp_attending', 'rsvp_responded_at', 'checked_in', 'tag', 'created_at']
     search_fields = ['name', 'seat_number', 'tag']
     readonly_fields = ['id', 'qr_code', 'e_invite_image', 'checked_in_at', 'created_at', 'updated_at']
     
@@ -19,6 +19,9 @@ class InvitationAdmin(admin.ModelAdmin):
         ('Check-in Status', {
             'fields': ('checked_in', 'checked_in_at')
         }),
+        ('RSVP Status', {
+            'fields': ('rsvp_attending', 'rsvp_responded_at')
+        }),
         ('Metadata', {
             'fields': ('id', 'created_at', 'updated_at'),
             'classes': ('collapse',)
@@ -26,6 +29,12 @@ class InvitationAdmin(admin.ModelAdmin):
     )
     
     actions = ['regenerate_images', 'mark_as_checked_in', 'undo_check_in']
+
+    def rsvp_status(self, obj):
+        if not obj.rsvp_responded_at:
+            return 'No RSVP'
+        return 'Coming' if obj.rsvp_attending else 'Not coming'
+    rsvp_status.short_description = 'RSVP'
     
     def regenerate_images(self, request, queryset):
         for invitation in queryset:

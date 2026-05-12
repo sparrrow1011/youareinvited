@@ -125,6 +125,8 @@ class Invitation(models.Model):
     link_share_count = models.PositiveIntegerField(default=0)
     checked_in = models.BooleanField(default=False)
     checked_in_at = models.DateTimeField(null=True, blank=True)
+    rsvp_attending = models.BooleanField(default=False)
+    rsvp_responded_at = models.DateTimeField(null=True, blank=True)
     phone_number = models.CharField(max_length=20, blank=True, null=True)
     whatsapp_sent_at = models.DateTimeField(null=True, blank=True)
     images_generated = models.BooleanField(default=False, db_index=True)
@@ -135,6 +137,8 @@ class Invitation(models.Model):
         ordering = ['-created_at']
         indexes = [
             models.Index(fields=['event', 'checked_in']),
+            models.Index(fields=['event', 'rsvp_attending']),
+            models.Index(fields=['event', 'rsvp_responded_at']),
             models.Index(fields=['event', 'first_viewed_at']),
             models.Index(fields=['event', 'checked_in_at']),
         ]
@@ -191,6 +195,13 @@ class Invitation(models.Model):
         share_field = 'whatsapp_share_count' if channel == 'whatsapp' else 'link_share_count'
         type(self).objects.filter(pk=self.pk).update(**{share_field: F(share_field) + 1})
         self.refresh_from_db(fields=[share_field])
+
+    def record_rsvp(self, attending: bool):
+        type(self).objects.filter(pk=self.pk).update(
+            rsvp_attending=attending,
+            rsvp_responded_at=timezone.now(),
+        )
+        self.refresh_from_db(fields=['rsvp_attending', 'rsvp_responded_at'])
 
     def generate_e_invite(self, show_watermark: bool = True):
         """Generate e-invite image. Uses uploaded template if available, else dark-theme card."""

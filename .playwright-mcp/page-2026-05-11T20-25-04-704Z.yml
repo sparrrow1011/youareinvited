@@ -1,0 +1,33 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e16]:
+    - complementary [ref=e17]:
+      - generic [ref=e18]:
+        - paragraph [ref=e19]: YouAreInvited
+        - paragraph [ref=e20]: Admin
+      - navigation [ref=e21]:
+        - link "Dashboard" [ref=e22] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e23]
+          - text: Dashboard
+        - link "Users" [ref=e28] [cursor=pointer]:
+          - /url: /users
+          - img [ref=e29]
+          - text: Users
+      - button "Logout" [ref=e35] [cursor=pointer]:
+        - img
+        - text: Logout
+    - main [ref=e36]:
+      - generic [ref=e37]:
+        - heading "Platform Overview" [level=1] [ref=e38]
+        - generic [ref=e39]:
+          - generic [ref=e40]: Failed to load platform stats.
+          - button "Retry" [ref=e41] [cursor=pointer]
+        - generic [ref=e42]:
+          - generic [ref=e43]:
+            - heading "New Signups — last 30 days" [level=2] [ref=e44]
+            - img [ref=e47]
+          - generic [ref=e51]:
+            - heading "Events Created — last 30 days" [level=2] [ref=e52]
+            - img [ref=e55]
+  - region "Notifications alt+T"
+  - alert [ref=e15]

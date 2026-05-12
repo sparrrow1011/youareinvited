@@ -346,6 +346,8 @@ export interface Invitation {
   e_invite_image: string;
   checked_in: boolean;
   checked_in_at: string | null;
+  rsvp_attending: boolean;
+  rsvp_responded_at: string | null;
   created_at: string;
   updated_at: string;
   invitation_url: string;
@@ -459,7 +461,7 @@ export const invitationService = {
 
   getForEvent: async (
     eventId: string,
-    options?: { page?: number; pageSize?: number; search?: string }
+    options?: { page?: number; pageSize?: number; search?: string; rsvp?: 'attending' | 'not_attending' | 'no_response' | '' }
   ): Promise<PaginatedInvitations> => {
     const response = await api.get<PaginatedInvitations>('/invitations/', {
       params: {
@@ -467,6 +469,7 @@ export const invitationService = {
         page: options?.page ?? 1,
         page_size: options?.pageSize ?? 20,
         search: options?.search || undefined,
+        rsvp: options?.rsvp || undefined,
       },
     });
     return response.data;
@@ -548,6 +551,11 @@ export const invitationService = {
 
   trackShare: async (id: string, channel: 'whatsapp' | 'link'): Promise<void> => {
     await api.post(`/invitations/${id}/track_share/`, { channel });
+  },
+
+  rsvp: async (id: string, attending: boolean): Promise<Invitation> => {
+    const response = await api.post<Invitation>(`/invitations/${id}/rsvp/`, { attending });
+    return response.data;
   },
 
   // Bulk import from CSV

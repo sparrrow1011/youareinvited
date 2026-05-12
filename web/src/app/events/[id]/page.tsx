@@ -51,6 +51,19 @@ const EVENT_TABS = [
 
 type EventTab = (typeof EVENT_TABS)[number]['id'];
 const INVITATIONS_PAGE_SIZE = 20;
+type RSVPFilter = '' | 'attending' | 'not_attending' | 'no_response';
+
+const getRSVPLabel = (invitation: Invitation) => {
+  if (!invitation.rsvp_responded_at) return 'No RSVP';
+  return invitation.rsvp_attending ? 'Coming' : 'Not coming';
+};
+
+const getRSVPBadgeClass = (invitation: Invitation) => {
+  if (!invitation.rsvp_responded_at) return 'bg-surface-container text-on-surface-variant';
+  return invitation.rsvp_attending
+    ? 'bg-brand-container/40 text-on-brand-container'
+    : 'bg-tertiary-container/25 text-tertiary';
+};
 
 const getPlanLabel = (plan?: AuthUser['plan']) => (
   plan === 'pro' ? 'Pro Organizer' : 'Free Organizer'
@@ -117,14 +130,16 @@ export default function EventPage() {
   const [invitationCount, setInvitationCount] = useState(0);
   const [invitationTotalPages, setInvitationTotalPages] = useState(1);
   const [invitationsLoading, setInvitationsLoading] = useState(false);
+  const [rsvpFilter, setRsvpFilter] = useState<RSVPFilter>('');
 
-  const loadInvitations = async (page = invitationPage, search = debouncedInvitationSearch) => {
+  const loadInvitations = async (page = invitationPage, search = debouncedInvitationSearch, rsvp = rsvpFilter) => {
     setInvitationsLoading(true);
     try {
       const result = await invitationService.getForEvent(id, {
         page,
         pageSize: INVITATIONS_PAGE_SIZE,
         search,
+        rsvp,
       });
       setInvitations(result.results);
       setInvitationCount(result.count);
@@ -152,6 +167,7 @@ export default function EventPage() {
           page: invitationPage,
           pageSize: INVITATIONS_PAGE_SIZE,
           search: debouncedInvitationSearch,
+          rsvp: rsvpFilter,
         }),
       ]);
       setUser(me);
@@ -190,8 +206,8 @@ export default function EventPage() {
 
   useEffect(() => {
     if (!event) return;
-    loadInvitations(invitationPage, debouncedInvitationSearch);
-  }, [invitationPage, debouncedInvitationSearch]);
+    loadInvitations(invitationPage, debouncedInvitationSearch, rsvpFilter);
+  }, [invitationPage, debouncedInvitationSearch, rsvpFilter]);
 
   useEffect(() => {
     if (activeTab !== 'photos' || !event) return;
@@ -719,7 +735,7 @@ export default function EventPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-xs text-on-surface-variant">
-                    {debouncedInvitationSearch
+                    {debouncedInvitationSearch || rsvpFilter
                       ? `${invitationCount} match${invitationCount !== 1 ? 'es' : ''}`
                       : `${stats?.total_invitations ?? invitationCount} guest${(stats?.total_invitations ?? invitationCount) !== 1 ? 's' : ''}`}
                   </span>
@@ -733,19 +749,42 @@ export default function EventPage() {
                 </div>
               </div>
 
-              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <label className="relative block w-full sm:max-w-md">
-                  <span className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-on-surface-variant">
-                    search
-                  </span>
-                  <input
-                    type="search"
-                    value={invitationSearch}
-                    onChange={(event) => setInvitationSearch(event.target.value)}
-                    placeholder="Search guests, seats, tags, or phone numbers"
-                    className="h-11 w-full rounded-full border border-outline-variant/20 bg-white/70 pl-10 pr-4 text-sm text-on-surface outline-none transition focus:border-brand/40 focus:ring-2 focus:ring-brand/20"
-                  />
-                </label>
+              <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div className="flex w-full flex-col gap-3 sm:flex-row lg:max-w-3xl">
+                  <label className="relative block w-full sm:max-w-md">
+                    <span className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-on-surface-variant">
+                      search
+                    </span>
+                    <input
+                      type="search"
+                      value={invitationSearch}
+                      onChange={(event) => setInvitationSearch(event.target.value)}
+                      placeholder="Search guests, seats, tags, or phone numbers"
+                      className="h-11 w-full rounded-full border border-outline-variant/20 bg-white/70 pl-10 pr-4 text-sm text-on-surface outline-none transition focus:border-brand/40 focus:ring-2 focus:ring-brand/20"
+                    />
+                  </label>
+                  <label className="relative block w-full sm:max-w-56">
+                    <span className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-on-surface-variant">
+                      event_available
+                    </span>
+                    <select
+                      value={rsvpFilter}
+                      onChange={(event) => {
+                        setRsvpFilter(event.target.value as RSVPFilter);
+                        setInvitationPage(1);
+                      }}
+                      className="h-11 w-full appearance-none rounded-full border border-outline-variant/20 bg-white/70 pl-10 pr-8 text-sm text-on-surface outline-none transition focus:border-brand/40 focus:ring-2 focus:ring-brand/20"
+                    >
+                      <option value="">All RSVPs</option>
+                      <option value="attending">Coming</option>
+                      <option value="not_attending">Not coming</option>
+                      <option value="no_response">No response</option>
+                    </select>
+                    <span className="material-symbols-outlined pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[18px] text-on-surface-variant">
+                      expand_more
+                    </span>
+                  </label>
+                </div>
                 {invitationCount > 0 && (
                   <span className="text-xs text-on-surface-variant">
                     Showing {(invitationPage - 1) * INVITATIONS_PAGE_SIZE + 1}-{Math.min(invitationPage * INVITATIONS_PAGE_SIZE, invitationCount)} of {invitationCount}
@@ -765,9 +804,9 @@ export default function EventPage() {
                       {debouncedInvitationSearch ? 'search_off' : 'group_add'}
                     </span>
                     <p className="text-on-surface-variant text-sm mb-4">
-                      {debouncedInvitationSearch ? 'No guests match your search.' : 'No guests yet.'}
+                      {debouncedInvitationSearch || rsvpFilter ? 'No guests match your filters.' : 'No guests yet.'}
                     </p>
-                    {!debouncedInvitationSearch && (
+                    {!debouncedInvitationSearch && !rsvpFilter && (
                       <button
                         onClick={openAddForm}
                         className="px-6 py-2.5 bg-brand text-white rounded-full text-sm font-medium"
@@ -801,6 +840,9 @@ export default function EventPage() {
                                       {inv.tag}
                                     </span>
                                   )}
+                                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getRSVPBadgeClass(inv)}`}>
+                                    {getRSVPLabel(inv)}
+                                  </span>
                                 </div>
                               </div>
                             </div>
@@ -914,16 +956,25 @@ export default function EventPage() {
                                       {inv.tag}
                                     </span>
                                   )}
+                                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getRSVPBadgeClass(inv)}`}>
+                                    {getRSVPLabel(inv)}
+                                  </span>
                                 </div>
                               </td>
                               <td className="px-6 py-4">
-                                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${inv.checked_in
-                                  ? 'bg-brand-container/40 text-on-brand-container'
-                                  : 'bg-surface-container text-on-surface-variant'
-                                  }`}>
-                                  <span className={`w-1.5 h-1.5 rounded-full ${inv.checked_in ? 'bg-brand' : 'bg-outline-variant'}`} />
-                                  {inv.checked_in ? 'Checked In' : 'Pending'}
-                                </span>
+                                <div className="flex flex-wrap gap-2">
+                                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${inv.checked_in
+                                    ? 'bg-brand-container/40 text-on-brand-container'
+                                    : 'bg-surface-container text-on-surface-variant'
+                                    }`}>
+                                    <span className={`w-1.5 h-1.5 rounded-full ${inv.checked_in ? 'bg-brand' : 'bg-outline-variant'}`} />
+                                    {inv.checked_in ? 'Checked In' : 'Pending'}
+                                  </span>
+                                  <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${getRSVPBadgeClass(inv)}`}>
+                                    <span className={`w-1.5 h-1.5 rounded-full ${inv.rsvp_responded_at ? (inv.rsvp_attending ? 'bg-brand' : 'bg-tertiary') : 'bg-outline-variant'}`} />
+                                    {getRSVPLabel(inv)}
+                                  </span>
+                                </div>
                               </td>
                               <td className="px-6 py-4">
                                 <div className="flex items-center gap-2 opacity-70 group-hover:opacity-100 transition-opacity">

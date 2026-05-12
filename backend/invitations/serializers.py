@@ -53,6 +53,8 @@ class InvitationSerializer(serializers.ModelSerializer):
             'e_invite_image',
             'checked_in',
             'checked_in_at',
+            'rsvp_attending',
+            'rsvp_responded_at',
             'phone_number',
             'whatsapp_sent_at',
             'created_at',
@@ -66,7 +68,7 @@ class InvitationSerializer(serializers.ModelSerializer):
         read_only_fields = [
             'id', 'event', 'qr_code', 'e_invite_image',
             'checked_in_at', 'created_at', 'updated_at',
-            'whatsapp_sent_at',
+            'whatsapp_sent_at', 'rsvp_responded_at',
         ]
 
     def get_event_has_template(self, obj):
@@ -133,6 +135,10 @@ class InvitationCreateSerializer(serializers.ModelSerializer):
 class CheckInSerializer(serializers.Serializer):
     checked_in = serializers.BooleanField(read_only=True)
     checked_in_at = serializers.DateTimeField(read_only=True)
+
+
+class RSVPSerializer(serializers.Serializer):
+    attending = serializers.BooleanField()
 
 
 from .models import Event

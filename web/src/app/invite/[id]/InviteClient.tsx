@@ -9,6 +9,8 @@ import ThemeRenderer from '@/components/ThemeRenderer';
 export default function InviteClient({ id }: { id: string }) {
   const [invitation, setInvitation] = useState<Invitation | null>(null);
   const [loading, setLoading] = useState(true);
+  const [savingRsvp, setSavingRsvp] = useState(false);
+  const [rsvpError, setRsvpError] = useState('');
 
   useEffect(() => {
     invitationService.getById(id, { trackView: true })
@@ -41,6 +43,57 @@ export default function InviteClient({ id }: { id: string }) {
     );
   }
 
+  const handleRsvpChange = async (attending: boolean) => {
+    setSavingRsvp(true);
+    setRsvpError('');
+    try {
+      const updated = await invitationService.rsvp(invitation.id, attending);
+      setInvitation(updated);
+    } catch {
+      setRsvpError('Could not save your RSVP. Please try again.');
+    } finally {
+      setSavingRsvp(false);
+    }
+  };
+
+  const rsvpLabel = !invitation.rsvp_responded_at
+    ? 'No RSVP yet'
+    : invitation.rsvp_attending
+      ? 'You are attending'
+      : 'You are not attending';
+
+  const rsvpCard = (
+    <div className="w-full bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-xl p-5 sm:p-6">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs font-label font-semibold text-brand uppercase tracking-widest mb-1">RSVP</p>
+          <h2 className="font-headline text-xl text-on-lp-background">Will you attend?</h2>
+          <p className="mt-1 text-sm text-on-surface-variant">{rsvpLabel}</p>
+        </div>
+        <label className="relative inline-flex cursor-pointer items-center">
+          <input
+            type="checkbox"
+            checked={Boolean(invitation.rsvp_responded_at && invitation.rsvp_attending)}
+            onChange={(event) => handleRsvpChange(event.target.checked)}
+            disabled={savingRsvp}
+            className="peer sr-only"
+            aria-label="Yes, I will be attending"
+          />
+          <span className="h-7 w-12 rounded-full bg-surface-container-high transition peer-checked:bg-brand peer-disabled:opacity-50" />
+          <span className="absolute left-1 top-1 h-5 w-5 rounded-full bg-white shadow-sm transition peer-checked:translate-x-5" />
+        </label>
+      </div>
+      <div className="mt-4 flex items-center gap-2 rounded-2xl bg-surface-container/70 px-4 py-3">
+        <span className={`material-symbols-outlined text-[18px] ${invitation.rsvp_responded_at && invitation.rsvp_attending ? 'text-brand' : 'text-on-surface-variant'}`}>
+          {invitation.rsvp_responded_at && invitation.rsvp_attending ? 'event_available' : 'event_busy'}
+        </span>
+        <span className="text-sm font-semibold text-on-surface">Yes, I will be attending</span>
+      </div>
+      {savingRsvp && <p className="mt-3 text-xs text-on-surface-variant">Saving RSVP...</p>}
+      {rsvpError && <p className="mt-3 text-xs text-tertiary">{rsvpError}</p>}
+    </div>
+  );
+
   // ── Themed full-page experience ──────────────────────────────────────────
   if (invitation.event_theme) {
     const qrContent = invitation.qr_code ? (
@@ -65,6 +118,9 @@ export default function InviteClient({ id }: { id: string }) {
             ...invitation.event_theme_data,
           }}
         />
+        <div className="w-full max-w-lg px-4 sm:px-5 pb-10">
+          {rsvpCard}
+        </div>
       </div>
     );
   }
@@ -130,6 +186,8 @@ export default function InviteClient({ id }: { id: string }) {
               </div>
             )}
           </div>
+
+          {rsvpCard}
 
           {invitation.qr_code && (
             <div className="w-full bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-xl p-5 sm:p-6">
@@ -200,6 +258,8 @@ export default function InviteClient({ id }: { id: string }) {
             />
           </div>
         )}
+
+        {rsvpCard}
 
         {/* QR code */}
         {invitation.qr_code && (
