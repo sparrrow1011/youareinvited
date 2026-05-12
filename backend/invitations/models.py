@@ -43,6 +43,12 @@ def invitation_einvite_path(instance, filename):
     return f"{_safe_username(owner)}/{slugify(instance.event.name)}/invites/{instance.id}.png"
 
 
+def event_photo_upload_path(instance, filename):
+    ext = filename.rsplit('.', 1)[-1] if '.' in filename else 'jpg'
+    owner = instance.event.owner
+    return f"{_safe_username(owner)}/{slugify(instance.event.name)}/photos/{instance.id}.{ext}"
+
+
 class UserProfile(models.Model):
     PLAN_CHOICES = [('free', 'Free'), ('pro', 'Pro')]
 
@@ -472,3 +478,25 @@ class Invitation(models.Model):
 
         # Call parent delete
         super().delete(*args, **kwargs)
+
+
+class EventPhoto(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    event = models.ForeignKey(
+        Event, on_delete=models.CASCADE, related_name='photos'
+    )
+    uploaded_by = models.ForeignKey(
+        Invitation,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='uploaded_photos',
+    )
+    image = models.ImageField(upload_to=event_photo_upload_path)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-uploaded_at']
+
+    def __str__(self):
+        return f"Photo {self.id} for {self.event.name}"
