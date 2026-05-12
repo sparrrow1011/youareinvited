@@ -19,7 +19,7 @@ from django.utils import timezone
 from django.db import transaction
 from django.db.models import Q
 from django.db.utils import OperationalError, ProgrammingError
-from .models import Invitation, Event
+from .models import Invitation, Event, EventPhoto
 from .serializers import (
     InvitationSerializer,
     InvitationCreateSerializer,
@@ -913,7 +913,7 @@ class EventViewSet(viewsets.ModelViewSet):
         serializer.save(owner=self.request.user)
 
     def get_permissions(self):
-        if self.action in ('public_info', 'verify_security_pin'):
+        if self.action in ('public_info', 'verify_security_pin', 'photos'):
             return []
         return [IsAuthenticated()]
 
@@ -979,6 +979,95 @@ class EventViewSet(viewsets.ModelViewSet):
             salt='security-checkin'
         )
         return Response({'token': token})
+
+    @action(detail=True, methods=['get', 'post'], url_path='photos', throttle_classes=[])
+    def photos(self, request, pk=None):
+        """
+        GET  /api/events/{id}/photos/?invitation={uuid}  — list photos (guest or owner)
+        POST /api/events/{id}/photos/?invitation={uuid}  — upload a photo (guest only)
+        """
+        event = get_object_or_404(Event, pk=pk)
+
+        # Owners may list photos using their JWT without an invitation param.
+        is_owner = (
+            request.user.is_authenticated
+            and event.owner_id == request.user.id
+        )
+
+        if not is_owner:
+            # Guest path — require a checked-in invitation UUID.
+            invitation_id = request.query_params.get('invitation')
+            if not invitation_id:
+                return Response(
+                    {'detail': 'invitation query param is required.'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            try:
+                invitation = Invitation.objects.get(pk=invitation_id, event=event)
+            except (Invitation.DoesNotExist, Exception):
+                return Response(
+                    {'detail': 'Invalid invitation.'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            if not invitation.checked_in:
+                return Response(
+                    {'detail': 'You must be checked in to access event photos.'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+        else:
+            invitation = None  # owner, no uploader attribution
+
+        # ── GET — list all photos ──────────────────────────────────────────────
+        if request.method == 'GET':
+            photos_qs = EventPhoto.objects.filter(event=event)
+            data = [
+                {
+                    'id': str(p.id),
+                    'image_url': p.image.url,
+                    'uploaded_at': p.uploaded_at.isoformat(),
+                }
+                for p in photos_qs
+            ]
+            return Response(data)
+
+        # ── POST — upload a photo ─────────────────────────────────────────────
+        if is_owner:
+            return Response(
+                {'detail': 'Use a guest invitation to upload photos.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        image = request.FILES.get('image')
+        if not image:
+            return Response(
+                {'detail': 'image field is required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if image.size > 10 * 1024 * 1024:
+            return Response(
+                {'detail': 'Image must be 10 MB or smaller.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        allowed_types = {'image/jpeg', 'image/png', 'image/webp'}
+        if image.content_type not in allowed_types:
+            return Response(
+                {'detail': 'Only JPEG, PNG, and WEBP images are allowed.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        photo = EventPhoto.objects.create(
+            event=event,
+            uploaded_by=invitation,
+            image=image,
+        )
+        return Response(
+            {
+                'id': str(photo.id),
+                'image_url': photo.image.url,
+                'uploaded_at': photo.uploaded_at.isoformat(),
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
     @action(detail=True, methods=['post'])
     def set_security_pin(self, request, pk=None):
