@@ -41,6 +41,7 @@ services:
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
       AWS_STORAGE_BUCKET_NAME: ${AWS_STORAGE_BUCKET_NAME:-}
       USE_S3_STORAGE: ${USE_S3_STORAGE:-False}
+      SUPER_ADMIN_ORIGIN: ${SUPER_ADMIN_ORIGIN:-}
     # Bind to localhost only — nginx handles public traffic
     ports:
       - "127.0.0.1:8000:8000"
