@@ -328,6 +328,12 @@ export const eventService = {
 
   photoQrUrl: (eventId: string): string =>
     buildApiUrl(`/events/${eventId}/photo-qr/`),
+
+  /** Fetch the venue QR PNG via axios (carries JWT) and return a blob object URL. */
+  fetchPhotoQrBlob: async (eventId: string): Promise<string> => {
+    const res = await api.get(`/events/${eventId}/photo-qr/`, { responseType: 'blob' });
+    return URL.createObjectURL(res.data);
+  },
 };
 
 export interface Invitation {
@@ -365,8 +371,8 @@ export interface EventPhoto {
 
 export interface InvitationCreate {
   name: string;
-  seat_number: string;
-  tag: string;
+  seat_number?: string;
+  tag?: string;
   phone_number?: string;
 }
 

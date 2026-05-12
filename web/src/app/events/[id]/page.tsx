@@ -119,6 +119,7 @@ export default function EventPage() {
   const [photosLoading, setPhotosLoading] = useState(false);
   const [photosError, setPhotosError] = useState('');
   const [showVenueQr, setShowVenueQr] = useState(false);
+  const [venueQrBlobUrl, setVenueQrBlobUrl] = useState<string | null>(null);
 
   const [selectedInvitationIds, setSelectedInvitationIds] = useState<Set<string>>(new Set());
   const [showBulkWhatsAppModal, setShowBulkWhatsAppModal] = useState(false);
@@ -219,6 +220,19 @@ export default function EventPage() {
       .catch(() => setPhotosError('Failed to load photos.'))
       .finally(() => setPhotosLoading(false));
   }, [activeTab, event]);
+
+  // Fetch venue QR via axios (carries JWT) when the modal opens; revoke blob URL on close.
+  useEffect(() => {
+    if (!showVenueQr || !event) {
+      if (venueQrBlobUrl) {
+        URL.revokeObjectURL(venueQrBlobUrl);
+        setVenueQrBlobUrl(null);
+      }
+      return;
+    }
+    eventService.fetchPhotoQrBlob(event.id).then(setVenueQrBlobUrl).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showVenueQr, event]);
 
   // Poll for pending image generation after bulk import
   useEffect(() => {
@@ -1230,22 +1244,28 @@ export default function EventPage() {
                       Display this at your venue. Guests scan it with their camera app, then use their
                       personal invite QR to verify check-in.
                     </p>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={eventService.photoQrUrl(event.id)}
-                      alt="Venue QR code"
-                      className="w-full rounded-2xl"
-                    />
-                    <a
-                      href={eventService.photoQrUrl(event.id)}
-                      download={`${event.name}-photo-qr.png`}
-                      className="mt-3 w-full h-10 rounded-full border border-outline/30 text-sm font-medium
-                                 text-on-surface flex items-center justify-center gap-1.5 hover:bg-surface-container
-                                 transition-colors"
-                    >
-                      <span className="material-symbols-outlined text-[16px]">download</span>
-                      Save QR Image
-                    </a>
+                    {venueQrBlobUrl ? (
+                      <>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={venueQrBlobUrl}
+                          alt="Venue QR code"
+                          className="w-full rounded-2xl"
+                        />
+                        <a
+                          href={venueQrBlobUrl}
+                          download={`${event.name}-photo-qr.png`}
+                          className="mt-3 w-full h-10 rounded-full border border-outline/30 text-sm font-medium
+                                     text-on-surface flex items-center justify-center gap-1.5 hover:bg-surface-container
+                                     transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-[16px]">download</span>
+                          Save QR Image
+                        </a>
+                      </>
+                    ) : (
+                      <div className="w-full aspect-square rounded-2xl bg-surface-container animate-pulse" />
+                    )}
                   </div>
                 </div>
               )}
