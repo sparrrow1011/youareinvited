@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { resolveMediaUrl } from '@/lib/api';
 import { EventPhoto } from '@/lib/api';
 
@@ -26,11 +26,28 @@ export default function PhotoGallery({ photos, onDelete }: PhotoGalleryProps) {
     );
   }
 
-  const closeLightbox = () => setLightboxIndex(null);
-  const prev = () =>
-    setLightboxIndex((i) => (i !== null ? (i - 1 + photos.length) % photos.length : null));
-  const next = () =>
-    setLightboxIndex((i) => (i !== null ? (i + 1) % photos.length : null));
+  const closeLightbox = useCallback(() => setLightboxIndex(null), []);
+  const prev = useCallback(
+    () => setLightboxIndex((i) => (i !== null ? (i - 1 + photos.length) % photos.length : null)),
+    [photos.length],
+  );
+  const next = useCallback(
+    () => setLightboxIndex((i) => (i !== null ? (i + 1) % photos.length : null)),
+    [photos.length],
+  );
+
+  useEffect(() => {
+    if (lightboxIndex === null) return;
+
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeLightbox();
+      else if (e.key === 'ArrowLeft') prev();
+      else if (e.key === 'ArrowRight') next();
+    };
+
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [lightboxIndex, closeLightbox, prev, next]);
 
   return (
     <>
@@ -72,6 +89,9 @@ export default function PhotoGallery({ photos, onDelete }: PhotoGalleryProps) {
       {/* Lightbox */}
       {lightboxIndex !== null && (
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Photo viewer"
           className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center"
           onClick={closeLightbox}
         >
