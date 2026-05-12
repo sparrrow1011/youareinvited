@@ -1,8 +1,13 @@
 import csv
 import io
 import logging
+import zipfile
 from collections import Counter, defaultdict
+from io import BytesIO
 from urllib.parse import quote
+
+import qrcode as qrcode_module
+from django.utils.text import slugify
 
 from django.conf import settings
 from django.core.paginator import EmptyPage, Paginator
@@ -1068,6 +1073,63 @@ class EventViewSet(viewsets.ModelViewSet):
             },
             status=status.HTTP_201_CREATED,
         )
+
+    @action(
+        detail=True,
+        methods=['delete'],
+        url_path=r'photos/(?P<photo_id>[^/.]+)',
+    )
+    def delete_photo(self, request, pk=None, photo_id=None):
+        """DELETE /api/events/{id}/photos/{photo_id}/ — owner only."""
+        event = self.get_object()  # raises 404 if not owner (queryset is scoped)
+        photo = get_object_or_404(EventPhoto, pk=photo_id, event=event)
+        photo.image.delete(save=False)
+        photo.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=['get'], url_path='photos-download')
+    def photos_download(self, request, pk=None):
+        """GET /api/events/{id}/photos-download/ — stream zip of all photos (owner only)."""
+        event = self.get_object()
+        photos_qs = EventPhoto.objects.filter(event=event)
+        if not photos_qs.exists():
+            return Response(
+                {'detail': 'No photos to download.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
+            for photo in photos_qs:
+                try:
+                    ext = photo.image.name.rsplit('.', 1)[-1] if '.' in photo.image.name else 'jpg'
+                    with photo.image.open('rb') as f:
+                        zf.writestr(f"{photo.id}.{ext}", f.read())
+                except Exception:
+                    continue  # skip unreadable files rather than aborting the whole zip
+        buf.seek(0)
+
+        event_slug = slugify(event.name) or str(event.id)
+        response = HttpResponse(buf.read(), content_type='application/zip')
+        response['Content-Disposition'] = f'attachment; filename="{event_slug}-photos.zip"'
+        return response
+
+    @action(detail=True, methods=['get'], url_path='photo-qr')
+    def photo_qr(self, request, pk=None):
+        """GET /api/events/{id}/photo-qr/ — return venue QR PNG (owner only)."""
+        event = self.get_object()
+        frontend_url = settings.FRONTEND_URL.rstrip('/')
+        upload_url = f"{frontend_url}/events/{event.id}/photos"
+
+        qr = qrcode_module.QRCode(box_size=10, border=4)
+        qr.add_data(upload_url)
+        qr.make(fit=True)
+        img = qr.make_image(fill_color='black', back_color='white')
+
+        buf = BytesIO()
+        img.save(buf, format='PNG')
+        buf.seek(0)
+        return HttpResponse(buf.read(), content_type='image/png')
 
     @action(detail=True, methods=['post'])
     def set_security_pin(self, request, pk=None):

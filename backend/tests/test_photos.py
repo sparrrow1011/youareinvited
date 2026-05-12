@@ -196,3 +196,66 @@ def test_owner_can_list_photos_without_invitation(auth_client, event, checked_in
     response = auth_client.get(f'/api/events/{event.id}/photos/')
     assert response.status_code == 200
     assert len(response.data) == 1
+
+
+# ── DELETE ────────────────────────────────────────────────────────────────────
+
+@pytest.mark.django_db
+@override_settings(DEFAULT_FILE_STORAGE='django.core.files.storage.InMemoryStorage')
+def test_owner_can_delete_photo(auth_client, user, event, checked_in_invitation):
+    image = _make_jpeg()
+    photo = EventPhoto.objects.create(
+        event=event, uploaded_by=checked_in_invitation, image=image
+    )
+    response = auth_client.delete(f'/api/events/{event.id}/photos/{photo.id}/')
+    assert response.status_code == 204
+    assert EventPhoto.objects.filter(pk=photo.id).count() == 0
+
+
+@pytest.mark.django_db
+@override_settings(DEFAULT_FILE_STORAGE='django.core.files.storage.InMemoryStorage')
+def test_non_owner_cannot_delete_photo(api_client, other_user, event, checked_in_invitation):
+    from rest_framework.test import APIClient
+    other_client = APIClient()
+    other_client.force_authenticate(user=other_user)
+    image = _make_jpeg()
+    photo = EventPhoto.objects.create(
+        event=event, uploaded_by=checked_in_invitation, image=image
+    )
+    response = other_client.delete(f'/api/events/{event.id}/photos/{photo.id}/')
+    assert response.status_code in (403, 404)
+    assert EventPhoto.objects.filter(pk=photo.id).count() == 1
+
+
+# ── DOWNLOAD ──────────────────────────────────────────────────────────────────
+
+@pytest.mark.django_db
+@override_settings(DEFAULT_FILE_STORAGE='django.core.files.storage.InMemoryStorage')
+def test_owner_can_download_zip(auth_client, event, checked_in_invitation):
+    image = _make_jpeg()
+    EventPhoto.objects.create(event=event, uploaded_by=checked_in_invitation, image=image)
+    response = auth_client.get(f'/api/events/{event.id}/photos-download/')
+    assert response.status_code == 200
+    assert response['Content-Type'] == 'application/zip'
+    assert 'attachment' in response['Content-Disposition']
+
+
+@pytest.mark.django_db
+def test_download_empty_album_returns_404(auth_client, event):
+    response = auth_client.get(f'/api/events/{event.id}/photos-download/')
+    assert response.status_code == 404
+
+
+# ── VENUE QR ──────────────────────────────────────────────────────────────────
+
+@pytest.mark.django_db
+def test_owner_can_get_venue_qr(auth_client, event):
+    response = auth_client.get(f'/api/events/{event.id}/photo-qr/')
+    assert response.status_code == 200
+    assert response['Content-Type'] == 'image/png'
+
+
+@pytest.mark.django_db
+def test_unauthenticated_cannot_get_venue_qr(api_client, event):
+    response = api_client.get(f'/api/events/{event.id}/photo-qr/')
+    assert response.status_code in (401, 403)
