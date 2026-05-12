@@ -2,6 +2,7 @@ import csv
 import io
 import logging
 import zipfile
+from PIL import Image as PilImage
 from collections import Counter, defaultdict
 from io import BytesIO
 from urllib.parse import quote
@@ -29,6 +30,7 @@ from .serializers import (
     InvitationSerializer,
     InvitationCreateSerializer,
     CheckInSerializer,
+    RSVPSerializer,
     EventSerializer,
     SetSecurityPinSerializer,
 )
@@ -37,6 +39,10 @@ from invitations.twilio_service import TwilioWhatsAppSender
 logger = logging.getLogger(__name__)
 
 SECURITY_TOKEN_MAX_AGE = 43200  # 12 hours in seconds
+
+
+class PhotoUploadThrottle(AnonRateThrottle):
+    rate = '30/min'
 
 
 def media_storage_unavailable_response(detail: str) -> Response | None:
@@ -257,6 +263,14 @@ class InvitationViewSet(viewsets.ModelViewSet):
                 Q(phone_number__icontains=search)
             )
 
+        rsvp = self.request.query_params.get('rsvp', '').strip().lower()
+        if rsvp == 'attending':
+            queryset = queryset.filter(rsvp_responded_at__isnull=False, rsvp_attending=True)
+        elif rsvp == 'not_attending':
+            queryset = queryset.filter(rsvp_responded_at__isnull=False, rsvp_attending=False)
+        elif rsvp == 'no_response':
+            queryset = queryset.filter(rsvp_responded_at__isnull=True)
+
         return queryset
 
     def list(self, request, *args, **kwargs):
@@ -309,7 +323,7 @@ class InvitationViewSet(viewsets.ModelViewSet):
         return Response(payload)
 
     def get_permissions(self):
-        if self.action in ('retrieve', 'check_in', 'track_share'):
+        if self.action in ('retrieve', 'check_in', 'track_share', 'rsvp'):
             # Guests can view their invitation; check_in handles its own auth logic
             return []
         if self.action in ('admin_undo_check_in', 'regenerate_images'):
@@ -370,6 +384,17 @@ class InvitationViewSet(viewsets.ModelViewSet):
             'whatsapp_share_count': invitation.whatsapp_share_count,
             'link_share_count': invitation.link_share_count,
         })
+
+    @action(detail=True, methods=['post'], permission_classes=[], authentication_classes=[])
+    def rsvp(self, request, pk=None):
+        invitation = get_object_or_404(
+            Invitation.objects.select_related('event__owner__profile'),
+            pk=pk,
+        )
+        serializer = RSVPSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        invitation.record_rsvp(serializer.validated_data['attending'])
+        return Response(self.get_serializer(invitation).data)
 
     @action(detail=True, methods=['post'], permission_classes=[])
     def check_in(self, request, pk=None):
@@ -985,7 +1010,7 @@ class EventViewSet(viewsets.ModelViewSet):
         )
         return Response({'token': token})
 
-    @action(detail=True, methods=['get', 'post'], url_path='photos', permission_classes=[], throttle_classes=[])
+    @action(detail=True, methods=['get', 'post'], url_path='photos', permission_classes=[], throttle_classes=[PhotoUploadThrottle])
     def photos(self, request, pk=None):
         """
         GET  /api/events/{id}/photos/?invitation={uuid}  — list photos (guest or owner)
@@ -1057,6 +1082,17 @@ class EventViewSet(viewsets.ModelViewSet):
         if image.content_type not in allowed_types:
             return Response(
                 {'detail': 'Only JPEG, PNG, and WEBP images are allowed.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Verify the file is actually a valid image (not just a spoofed Content-Type)
+        try:
+            img_check = PilImage.open(image)
+            img_check.verify()
+            image.seek(0)  # reset after verify() consumed the buffer
+        except Exception:
+            return Response(
+                {'detail': 'File is not a valid image.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 

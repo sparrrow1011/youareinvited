@@ -12,20 +12,6 @@ interface PhotoGalleryProps {
 export default function PhotoGallery({ photos, onDelete }: PhotoGalleryProps) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
-  if (photos.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 text-center">
-        <span
-          className="material-symbols-outlined text-5xl text-on-surface/30 mb-3"
-          style={{ fontVariationSettings: "'FILL' 0" }}
-        >
-          photo_library
-        </span>
-        <p className="text-on-surface/50 text-sm">No photos yet. Be the first to upload!</p>
-      </div>
-    );
-  }
-
   const closeLightbox = useCallback(() => setLightboxIndex(null), []);
   const prev = useCallback(
     () => setLightboxIndex((i) => (i !== null ? (i - 1 + photos.length) % photos.length : null)),
@@ -48,6 +34,20 @@ export default function PhotoGallery({ photos, onDelete }: PhotoGalleryProps) {
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
   }, [lightboxIndex, closeLightbox, prev, next]);
+
+  if (photos.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-center">
+        <span
+          className="material-symbols-outlined text-5xl text-on-surface/30 mb-3"
+          style={{ fontVariationSettings: "'FILL' 0" }}
+        >
+          photo_library
+        </span>
+        <p className="text-on-surface/50 text-sm">No photos yet. Be the first to upload!</p>
+      </div>
+    );
+  }
 
   return (
     <>

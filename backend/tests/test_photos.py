@@ -152,6 +152,20 @@ def test_upload_non_image_content_type_returns_400(api_client, event, checked_in
 
 @pytest.mark.django_db
 @override_settings(DEFAULT_FILE_STORAGE='django.core.files.storage.InMemoryStorage')
+def test_upload_spoofed_content_type_returns_400(api_client, event, checked_in_invitation):
+    """A file with correct Content-Type but invalid image bytes should be rejected."""
+    fake_image = SimpleUploadedFile('not_real.jpg', b'this is not an image', content_type='image/jpeg')
+    response = api_client.post(
+        f'/api/events/{event.id}/photos/?invitation={checked_in_invitation.id}',
+        {'image': fake_image},
+        format='multipart',
+    )
+    assert response.status_code == 400
+    assert 'valid image' in response.data['detail']
+
+
+@pytest.mark.django_db
+@override_settings(DEFAULT_FILE_STORAGE='django.core.files.storage.InMemoryStorage')
 def test_uploaded_photo_appears_in_list(api_client, event, checked_in_invitation):
     image = _make_jpeg()
     api_client.post(
