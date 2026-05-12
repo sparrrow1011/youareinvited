@@ -125,6 +125,23 @@ def test_create_invitation_requires_event(auth_client, user, monkeypatch):
     assert response.data['event'] == str(event.id)
 
 
+@pytest.mark.django_db
+def test_create_invitation_only_requires_name(auth_client, user, monkeypatch):
+    monkeypatch.setattr(Invitation, 'generate_qr_code', lambda self: None)
+    monkeypatch.setattr(Invitation, 'generate_e_invite', lambda self, **kwargs: None)
+    event = Event.objects.create(owner=user, name='Test', date='2026-06-01')
+
+    response = auth_client.post('/api/invitations/', {
+        'name': 'Name Only Guest',
+        'event': str(event.id),
+    }, format='json')
+
+    assert response.status_code == 201
+    assert response.data['name'] == 'Name Only Guest'
+    assert response.data['seat_number'] == ''
+    assert response.data['tag'] == ''
+
+
 import io
 from PIL import Image as PILImage
 

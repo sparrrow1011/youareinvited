@@ -44,6 +44,13 @@ export default function InviteClient({ id }: { id: string }) {
   }
 
   const handleRsvpChange = async (attending: boolean) => {
+    const confirmed = window.confirm(
+      attending
+        ? 'Are you sure you will be attending?'
+        : 'Are you sure you will not be attending?'
+    );
+    if (!confirmed) return;
+
     setSavingRsvp(true);
     setRsvpError('');
     try {

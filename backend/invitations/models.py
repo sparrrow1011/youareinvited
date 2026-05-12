@@ -114,8 +114,8 @@ class Invitation(models.Model):
         related_name='invitations'
     )
     name = models.CharField(max_length=200)
-    seat_number = models.CharField(max_length=50)
-    tag = models.CharField(max_length=100)
+    seat_number = models.CharField(max_length=50, blank=True, default='')
+    tag = models.CharField(max_length=100, blank=True, default='')
     qr_code = models.ImageField(upload_to=invitation_qr_path, blank=True)
     e_invite_image = models.ImageField(upload_to=invitation_einvite_path, blank=True)
     view_count = models.PositiveIntegerField(default=0)

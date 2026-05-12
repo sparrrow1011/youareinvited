@@ -130,6 +130,12 @@ class InvitationCreateSerializer(serializers.ModelSerializer):
         model = Invitation
         fields = ['name', 'seat_number', 'tag', 'event', 'phone_number', 'whatsapp_sent_at']
         read_only_fields = ['whatsapp_sent_at']
+        extra_kwargs = {
+            'name': {'required': True, 'allow_blank': False},
+            'seat_number': {'required': False, 'allow_blank': True},
+            'tag': {'required': False, 'allow_blank': True},
+            'phone_number': {'required': False, 'allow_blank': True, 'allow_null': True},
+        }
 
 
 class CheckInSerializer(serializers.Serializer):
