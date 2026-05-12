@@ -499,17 +499,32 @@ function CheckInContent() {
 
             {/* Status */}
             {guest.checked_in ? (
-              <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-2xl px-4 py-3 mb-4">
-                <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center shrink-0">
-                  <span className="material-symbols-outlined text-green-600 text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+              <>
+                <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-2xl px-4 py-3 mb-3">
+                  <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center shrink-0">
+                    <span className="material-symbols-outlined text-green-600 text-xl" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-green-700">Already Checked In</p>
+                    {guest.checked_in_at && (
+                      <p className="text-xs text-green-600 mt-0.5">{new Date(guest.checked_in_at).toLocaleString()}</p>
+                    )}
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-semibold text-green-700">Already Checked In</p>
-                  {guest.checked_in_at && (
-                    <p className="text-xs text-green-600 mt-0.5">{new Date(guest.checked_in_at).toLocaleString()}</p>
-                  )}
-                </div>
-              </div>
+                <a
+                  href={`/events/${eventId}/photos?invitation=${guest.id}`}
+                  className="w-full h-12 rounded-full border-2 border-brand text-brand font-semibold text-sm
+                             hover:bg-brand/5 active:bg-brand/10 transition-all flex items-center justify-center gap-2"
+                >
+                  <span
+                    className="material-symbols-outlined text-[18px]"
+                    style={{ fontVariationSettings: "'FILL' 1" }}
+                  >
+                    photo_camera
+                  </span>
+                  View &amp; Upload Event Photos
+                </a>
+              </>
             ) : (
               <>
                 {checkInError && (
