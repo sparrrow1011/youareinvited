@@ -295,6 +295,39 @@ export const eventService = {
 
   setSecurityPin: (id: string, pin: string | null) =>
     api.post(`/events/${id}/set_security_pin/`, { pin }),
+
+  listPhotos: async (eventId: string, invitationId: string): Promise<EventPhoto[]> => {
+    const res = await api.get<EventPhoto[]>(`/events/${eventId}/photos/`, {
+      params: { invitation: invitationId },
+    });
+    return res.data;
+  },
+
+  listPhotosAsOwner: async (eventId: string): Promise<EventPhoto[]> => {
+    const res = await api.get<EventPhoto[]>(`/events/${eventId}/photos/`);
+    return res.data;
+  },
+
+  uploadPhoto: async (eventId: string, invitationId: string, file: File): Promise<EventPhoto> => {
+    const fd = new FormData();
+    fd.append('image', file);
+    const res = await api.post<EventPhoto>(
+      `/events/${eventId}/photos/?invitation=${invitationId}`,
+      fd,
+      { headers: { 'Content-Type': 'multipart/form-data' } }
+    );
+    return res.data;
+  },
+
+  deletePhoto: async (eventId: string, photoId: string): Promise<void> => {
+    await api.delete(`/events/${eventId}/photos/${photoId}/`);
+  },
+
+  photosDownloadUrl: (eventId: string): string =>
+    buildApiUrl(`/events/${eventId}/photos-download/`),
+
+  photoQrUrl: (eventId: string): string =>
+    buildApiUrl(`/events/${eventId}/photo-qr/`),
 };
 
 export interface Invitation {
@@ -320,6 +353,12 @@ export interface Invitation {
   brand_name: string;
   brand_logo_url: string | null;
   show_event_branding: boolean;
+}
+
+export interface EventPhoto {
+  id: string;
+  image_url: string;
+  uploaded_at: string;
 }
 
 export interface InvitationCreate {
