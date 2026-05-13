@@ -78,12 +78,27 @@ def create_user_profile(sender, instance, created, **kwargs):
         UserProfile.objects.get_or_create(user=instance)
 
 
+KNOWN_EVENT_FEATURES: dict[str, str] = {
+    'gallery': 'Event Photo Gallery',
+    # Add future pro features here:
+    # 'live_stream': 'Live Stream Embed',
+    # 'custom_rsvp_questions': 'Custom RSVP Questions',
+}
+
+
 class Event(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='events')
     name = models.CharField(max_length=200)
     date = models.DateField()
+    start_time = models.TimeField(null=True, blank=True)
     description = models.CharField(max_length=500, blank=True, default='')
+    venue_name = models.CharField(max_length=200, blank=True, default='')
+    venue_address = models.CharField(max_length=500, blank=True, default='')
+    google_maps_url = models.URLField(max_length=1000, blank=True, default='')
+    parking_info = models.CharField(max_length=500, blank=True, default='')
+    hotel_info = models.CharField(max_length=500, blank=True, default='')
+    travel_note = models.CharField(max_length=500, blank=True, default='')
     background_image = models.ImageField(
         upload_to=event_template_path, blank=True, null=True
     )
@@ -94,6 +109,7 @@ class Event(models.Model):
     whatsapp_message_template = models.CharField(max_length=5000, blank=True, default='')
     theme = models.CharField(max_length=64, blank=True, default='')
     theme_data = models.JSONField(default=dict, blank=True)
+    features = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -104,6 +120,10 @@ class Event(models.Model):
 
     def has_template(self):
         return bool(self.background_image)
+
+    def has_feature(self, key: str) -> bool:
+        """Return True if the named pro feature is enabled for this event."""
+        return bool(self.features.get(key, False))
 
 
 class Invitation(models.Model):
@@ -116,6 +136,8 @@ class Invitation(models.Model):
     name = models.CharField(max_length=200)
     seat_number = models.CharField(max_length=50, blank=True, default='')
     tag = models.CharField(max_length=100, blank=True, default='')
+    table_number = models.CharField(max_length=50, blank=True, default='')
+    group_label = models.CharField(max_length=100, blank=True, default='')
     qr_code = models.ImageField(upload_to=invitation_qr_path, blank=True)
     e_invite_image = models.ImageField(upload_to=invitation_einvite_path, blank=True)
     view_count = models.PositiveIntegerField(default=0)
@@ -127,6 +149,12 @@ class Invitation(models.Model):
     checked_in_at = models.DateTimeField(null=True, blank=True)
     rsvp_attending = models.BooleanField(default=False)
     rsvp_responded_at = models.DateTimeField(null=True, blank=True)
+    rsvp_guest_count = models.PositiveSmallIntegerField(default=1)
+    meal_preference = models.CharField(max_length=120, blank=True, default='')
+    allergies = models.CharField(max_length=500, blank=True, default='')
+    needs_parking = models.BooleanField(default=False)
+    needs_hotel_info = models.BooleanField(default=False)
+    rsvp_note = models.CharField(max_length=500, blank=True, default='')
     phone_number = models.CharField(max_length=20, blank=True, null=True)
     whatsapp_sent_at = models.DateTimeField(null=True, blank=True)
     images_generated = models.BooleanField(default=False, db_index=True)
@@ -196,12 +224,36 @@ class Invitation(models.Model):
         type(self).objects.filter(pk=self.pk).update(**{share_field: F(share_field) + 1})
         self.refresh_from_db(fields=[share_field])
 
-    def record_rsvp(self, attending: bool):
+    def record_rsvp(
+        self,
+        attending: bool,
+        guest_count: int = 1,
+        meal_preference: str = '',
+        allergies: str = '',
+        needs_parking: bool = False,
+        needs_hotel_info: bool = False,
+        note: str = '',
+    ):
         type(self).objects.filter(pk=self.pk).update(
             rsvp_attending=attending,
             rsvp_responded_at=timezone.now(),
+            rsvp_guest_count=guest_count,
+            meal_preference=meal_preference,
+            allergies=allergies,
+            needs_parking=needs_parking,
+            needs_hotel_info=needs_hotel_info,
+            rsvp_note=note,
         )
-        self.refresh_from_db(fields=['rsvp_attending', 'rsvp_responded_at'])
+        self.refresh_from_db(fields=[
+            'rsvp_attending',
+            'rsvp_responded_at',
+            'rsvp_guest_count',
+            'meal_preference',
+            'allergies',
+            'needs_parking',
+            'needs_hotel_info',
+            'rsvp_note',
+        ])
 
     def generate_e_invite(self, show_watermark: bool = True):
         """Generate e-invite image. Uses uploaded template if available, else dark-theme card."""
@@ -511,3 +563,26 @@ class EventPhoto(models.Model):
 
     def __str__(self):
         return f"Photo {self.id} for {self.event.name}"
+
+
+class EventScheduleItem(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    event = models.ForeignKey(
+        Event, on_delete=models.CASCADE, related_name='schedule_items'
+    )
+    time = models.TimeField()
+    title = models.CharField(max_length=160)
+    description = models.CharField(max_length=500, blank=True, default='')
+    sort_order = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ['sort_order', 'time', 'created_at']
+        indexes = [
+            models.Index(fields=['event', 'sort_order']),
+            models.Index(fields=['event', 'time']),
+        ]
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.event.name} - {self.time} - {self.title}"
