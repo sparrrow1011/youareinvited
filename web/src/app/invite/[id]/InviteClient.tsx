@@ -387,6 +387,112 @@ export default function InviteClient({ id }: { id: string }) {
     </div>
   ) : null;
 
+  const qrCard = invitation.qr_code ? (
+    <div className="w-full bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-xl p-5 sm:p-6 text-center">
+      <p className="text-xs font-label font-semibold text-brand uppercase tracking-widest mb-4">Your QR Code</p>
+      <div className="flex justify-center">
+        <div className="bg-white rounded-2xl p-4 shadow-md border border-outline-variant/20">
+          <Image
+            src={resolveMediaUrl(invitation.qr_code)}
+            alt="QR Code"
+            width={180}
+            height={180}
+          />
+        </div>
+      </div>
+      <p className="text-center text-xs text-on-surface-variant mt-4">
+        Present this at the venue entrance to check in
+      </p>
+    </div>
+  ) : null;
+
+  if (invitation.event_guest_app_template === 'spotlight') {
+    return (
+      <div className="min-h-screen bg-[#141414] text-white">
+        <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-5 sm:px-6 sm:py-8">
+          <section className="grid min-h-[420px] gap-6 overflow-hidden rounded-[2rem] bg-[#f4f7f2] text-[#201b17] lg:grid-cols-[1.1fr_0.9fr]">
+            <div className="flex flex-col justify-between p-6 sm:p-8 lg:p-10">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-[#b2472d]">Welcome, {invitation.name}</p>
+                <h1 className="mt-4 max-w-2xl font-headline text-4xl leading-tight sm:text-5xl lg:text-6xl">
+                  {invitation.event_name}
+                </h1>
+                <p className="mt-5 text-base font-medium text-[#65584f]">
+                  {eventDateLabel}{eventTimeLabel ? ` at ${eventTimeLabel}` : ''}
+                </p>
+              </div>
+
+              <div className="mt-8 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-2xl bg-white px-4 py-4 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-[#7b6d62]">Countdown</p>
+                  <p className="mt-2 text-3xl font-bold text-[#b2472d]">{countdownDays}</p>
+                  <p className="text-xs font-semibold text-[#b2472d]">day{countdownDays === 1 ? '' : 's'} to go</p>
+                </div>
+                <div className="rounded-2xl bg-white px-4 py-4 shadow-sm sm:col-span-2">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-[#7b6d62]">RSVP</p>
+                  <p className="mt-2 text-lg font-semibold text-[#201b17]">{rsvpLabel}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex min-h-[320px] items-center justify-center bg-[#2d6f6d] p-5 sm:p-8">
+              {invitation.e_invite_image ? (
+                <div className="w-full max-w-[360px] overflow-hidden rounded-[1.75rem] bg-white shadow-2xl">
+                  <Image
+                    src={resolveMediaUrl(invitation.e_invite_image)}
+                    alt="Your invitation"
+                    width={600}
+                    height={900}
+                    className="h-auto w-full object-contain"
+                    priority
+                  />
+                </div>
+              ) : (
+                <div className="w-full max-w-[360px] rounded-[1.75rem] border border-white/25 bg-white/10 p-6 text-center">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-white/70">Private Invite</p>
+                  <p className="mt-4 font-headline text-3xl">{invitation.name}</p>
+                  <p className="mt-3 text-sm text-white/75">{invitation.tag || invitation.seat_number || 'Your personal guest portal'}</p>
+                </div>
+              )}
+            </div>
+          </section>
+
+          <nav className="grid gap-3 sm:grid-cols-4">
+            {[
+              ['#rsvp', 'event_available', 'RSVP'],
+              ['#location', 'location_on', 'Location'],
+              ['#schedule', 'calendar_month', 'Schedule'],
+              ['#memories', 'add_a_photo', 'Memories'],
+            ].map(([href, icon, label]) => (
+              <a
+                key={href}
+                href={href}
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-white/10 px-4 text-sm font-semibold text-white ring-1 ring-white/10 transition hover:bg-white/15"
+              >
+                <span className="material-symbols-outlined text-[18px]">{icon}</span>
+                {label}
+              </a>
+            ))}
+          </nav>
+
+          <section className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
+            <div className="flex flex-col gap-6">
+              {rsvpCard}
+              {seatingSection}
+              {qrCard}
+            </div>
+            <div className="flex flex-col gap-6">
+              {scheduleSection}
+              {locationSection}
+              {guestPhotoSection}
+            </div>
+          </section>
+        </main>
+        <PoweredByFooter />
+      </div>
+    );
+  }
+
   // ── Themed full-page experience ──────────────────────────────────────────
   if (invitation.event_theme) {
     const qrContent = invitation.qr_code ? (

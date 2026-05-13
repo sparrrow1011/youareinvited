@@ -36,6 +36,7 @@ class InvitationSerializer(serializers.ModelSerializer):
     event_travel_note = serializers.CharField(source='event.travel_note', read_only=True)
     event_theme = serializers.CharField(source='event.theme', read_only=True)
     event_theme_data = serializers.JSONField(source='event.theme_data', read_only=True)
+    event_guest_app_template = serializers.CharField(source='event.guest_app_template', read_only=True)
     event_features = serializers.JSONField(source='event.features', read_only=True)
     event_schedule_items = serializers.SerializerMethodField()
     event_has_template = serializers.SerializerMethodField()
@@ -61,6 +62,7 @@ class InvitationSerializer(serializers.ModelSerializer):
             'event_travel_note',
             'event_theme',
             'event_theme_data',
+            'event_guest_app_template',
             'event_features',
             'event_schedule_items',
             'event_has_template',
@@ -210,7 +212,7 @@ class EventSerializer(serializers.ModelSerializer):
             'parking_info', 'hotel_info', 'travel_note',
             'background_image', 'qr_zone', 'name_zone', 'tag_zone',
             'created_at', 'has_security_pin', 'whatsapp_message_template',
-            'theme', 'theme_data', 'schedule_items', 'features',
+            'theme', 'theme_data', 'guest_app_template', 'schedule_items', 'features',
         ]
         read_only_fields = ['id', 'owner', 'created_at']
 

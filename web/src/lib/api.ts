@@ -263,6 +263,7 @@ export interface Event {
   whatsapp_message_template: string;
   theme: string;
   theme_data: Record<string, unknown>;
+  guest_app_template: 'classic' | 'spotlight';
   schedule_items: EventScheduleItem[];
   created_at: string;
   features: Record<string, boolean>;
@@ -289,6 +290,7 @@ export interface EventCreate {
   travel_note?: string;
   theme?: string;
   theme_data?: Record<string, unknown>;
+  guest_app_template?: 'classic' | 'spotlight';
   schedule_items?: EventScheduleItem[];
 }
 
@@ -375,6 +377,7 @@ export interface Invitation {
   event_travel_note: string;
   event_theme: string;
   event_theme_data: Record<string, unknown>;
+  event_guest_app_template: 'classic' | 'spotlight';
   event_schedule_items: EventScheduleItem[];
   event_has_template: boolean;
   name: string;

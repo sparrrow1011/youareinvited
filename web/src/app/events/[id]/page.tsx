@@ -59,6 +59,27 @@ const EVENT_TABS = [
 type EventTab = (typeof EVENT_TABS)[number]['id'];
 const INVITATIONS_PAGE_SIZE = 20;
 type RSVPFilter = '' | 'attending' | 'not_attending' | 'no_response';
+type GuestAppTemplate = 'classic' | 'spotlight';
+
+const GUEST_APP_TEMPLATES: Array<{
+  id: GuestAppTemplate;
+  name: string;
+  description: string;
+  icon: string;
+}> = [
+  {
+    id: 'classic',
+    name: 'Classic',
+    description: 'The current clean invite page with RSVP, QR, location, and guest details.',
+    icon: 'view_agenda',
+  },
+  {
+    id: 'spotlight',
+    name: 'Spotlight',
+    description: 'A richer guest portal with a bold welcome screen and quick action layout.',
+    icon: 'auto_awesome',
+  },
+];
 
 const getRSVPLabel = (invitation: Invitation) => {
   if (!invitation.rsvp_responded_at) return 'No RSVP';
@@ -122,6 +143,7 @@ export default function EventPage() {
   const [themeSaved, setThemeSaved] = useState(false);
   const [activeTab, setActiveTab] = useState<EventTab>('guests');
   const [guestAppForm, setGuestAppForm] = useState({
+    guest_app_template: 'classic' as GuestAppTemplate,
     start_time: '',
     venue_name: '',
     venue_address: '',
@@ -199,6 +221,7 @@ export default function EventPage() {
       setSelectedTheme(ev.theme ?? '');
       setThemeData(ev.theme_data ?? {});
       setGuestAppForm({
+        guest_app_template: (ev.guest_app_template ?? 'classic') as GuestAppTemplate,
         start_time: ev.start_time ? ev.start_time.slice(0, 5) : '',
         venue_name: ev.venue_name ?? '',
         venue_address: ev.venue_address ?? '',
@@ -576,6 +599,7 @@ export default function EventPage() {
         .filter((item) => item.time && item.title);
 
       const updated = await eventService.update(id, {
+        guest_app_template: guestAppForm.guest_app_template,
         start_time: guestAppForm.start_time || null,
         venue_name: guestAppForm.venue_name.trim(),
         venue_address: guestAppForm.venue_address.trim(),
@@ -1348,6 +1372,40 @@ export default function EventPage() {
 
           {activeTab === 'guest_app' && (
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <div className="lg:col-span-2 bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-xl p-5 sm:p-6">
+                <div className="mb-5">
+                  <p className="text-xs font-label font-semibold text-brand uppercase tracking-widest">Invitee Interface</p>
+                  <h2 className="mt-1 font-headline text-2xl text-on-lp-background">Choose what guests see</h2>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {GUEST_APP_TEMPLATES.map((template) => {
+                    const isSelected = guestAppForm.guest_app_template === template.id;
+                    return (
+                      <button
+                        key={template.id}
+                        type="button"
+                        onClick={() => setGuestAppForm((current) => ({ ...current, guest_app_template: template.id }))}
+                        className={`min-h-[132px] rounded-2xl border p-4 text-left transition ${
+                          isSelected
+                            ? 'border-brand bg-brand-container/30 shadow-sm'
+                            : 'border-outline-variant/20 bg-surface-container/70 hover:border-brand/40'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <span className={`material-symbols-outlined mt-0.5 text-[24px] ${isSelected ? 'text-brand' : 'text-on-surface-variant'}`}>
+                            {template.icon}
+                          </span>
+                          <span className="block min-w-0">
+                            <span className="block text-sm font-semibold text-on-lp-background">{template.name}</span>
+                            <span className="mt-1 block text-sm leading-5 text-on-surface-variant">{template.description}</span>
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               <div className="bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-xl p-5 sm:p-6">
                 <div className="mb-5">
                   <p className="text-xs font-label font-semibold text-brand uppercase tracking-widest">Guest App Details</p>

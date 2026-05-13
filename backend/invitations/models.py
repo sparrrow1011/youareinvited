@@ -87,6 +87,10 @@ KNOWN_EVENT_FEATURES: dict[str, str] = {
 
 
 class Event(models.Model):
+    class GuestAppTemplate(models.TextChoices):
+        CLASSIC = 'classic', 'Classic'
+        SPOTLIGHT = 'spotlight', 'Spotlight'
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='events')
     name = models.CharField(max_length=200)
@@ -109,6 +113,11 @@ class Event(models.Model):
     whatsapp_message_template = models.CharField(max_length=5000, blank=True, default='')
     theme = models.CharField(max_length=64, blank=True, default='')
     theme_data = models.JSONField(default=dict, blank=True)
+    guest_app_template = models.CharField(
+        max_length=32,
+        choices=GuestAppTemplate.choices,
+        default=GuestAppTemplate.CLASSIC,
+    )
     features = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

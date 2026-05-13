@@ -68,7 +68,7 @@ class UserProfileAdmin(admin.ModelAdmin):
 
 @admin.register(Event)
 class EventAdmin(admin.ModelAdmin):
-    list_display = ['name', 'owner', 'date', 'created_at']
+    list_display = ['name', 'owner', 'date', 'guest_app_template', 'created_at']
     search_fields = ['name', 'owner__email']
     fields = [
         'name', 'owner', 'date', 'start_time', 'description',
@@ -76,5 +76,5 @@ class EventAdmin(admin.ModelAdmin):
         'parking_info', 'hotel_info', 'travel_note',
         'background_image', 'qr_zone', 'name_zone', 'tag_zone',
         'security_pin', 'whatsapp_message_template',
-        'theme', 'theme_data', 'features',
+        'theme', 'theme_data', 'guest_app_template', 'features',
     ]

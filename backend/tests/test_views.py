@@ -108,6 +108,7 @@ def test_event_guest_app_details_are_exposed_on_public_invitation(auth_client, a
         'parking_info': 'Use the north entrance.',
         'hotel_info': 'Nearest hotel is five minutes away.',
         'travel_note': 'Ride share pickup is by Gate B.',
+        'guest_app_template': 'spotlight',
         'schedule_items': [
             {'time': '14:00', 'title': 'Guest arrival', 'description': 'Doors open.', 'sort_order': 0},
             {'time': '15:00', 'title': 'Ceremony', 'description': '', 'sort_order': 1},
@@ -116,12 +117,14 @@ def test_event_guest_app_details_are_exposed_on_public_invitation(auth_client, a
 
     assert response.status_code == 200
     assert len(response.data['schedule_items']) == 2
+    assert response.data['guest_app_template'] == 'spotlight'
 
     public_response = api_client.get(f'/api/invitations/{invitation.id}/')
 
     assert public_response.status_code == 200
     assert public_response.data['event_venue_name'] == 'The Civic Centre'
     assert public_response.data['event_start_time'] == '14:00:00'
+    assert public_response.data['event_guest_app_template'] == 'spotlight'
     assert public_response.data['event_schedule_items'][0]['title'] == 'Guest arrival'
 
 
