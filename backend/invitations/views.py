@@ -271,6 +271,12 @@ class InvitationViewSet(viewsets.ModelViewSet):
         elif rsvp == 'no_response':
             queryset = queryset.filter(rsvp_responded_at__isnull=True)
 
+        check_in_status = self.request.query_params.get('check_in_status', '').strip().lower()
+        if check_in_status == 'checked_in':
+            queryset = queryset.filter(checked_in=True)
+        elif check_in_status == 'pending':
+            queryset = queryset.filter(checked_in=False)
+
         return queryset
 
     def list(self, request, *args, **kwargs):

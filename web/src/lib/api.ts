@@ -513,7 +513,13 @@ export const invitationService = {
 
   getForEvent: async (
     eventId: string,
-    options?: { page?: number; pageSize?: number; search?: string; rsvp?: 'attending' | 'not_attending' | 'no_response' | '' }
+    options?: {
+      page?: number;
+      pageSize?: number;
+      search?: string;
+      rsvp?: 'attending' | 'not_attending' | 'no_response' | '';
+      checkInStatus?: 'checked_in' | 'pending' | '';
+    }
   ): Promise<PaginatedInvitations> => {
     const response = await api.get<PaginatedInvitations>('/invitations/', {
       params: {
@@ -522,6 +528,7 @@ export const invitationService = {
         page_size: options?.pageSize ?? 20,
         search: options?.search || undefined,
         rsvp: options?.rsvp || undefined,
+        check_in_status: options?.checkInStatus || undefined,
       },
     });
     return response.data;
