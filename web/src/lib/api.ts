@@ -247,7 +247,14 @@ export interface Event {
   owner: number;
   name: string;
   date: string;
+  start_time: string | null;
   description: string;
+  venue_name: string;
+  venue_address: string;
+  google_maps_url: string;
+  parking_info: string;
+  hotel_info: string;
+  travel_note: string;
   background_image: string | null;
   qr_zone: Record<string, number> | null;
   name_zone: Record<string, number | string> | null;
@@ -256,15 +263,33 @@ export interface Event {
   whatsapp_message_template: string;
   theme: string;
   theme_data: Record<string, unknown>;
+  schedule_items: EventScheduleItem[];
   created_at: string;
+  features: Record<string, boolean>;
+}
+
+export interface EventScheduleItem {
+  id?: string;
+  time: string;
+  title: string;
+  description: string;
+  sort_order: number;
 }
 
 export interface EventCreate {
   name: string;
   date: string;
   description?: string;
+  start_time?: string | null;
+  venue_name?: string;
+  venue_address?: string;
+  google_maps_url?: string;
+  parking_info?: string;
+  hotel_info?: string;
+  travel_note?: string;
   theme?: string;
   theme_data?: Record<string, unknown>;
+  schedule_items?: EventScheduleItem[];
 }
 
 // Event service
@@ -341,12 +366,22 @@ export interface Invitation {
   event: string;
   event_name: string;
   event_date: string;
+  event_start_time: string | null;
+  event_venue_name: string;
+  event_venue_address: string;
+  event_google_maps_url: string;
+  event_parking_info: string;
+  event_hotel_info: string;
+  event_travel_note: string;
   event_theme: string;
   event_theme_data: Record<string, unknown>;
+  event_schedule_items: EventScheduleItem[];
   event_has_template: boolean;
   name: string;
   seat_number: string;
   tag: string;
+  table_number: string;
+  group_label: string;
   phone_number: string | null;
   qr_code: string;
   e_invite_image: string;
@@ -354,6 +389,12 @@ export interface Invitation {
   checked_in_at: string | null;
   rsvp_attending: boolean;
   rsvp_responded_at: string | null;
+  rsvp_guest_count: number;
+  meal_preference: string;
+  allergies: string;
+  needs_parking: boolean;
+  needs_hotel_info: boolean;
+  rsvp_note: string;
   created_at: string;
   updated_at: string;
   invitation_url: string;
@@ -361,6 +402,7 @@ export interface Invitation {
   brand_name: string;
   brand_logo_url: string | null;
   show_event_branding: boolean;
+  event_features: Record<string, boolean>;
 }
 
 export interface EventPhoto {
@@ -560,8 +602,19 @@ export const invitationService = {
     await api.post(`/invitations/${id}/track_share/`, { channel });
   },
 
-  rsvp: async (id: string, attending: boolean): Promise<Invitation> => {
-    const response = await api.post<Invitation>(`/invitations/${id}/rsvp/`, { attending });
+  rsvp: async (
+    id: string,
+    data: {
+      attending: boolean;
+      guest_count?: number;
+      meal_preference?: string;
+      allergies?: string;
+      needs_parking?: boolean;
+      needs_hotel_info?: boolean;
+      note?: string;
+    }
+  ): Promise<Invitation> => {
+    const response = await api.post<Invitation>(`/invitations/${id}/rsvp/`, data);
     return response.data;
   },
 
