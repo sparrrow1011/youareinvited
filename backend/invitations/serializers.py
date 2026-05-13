@@ -1,6 +1,6 @@
 import json
 from rest_framework import serializers
-from .models import Invitation
+from .models import Invitation, EventScheduleItem
 
 
 def _public_brand_payload(profile):
@@ -27,8 +27,17 @@ class InvitationSerializer(serializers.ModelSerializer):
     event = serializers.UUIDField(source='event_id', read_only=True)
     event_name = serializers.CharField(source='event.name', read_only=True)
     event_date = serializers.DateField(source='event.date', read_only=True)
+    event_start_time = serializers.TimeField(source='event.start_time', read_only=True)
+    event_venue_name = serializers.CharField(source='event.venue_name', read_only=True)
+    event_venue_address = serializers.CharField(source='event.venue_address', read_only=True)
+    event_google_maps_url = serializers.CharField(source='event.google_maps_url', read_only=True)
+    event_parking_info = serializers.CharField(source='event.parking_info', read_only=True)
+    event_hotel_info = serializers.CharField(source='event.hotel_info', read_only=True)
+    event_travel_note = serializers.CharField(source='event.travel_note', read_only=True)
     event_theme = serializers.CharField(source='event.theme', read_only=True)
     event_theme_data = serializers.JSONField(source='event.theme_data', read_only=True)
+    event_features = serializers.JSONField(source='event.features', read_only=True)
+    event_schedule_items = serializers.SerializerMethodField()
     event_has_template = serializers.SerializerMethodField()
     invitation_url = serializers.SerializerMethodField()
     whatsapp_share_url = serializers.SerializerMethodField()
@@ -43,18 +52,35 @@ class InvitationSerializer(serializers.ModelSerializer):
             'event',
             'event_name',
             'event_date',
+            'event_start_time',
+            'event_venue_name',
+            'event_venue_address',
+            'event_google_maps_url',
+            'event_parking_info',
+            'event_hotel_info',
+            'event_travel_note',
             'event_theme',
             'event_theme_data',
+            'event_features',
+            'event_schedule_items',
             'event_has_template',
             'name',
             'seat_number',
             'tag',
+            'table_number',
+            'group_label',
             'qr_code',
             'e_invite_image',
             'checked_in',
             'checked_in_at',
             'rsvp_attending',
             'rsvp_responded_at',
+            'rsvp_guest_count',
+            'meal_preference',
+            'allergies',
+            'needs_parking',
+            'needs_hotel_info',
+            'rsvp_note',
             'phone_number',
             'whatsapp_sent_at',
             'created_at',
@@ -73,6 +99,9 @@ class InvitationSerializer(serializers.ModelSerializer):
 
     def get_event_has_template(self, obj):
         return obj.event.has_template() if obj.event_id else False
+
+    def get_event_schedule_items(self, obj):
+        return EventScheduleItemSerializer(obj.event.schedule_items.all(), many=True).data
 
     def get_invitation_url(self, obj):
         return obj.get_invitation_url()
@@ -145,6 +174,12 @@ class CheckInSerializer(serializers.Serializer):
 
 class RSVPSerializer(serializers.Serializer):
     attending = serializers.BooleanField()
+    guest_count = serializers.IntegerField(min_value=1, max_value=20, required=False, default=1)
+    meal_preference = serializers.CharField(max_length=120, allow_blank=True, required=False, default='')
+    allergies = serializers.CharField(max_length=500, allow_blank=True, required=False, default='')
+    needs_parking = serializers.BooleanField(required=False, default=False)
+    needs_hotel_info = serializers.BooleanField(required=False, default=False)
+    note = serializers.CharField(max_length=500, allow_blank=True, required=False, default='')
 
 
 from .models import Event
@@ -154,8 +189,16 @@ class SetSecurityPinSerializer(serializers.Serializer):
     pin = serializers.RegexField(r'^\d{4,6}$', allow_null=True)
 
 
+class EventScheduleItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EventScheduleItem
+        fields = ['id', 'time', 'title', 'description', 'sort_order']
+        read_only_fields = ['id']
+
+
 class EventSerializer(serializers.ModelSerializer):
     has_security_pin = serializers.SerializerMethodField()
+    schedule_items = EventScheduleItemSerializer(many=True, required=False)
     # background_image uses the default ImageField for writes (so uploads are
     # saved) and to_representation converts it to a URL for reads.
 
@@ -163,9 +206,11 @@ class EventSerializer(serializers.ModelSerializer):
         model = Event
         fields = [
             'id', 'owner', 'name', 'date', 'description',
+            'start_time', 'venue_name', 'venue_address', 'google_maps_url',
+            'parking_info', 'hotel_info', 'travel_note',
             'background_image', 'qr_zone', 'name_zone', 'tag_zone',
             'created_at', 'has_security_pin', 'whatsapp_message_template',
-            'theme', 'theme_data',
+            'theme', 'theme_data', 'schedule_items', 'features',
         ]
         read_only_fields = ['id', 'owner', 'created_at']
 
@@ -197,3 +242,32 @@ class EventSerializer(serializers.ModelSerializer):
 
     def validate_tag_zone(self, value):
         return self._parse_zone(value)
+
+    def create(self, validated_data):
+        schedule_items = validated_data.pop('schedule_items', [])
+        event = super().create(validated_data)
+        self._replace_schedule_items(event, schedule_items)
+        return event
+
+    def update(self, instance, validated_data):
+        schedule_items = validated_data.pop('schedule_items', None)
+        event = super().update(instance, validated_data)
+        if schedule_items is not None:
+            self._replace_schedule_items(event, schedule_items)
+        return event
+
+    def _replace_schedule_items(self, event, schedule_items):
+        if schedule_items is None:
+            return
+
+        event.schedule_items.all().delete()
+        EventScheduleItem.objects.bulk_create([
+            EventScheduleItem(
+                event=event,
+                time=item['time'],
+                title=item['title'],
+                description=item.get('description', ''),
+                sort_order=item.get('sort_order', index),
+            )
+            for index, item in enumerate(schedule_items)
+        ])
