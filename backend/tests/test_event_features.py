@@ -80,3 +80,74 @@ def test_invitation_serializer_event_features_empty_by_default(auth_client, user
     response = auth_client.get(f'/api/invitations/{inv.id}/')
     assert response.status_code == 200
     assert response.data['event_features'] == {}
+
+
+# ── SUPERADMIN ENDPOINT ────────────────────────────────────────────────────────
+
+
+@pytest.fixture
+def admin_client(db):
+    from django.contrib.auth.models import User
+    from rest_framework.test import APIClient
+    admin = User.objects.create_superuser(
+        username='sa', email='sa@example.com', password='pass', is_staff=True
+    )
+    client = APIClient()
+    client.force_authenticate(user=admin)
+    return client
+
+
+@pytest.mark.django_db
+def test_superadmin_can_get_event_features(admin_client, bare_event):
+    response = admin_client.get(f'/api/superadmin/events/{bare_event.id}/')
+    assert response.status_code == 200
+    assert response.data['features'] == {}
+    assert response.data['id'] == str(bare_event.id)
+
+
+@pytest.mark.django_db
+def test_superadmin_can_enable_gallery(admin_client, bare_event):
+    response = admin_client.patch(
+        f'/api/superadmin/events/{bare_event.id}/',
+        {'features': {'gallery': True}},
+        format='json',
+    )
+    assert response.status_code == 200
+    assert response.data['features'] == {'gallery': True}
+    bare_event.refresh_from_db()
+    assert bare_event.has_feature('gallery') is True
+
+
+@pytest.mark.django_db
+def test_superadmin_patch_merges_existing_features(admin_client, bare_event):
+    bare_event.features = {'gallery': True}
+    bare_event.save()
+    response = admin_client.patch(
+        f'/api/superadmin/events/{bare_event.id}/',
+        {'features': {'gallery': False}},
+        format='json',
+    )
+    assert response.status_code == 200
+    assert response.data['features']['gallery'] is False
+
+
+@pytest.mark.django_db
+def test_superadmin_rejects_unknown_feature_key(admin_client, bare_event):
+    response = admin_client.patch(
+        f'/api/superadmin/events/{bare_event.id}/',
+        {'features': {'nonexistent': True}},
+        format='json',
+    )
+    assert response.status_code == 400
+
+
+@pytest.mark.django_db
+def test_superadmin_event_not_found_returns_404(admin_client):
+    response = admin_client.get('/api/superadmin/events/00000000-0000-0000-0000-000000000000/')
+    assert response.status_code == 404
+
+
+@pytest.mark.django_db
+def test_non_admin_cannot_access_superadmin_event_endpoint(api_client, bare_event):
+    response = api_client.get(f'/api/superadmin/events/{bare_event.id}/')
+    assert response.status_code in (401, 403)

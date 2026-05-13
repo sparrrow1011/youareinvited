@@ -37,6 +37,7 @@ from invitations.superadmin_views import (
     superadmin_users,
     superadmin_user_detail,
     superadmin_user_events,
+    superadmin_event_detail,
 )
 
 def health_check(_request):
@@ -62,6 +63,7 @@ urlpatterns = [
     path('api/superadmin/users/', superadmin_users),
     path('api/superadmin/users/<int:user_id>/', superadmin_user_detail),
     path('api/superadmin/users/<int:user_id>/events/', superadmin_user_events),
+    path('api/superadmin/events/<uuid:event_id>/', superadmin_event_detail),
 ]
 
 if not settings.USE_S3_STORAGE and not settings.IS_VERCEL:

@@ -9,7 +9,7 @@ from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework import status
 
-from invitations.models import Invitation, Event
+from invitations.models import Invitation, Event, KNOWN_EVENT_FEATURES
 
 
 def _user_dict(user):
@@ -177,3 +177,47 @@ def superadmin_user_events(request, user_id):
         for e in events
     ]
     return Response(data)
+
+
+@api_view(['GET', 'PATCH'])
+@permission_classes([IsAdminUser])
+def superadmin_event_detail(request, event_id):
+    """
+    GET  /api/superadmin/events/{uuid}/ — read event + current features
+    PATCH /api/superadmin/events/{uuid}/ — merge-update event features
+    """
+    try:
+        event = Event.objects.select_related('owner').get(pk=event_id)
+    except Event.DoesNotExist:
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+    def _event_payload(e):
+        return {
+            'id': str(e.id),
+            'name': e.name,
+            'date': e.date.isoformat(),
+            'owner_id': e.owner_id,
+            'features': e.features,
+        }
+
+    if request.method == 'GET':
+        return Response(_event_payload(event))
+
+    # PATCH — validate and merge features
+    if 'features' in request.data:
+        incoming = request.data['features']
+        if not isinstance(incoming, dict):
+            return Response(
+                {'features': 'Must be an object mapping feature keys to booleans.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        unknown = set(incoming.keys()) - set(KNOWN_EVENT_FEATURES.keys())
+        if unknown:
+            return Response(
+                {'features': f'Unknown feature keys: {", ".join(sorted(unknown))}'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        event.features = {**event.features, **{k: bool(v) for k, v in incoming.items()}}
+        event.save(update_fields=['features'])
+
+    return Response(_event_payload(event))
