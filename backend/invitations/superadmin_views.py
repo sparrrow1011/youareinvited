@@ -173,6 +173,7 @@ def superadmin_user_events(request, user_id):
             'date': e.date.isoformat(),
             'invitation_count': e.invitation_count,
             'has_template': e.has_template(),
+            'features': e.features,
         }
         for e in events
     ]

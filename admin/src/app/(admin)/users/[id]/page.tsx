@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { AdminUser, UserEvent, usersApi } from '@/lib/api';
+import { AdminUser, UserEvent, usersApi, eventsApi } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -48,6 +48,36 @@ export default function UserDetailPage() {
   const [watermark, setWatermark] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+
+  // Feature toggle state — tracks saving state per event id
+  const [featureSaving, setFeatureSaving] = useState<Record<string, boolean>>({});
+
+  const handleToggleFeature = async (eventId: string, key: string, value: boolean) => {
+    setFeatureSaving((prev) => ({ ...prev, [eventId]: true }));
+    // Optimistic update
+    setEvents((prev) =>
+      prev.map((ev) =>
+        ev.id === eventId ? { ...ev, features: { ...ev.features, [key]: value } } : ev,
+      ),
+    );
+    try {
+      const updated = await eventsApi.updateFeatures(eventId, { [key]: value });
+      setEvents((prev) =>
+        prev.map((ev) => (ev.id === eventId ? { ...ev, features: updated.features } : ev)),
+      );
+      toast.success(`Gallery ${value ? 'enabled' : 'disabled'}.`);
+    } catch {
+      // Revert on error
+      setEvents((prev) =>
+        prev.map((ev) =>
+          ev.id === eventId ? { ...ev, features: { ...ev.features, [key]: !value } } : ev,
+        ),
+      );
+      toast.error('Failed to update feature.');
+    } finally {
+      setFeatureSaving((prev) => ({ ...prev, [eventId]: false }));
+    }
+  };
 
   // Delete dialog state
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -222,12 +252,13 @@ export default function UserDetailPage() {
                 <TableHead className="font-semibold text-gray-700">Date</TableHead>
                 <TableHead className="font-semibold text-gray-700">Invitations</TableHead>
                 <TableHead className="font-semibold text-gray-700">Has Template</TableHead>
+                <TableHead className="font-semibold text-gray-700">Gallery</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {events.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center text-gray-400 py-8">
+                  <TableCell colSpan={5} className="text-center text-gray-400 py-8">
                     No events yet.
                   </TableCell>
                 </TableRow>
@@ -251,6 +282,15 @@ export default function UserDetailPage() {
                       ) : (
                         <Badge variant="secondary">No</Badge>
                       )}
+                    </TableCell>
+                    <TableCell>
+                      <Switch
+                        checked={!!ev.features?.gallery}
+                        disabled={featureSaving[ev.id]}
+                        onCheckedChange={(checked) =>
+                          handleToggleFeature(ev.id, 'gallery', checked)
+                        }
+                      />
                     </TableCell>
                   </TableRow>
                 ))

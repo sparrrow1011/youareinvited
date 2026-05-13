@@ -68,6 +68,7 @@ export interface UserEvent {
   date: string;
   invitation_count: number;
   has_template: boolean;
+  features: Record<string, boolean>;
 }
 
 // ── API helpers ───────────────────────────────────────────────────────────────
@@ -84,6 +85,16 @@ export const usersApi = {
   delete: (id: number) => api.delete(`/superadmin/users/${id}/`),
   getEvents: (id: number) =>
     api.get<UserEvent[]>(`/superadmin/users/${id}/events/`).then((r) => r.data),
+};
+
+export const eventsApi = {
+  updateFeatures: (eventId: string, features: Record<string, boolean>) =>
+    api
+      .patch<{ id: string; features: Record<string, boolean> }>(
+        `/superadmin/events/${eventId}/`,
+        { features },
+      )
+      .then((r) => r.data),
 };
 
 export default api;
