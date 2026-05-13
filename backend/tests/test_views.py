@@ -94,6 +94,38 @@ def test_public_invitation_rsvp_endpoint_updates_attendance(api_client, user, mo
 
 
 @pytest.mark.django_db
+def test_event_guest_app_details_are_exposed_on_public_invitation(auth_client, api_client, user, monkeypatch):
+    monkeypatch.setattr(Invitation, 'generate_qr_code', lambda self: None)
+    monkeypatch.setattr(Invitation, 'generate_e_invite', lambda self, **kwargs: None)
+    event = Event.objects.create(owner=user, name='Wedding', date='2026-06-01')
+    invitation = Invitation.objects.create(name='Guest', seat_number='7B', tag='Family', event=event)
+
+    response = auth_client.patch(f'/api/events/{event.id}/', {
+        'start_time': '14:00',
+        'venue_name': 'The Civic Centre',
+        'venue_address': 'Ozumba Mbadiwe Avenue',
+        'google_maps_url': 'https://maps.google.com/example',
+        'parking_info': 'Use the north entrance.',
+        'hotel_info': 'Nearest hotel is five minutes away.',
+        'travel_note': 'Ride share pickup is by Gate B.',
+        'schedule_items': [
+            {'time': '14:00', 'title': 'Guest arrival', 'description': 'Doors open.', 'sort_order': 0},
+            {'time': '15:00', 'title': 'Ceremony', 'description': '', 'sort_order': 1},
+        ],
+    }, format='json')
+
+    assert response.status_code == 200
+    assert len(response.data['schedule_items']) == 2
+
+    public_response = api_client.get(f'/api/invitations/{invitation.id}/')
+
+    assert public_response.status_code == 200
+    assert public_response.data['event_venue_name'] == 'The Civic Centre'
+    assert public_response.data['event_start_time'] == '14:00:00'
+    assert public_response.data['event_schedule_items'][0]['title'] == 'Guest arrival'
+
+
+@pytest.mark.django_db
 def test_stats_scoped_to_owner(auth_client, user, other_user, monkeypatch):
     from invitations.models import Invitation
     monkeypatch.setattr(Invitation, 'generate_qr_code', lambda self: None)
