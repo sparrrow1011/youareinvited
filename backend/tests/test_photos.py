@@ -18,7 +18,10 @@ def _make_jpeg(size=(10, 10)):
 
 @pytest.fixture
 def event(user):
-    return Event.objects.create(owner=user, name='Summer Party', date='2026-09-01')
+    """Gallery-enabled event — used by all existing photo tests."""
+    return Event.objects.create(
+        owner=user, name='Summer Party', date='2026-09-01', features={'gallery': True}
+    )
 
 
 @pytest.fixture
@@ -299,3 +302,51 @@ def test_non_owner_cannot_get_venue_qr(other_user, event):
     other_client.force_authenticate(user=other_user)
     response = other_client.get(f'/api/events/{event.id}/photo-qr/')
     assert response.status_code in (403, 404)
+
+
+# ── FEATURE GATING ────────────────────────────────────────────────────────────
+
+@pytest.fixture
+def locked_event(user):
+    """Event with gallery feature NOT enabled."""
+    return Event.objects.create(owner=user, name='Locked Party', date='2026-09-01')
+
+
+@pytest.fixture
+def locked_checked_in_invitation(locked_event, monkeypatch):
+    monkeypatch.setattr(Invitation, 'generate_qr_code', lambda self: None)
+    monkeypatch.setattr(Invitation, 'generate_e_invite', lambda self, **kwargs: None)
+    return Invitation.objects.create(
+        name='Eve', seat_number='E1', tag='VIP', event=locked_event, checked_in=True
+    )
+
+
+@pytest.mark.django_db
+@override_settings(DEFAULT_FILE_STORAGE='django.core.files.storage.InMemoryStorage')
+def test_gallery_disabled_guest_cannot_list_photos(api_client, locked_event, locked_checked_in_invitation):
+    response = api_client.get(
+        f'/api/events/{locked_event.id}/photos/',
+        {'invitation': str(locked_checked_in_invitation.id)},
+    )
+    assert response.status_code == 403
+    assert 'not enabled' in response.data['detail'].lower()
+
+
+@pytest.mark.django_db
+@override_settings(DEFAULT_FILE_STORAGE='django.core.files.storage.InMemoryStorage')
+def test_gallery_disabled_guest_cannot_upload(api_client, locked_event, locked_checked_in_invitation):
+    response = api_client.post(
+        f'/api/events/{locked_event.id}/photos/?invitation={locked_checked_in_invitation.id}',
+        {'image': _make_jpeg()},
+        format='multipart',
+    )
+    assert response.status_code == 403
+    assert 'not enabled' in response.data['detail'].lower()
+
+
+@pytest.mark.django_db
+@override_settings(DEFAULT_FILE_STORAGE='django.core.files.storage.InMemoryStorage')
+def test_gallery_disabled_owner_can_still_list_photos(auth_client, locked_event):
+    """Owner always sees their photos tab even when gallery is disabled."""
+    response = auth_client.get(f'/api/events/{locked_event.id}/photos/')
+    assert response.status_code == 200

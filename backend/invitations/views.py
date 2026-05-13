@@ -356,7 +356,7 @@ class InvitationViewSet(viewsets.ModelViewSet):
         Bypasses the owner-scoped queryset used for organizer actions.
         """
         invitation = get_object_or_404(
-            Invitation.objects.select_related('event__owner__profile'),
+            Invitation.objects.select_related('event__owner__profile').prefetch_related('event__schedule_items'),
             pk=kwargs['pk'],
         )
         if request.query_params.get('track_view') == '1':
@@ -367,7 +367,7 @@ class InvitationViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], permission_classes=[], authentication_classes=[])
     def track_share(self, request, pk=None):
         invitation = get_object_or_404(
-            Invitation.objects.select_related('event__owner__profile'),
+            Invitation.objects.select_related('event__owner__profile').prefetch_related('event__schedule_items'),
             pk=pk,
         )
         channel = str(request.data.get('channel', '')).strip().lower()
@@ -388,12 +388,20 @@ class InvitationViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], permission_classes=[], authentication_classes=[])
     def rsvp(self, request, pk=None):
         invitation = get_object_or_404(
-            Invitation.objects.select_related('event__owner__profile'),
+            Invitation.objects.select_related('event__owner__profile').prefetch_related('event__schedule_items'),
             pk=pk,
         )
         serializer = RSVPSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        invitation.record_rsvp(serializer.validated_data['attending'])
+        invitation.record_rsvp(
+            attending=serializer.validated_data['attending'],
+            guest_count=serializer.validated_data['guest_count'],
+            meal_preference=serializer.validated_data['meal_preference'],
+            allergies=serializer.validated_data['allergies'],
+            needs_parking=serializer.validated_data['needs_parking'],
+            needs_hotel_info=serializer.validated_data['needs_hotel_info'],
+            note=serializer.validated_data['note'],
+        )
         return Response(self.get_serializer(invitation).data)
 
     @action(detail=True, methods=['post'], permission_classes=[])
@@ -926,7 +934,11 @@ class EventViewSet(viewsets.ModelViewSet):
     serializer_class = EventSerializer
 
     def get_queryset(self):
-        return Event.objects.filter(owner=self.request.user).select_related('owner__profile')
+        return (
+            Event.objects.filter(owner=self.request.user)
+            .select_related('owner__profile')
+            .prefetch_related('schedule_items')
+        )
 
     def perform_create(self, serializer):
         profile = getattr(self.request.user, 'profile', None)
@@ -1023,6 +1035,14 @@ class EventViewSet(viewsets.ModelViewSet):
             request.user.is_authenticated
             and event.owner_id == request.user.id
         )
+
+        # Non-owners (guests) cannot access if gallery feature is disabled.
+        # Owners always have access so they can see their upgrade state.
+        if not is_owner and not event.has_feature('gallery'):
+            return Response(
+                {'detail': 'Photo Gallery is not enabled for this event.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
 
         if not is_owner:
             # Guest path — require a checked-in invitation UUID.
