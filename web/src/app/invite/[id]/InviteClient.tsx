@@ -12,6 +12,15 @@ export default function InviteClient({ id }: { id: string }) {
   const [loading, setLoading] = useState(true);
   const [savingRsvp, setSavingRsvp] = useState(false);
   const [rsvpError, setRsvpError] = useState('');
+  const [rsvpForm, setRsvpForm] = useState({
+    attending: false,
+    guest_count: 1,
+    meal_preference: '',
+    allergies: '',
+    needs_parking: false,
+    needs_hotel_info: false,
+    note: '',
+  });
 
   // Photo gallery state
   const [photos, setPhotos] = useState<EventPhoto[]>([]);
@@ -27,16 +36,29 @@ export default function InviteClient({ id }: { id: string }) {
       .finally(() => setLoading(false));
   }, [id]);
 
+  useEffect(() => {
+    if (!invitation) return;
+    setRsvpForm({
+      attending: Boolean(invitation.rsvp_responded_at && invitation.rsvp_attending),
+      guest_count: invitation.rsvp_guest_count || 1,
+      meal_preference: invitation.meal_preference || '',
+      allergies: invitation.allergies || '',
+      needs_parking: invitation.needs_parking || false,
+      needs_hotel_info: invitation.needs_hotel_info || false,
+      note: invitation.rsvp_note || '',
+    });
+  }, [invitation?.id]);
+
   // Load photos once we know the guest is checked in
   useEffect(() => {
-    if (!invitation?.checked_in) return;
+    if (!invitation?.checked_in || !invitation?.event_features?.gallery) return;
     setPhotosLoading(true);
     eventService.listPhotos(invitation.event, invitation.id)
       .then(setPhotos)
       .catch(() => {})
       .finally(() => setPhotosLoading(false));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [invitation?.checked_in, invitation?.event, invitation?.id]);
+  }, [invitation?.checked_in, invitation?.event_features?.gallery, invitation?.event, invitation?.id]);
 
   // ── Loading ──────────────────────────────────────────────────────────────
   if (loading) {
@@ -62,6 +84,19 @@ export default function InviteClient({ id }: { id: string }) {
     );
   }
 
+  const saveRsvp = async (nextForm = rsvpForm) => {
+    setSavingRsvp(true);
+    setRsvpError('');
+    try {
+      const updated = await invitationService.rsvp(invitation.id, nextForm);
+      setInvitation(updated);
+    } catch {
+      setRsvpError('Could not save your RSVP. Please try again.');
+    } finally {
+      setSavingRsvp(false);
+    }
+  };
+
   const handleRsvpChange = async (attending: boolean) => {
     const confirmed = window.confirm(
       attending
@@ -70,16 +105,9 @@ export default function InviteClient({ id }: { id: string }) {
     );
     if (!confirmed) return;
 
-    setSavingRsvp(true);
-    setRsvpError('');
-    try {
-      const updated = await invitationService.rsvp(invitation.id, attending);
-      setInvitation(updated);
-    } catch {
-      setRsvpError('Could not save your RSVP. Please try again.');
-    } finally {
-      setSavingRsvp(false);
-    }
+    const nextForm = { ...rsvpForm, attending };
+    setRsvpForm(nextForm);
+    await saveRsvp(nextForm);
   };
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -105,18 +133,42 @@ export default function InviteClient({ id }: { id: string }) {
       ? 'You are attending'
       : 'You are not attending';
 
+  const eventDateTime = new Date(`${invitation.event_date}T${invitation.event_start_time || '00:00:00'}`);
+  const countdownDays = Math.max(
+    0,
+    Math.ceil((eventDateTime.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+  );
+  const eventDateLabel = eventDateTime.toLocaleDateString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+  const eventTimeLabel = invitation.event_start_time
+    ? eventDateTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    : '';
+  const hasLocation = Boolean(
+    invitation.event_venue_name ||
+    invitation.event_venue_address ||
+    invitation.event_google_maps_url ||
+    invitation.event_parking_info ||
+    invitation.event_hotel_info ||
+    invitation.event_travel_note
+  );
+  const hasSeating = Boolean(invitation.table_number || invitation.seat_number || invitation.group_label);
+
   const rsvpCard = (
-    <div className="w-full bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-xl p-5 sm:p-6">
+    <div id="rsvp" className="w-full bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-xl p-5 sm:p-6">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-xs font-label font-semibold text-brand uppercase tracking-widest mb-1">RSVP</p>
-          <h2 className="font-headline text-xl text-on-lp-background">Will you attend?</h2>
+          <h2 className="font-headline text-xl text-on-lp-background">Confirm your plans</h2>
           <p className="mt-1 text-sm text-on-surface-variant">{rsvpLabel}</p>
         </div>
         <label className="relative inline-flex cursor-pointer items-center">
           <input
             type="checkbox"
-            checked={Boolean(invitation.rsvp_responded_at && invitation.rsvp_attending)}
+            checked={rsvpForm.attending}
             onChange={(event) => handleRsvpChange(event.target.checked)}
             disabled={savingRsvp}
             className="peer sr-only"
@@ -132,14 +184,151 @@ export default function InviteClient({ id }: { id: string }) {
         </span>
         <span className="text-sm font-semibold text-on-surface">Yes, I will be attending</span>
       </div>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <label className="block">
+          <span className="text-xs font-semibold uppercase tracking-widest text-on-surface-variant">People attending</span>
+          <input
+            type="number"
+            min={1}
+            max={20}
+            value={rsvpForm.guest_count}
+            onChange={(event) => setRsvpForm((current) => ({ ...current, guest_count: Number(event.target.value) || 1 }))}
+            className="mt-2 h-11 w-full rounded-2xl border border-outline-variant/20 bg-surface-container px-3 text-sm outline-none focus:ring-2 focus:ring-brand/30"
+          />
+        </label>
+        <label className="block">
+          <span className="text-xs font-semibold uppercase tracking-widest text-on-surface-variant">Meal preference</span>
+          <input
+            value={rsvpForm.meal_preference}
+            onChange={(event) => setRsvpForm((current) => ({ ...current, meal_preference: event.target.value }))}
+            placeholder="e.g. Chicken, vegan"
+            className="mt-2 h-11 w-full rounded-2xl border border-outline-variant/20 bg-surface-container px-3 text-sm outline-none focus:ring-2 focus:ring-brand/30"
+          />
+        </label>
+        <label className="block sm:col-span-2">
+          <span className="text-xs font-semibold uppercase tracking-widest text-on-surface-variant">Allergies or note</span>
+          <textarea
+            value={rsvpForm.allergies}
+            onChange={(event) => setRsvpForm((current) => ({ ...current, allergies: event.target.value }))}
+            rows={2}
+            placeholder="Tell the host anything important."
+            className="mt-2 w-full rounded-2xl border border-outline-variant/20 bg-surface-container px-3 py-3 text-sm outline-none resize-none focus:ring-2 focus:ring-brand/30"
+          />
+        </label>
+        <label className="flex items-center gap-2 rounded-2xl bg-surface-container/70 px-3 py-3 text-sm font-medium text-on-surface">
+          <input
+            type="checkbox"
+            checked={rsvpForm.needs_parking}
+            onChange={(event) => setRsvpForm((current) => ({ ...current, needs_parking: event.target.checked }))}
+          />
+          Need parking info
+        </label>
+        <label className="flex items-center gap-2 rounded-2xl bg-surface-container/70 px-3 py-3 text-sm font-medium text-on-surface">
+          <input
+            type="checkbox"
+            checked={rsvpForm.needs_hotel_info}
+            onChange={(event) => setRsvpForm((current) => ({ ...current, needs_hotel_info: event.target.checked }))}
+          />
+          Need hotel info
+        </label>
+      </div>
+      <button
+        type="button"
+        onClick={() => saveRsvp()}
+        disabled={savingRsvp}
+        className="mt-4 h-11 w-full rounded-full bg-brand px-4 text-sm font-semibold text-white transition hover:bg-brand/90 disabled:opacity-50"
+      >
+        {savingRsvp ? 'Saving...' : 'Save RSVP details'}
+      </button>
       {savingRsvp && <p className="mt-3 text-xs text-on-surface-variant">Saving RSVP...</p>}
       {rsvpError && <p className="mt-3 text-xs text-tertiary">{rsvpError}</p>}
     </div>
   );
 
-  // ── Guest photo gallery (only visible after check-in) ────────────────────
-  const guestPhotoSection = invitation.checked_in ? (
-    <div className="w-full bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-xl overflow-hidden">
+  const guestHome = (
+    <div className="w-full bg-white/75 backdrop-blur-xl rounded-3xl border border-white/40 shadow-xl p-5 sm:p-6">
+      <p className="text-xs font-label font-semibold text-brand uppercase tracking-widest mb-2">Welcome, {invitation.name}</p>
+      <h1 className="font-headline text-3xl text-on-lp-background">{invitation.event_name}</h1>
+      <p className="mt-2 text-sm text-on-surface-variant">
+        {eventDateLabel}{eventTimeLabel ? ` at ${eventTimeLabel}` : ''}
+      </p>
+      <div className="mt-5 grid grid-cols-2 gap-3">
+        <div className="rounded-2xl bg-brand-container/35 px-4 py-3">
+          <p className="text-xs text-on-surface-variant">Countdown</p>
+          <p className="text-2xl font-bold text-brand">{countdownDays}</p>
+          <p className="text-xs text-brand">day{countdownDays === 1 ? '' : 's'} to go</p>
+        </div>
+        <div className="rounded-2xl bg-surface-container px-4 py-3">
+          <p className="text-xs text-on-surface-variant">RSVP</p>
+          <p className="text-base font-semibold text-on-surface">{rsvpLabel}</p>
+        </div>
+      </div>
+      <div className="mt-5 grid grid-cols-2 gap-2">
+        {[
+          ['#rsvp', 'event_available', 'RSVP'],
+          ['#location', 'location_on', 'Location'],
+          ['#schedule', 'calendar_month', 'Schedule'],
+          ['#memories', 'add_a_photo', 'Memories'],
+        ].map(([href, icon, label]) => (
+          <a key={href} href={href} className="inline-flex items-center justify-center gap-1.5 rounded-full bg-surface-container px-3 py-2 text-xs font-semibold text-on-surface">
+            <span className="material-symbols-outlined text-[16px]">{icon}</span>
+            {label}
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+
+  const scheduleSection = invitation.event_schedule_items.length > 0 ? (
+    <div id="schedule" className="w-full bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-xl p-5 sm:p-6">
+      <p className="text-xs font-label font-semibold text-brand uppercase tracking-widest mb-4">Schedule</p>
+      <div className="space-y-4">
+        {invitation.event_schedule_items.map((item) => (
+          <div key={`${item.time}-${item.title}`} className="flex gap-3">
+            <div className="w-20 shrink-0 text-sm font-semibold text-brand">{item.time.slice(0, 5)}</div>
+            <div className="border-l border-outline-variant/30 pl-4">
+              <p className="text-sm font-semibold text-on-surface">{item.title}</p>
+              {item.description && <p className="mt-1 text-xs text-on-surface-variant">{item.description}</p>}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  ) : null;
+
+  const locationSection = hasLocation ? (
+    <div id="location" className="w-full bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-xl p-5 sm:p-6">
+      <p className="text-xs font-label font-semibold text-brand uppercase tracking-widest mb-3">Location</p>
+      {invitation.event_venue_name && <h2 className="font-headline text-xl text-on-lp-background">{invitation.event_venue_name}</h2>}
+      {invitation.event_venue_address && <p className="mt-2 text-sm text-on-surface-variant">{invitation.event_venue_address}</p>}
+      {invitation.event_google_maps_url && (
+        <a href={invitation.event_google_maps_url} target="_blank" rel="noreferrer" className="mt-4 inline-flex h-10 items-center gap-2 rounded-full bg-brand px-4 text-sm font-semibold text-white">
+          <span className="material-symbols-outlined text-[18px]">map</span>
+          Open map
+        </a>
+      )}
+      <div className="mt-4 space-y-3 text-sm text-on-surface-variant">
+        {invitation.event_parking_info && <p><span className="font-semibold text-on-surface">Parking:</span> {invitation.event_parking_info}</p>}
+        {invitation.event_hotel_info && <p><span className="font-semibold text-on-surface">Hotels:</span> {invitation.event_hotel_info}</p>}
+        {invitation.event_travel_note && <p><span className="font-semibold text-on-surface">Travel:</span> {invitation.event_travel_note}</p>}
+      </div>
+    </div>
+  ) : null;
+
+  const seatingSection = hasSeating ? (
+    <div className="w-full bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-xl p-5 sm:p-6">
+      <p className="text-xs font-label font-semibold text-brand uppercase tracking-widest mb-3">Your Seat</p>
+      <div className="grid grid-cols-2 gap-3">
+        {invitation.table_number && <div className="rounded-2xl bg-surface-container px-4 py-3"><p className="text-xs text-on-surface-variant">Table</p><p className="font-semibold">{invitation.table_number}</p></div>}
+        {invitation.seat_number && <div className="rounded-2xl bg-surface-container px-4 py-3"><p className="text-xs text-on-surface-variant">Seat</p><p className="font-semibold">{invitation.seat_number}</p></div>}
+        {invitation.group_label && <div className="col-span-2 rounded-2xl bg-surface-container px-4 py-3"><p className="text-xs text-on-surface-variant">Group</p><p className="font-semibold">{invitation.group_label}</p></div>}
+      </div>
+    </div>
+  ) : null;
+
+  // ── Guest photo gallery (only visible after check-in and when gallery feature is enabled) ───
+  const guestPhotoSection = invitation.checked_in && invitation.event_features?.gallery ? (
+    <div id="memories" className="w-full bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-xl overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-5 pt-5 pb-4">
         <div>
@@ -223,7 +412,11 @@ export default function InviteClient({ id }: { id: string }) {
           }}
         />
         <div className="w-full max-w-lg px-4 sm:px-5 pb-10 flex flex-col gap-5">
+          {guestHome}
           {rsvpCard}
+          {scheduleSection}
+          {locationSection}
+          {seatingSection}
           {guestPhotoSection}
         </div>
       </div>
@@ -244,6 +437,8 @@ export default function InviteClient({ id }: { id: string }) {
         </div>
 
         <main className="flex flex-col items-center px-4 sm:px-5 py-12 sm:py-16 gap-5 max-w-lg mx-auto">
+          {guestHome}
+
           <div className="w-full bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-xl p-5 sm:p-6">
             <div className="mb-5 text-center">
               <p className="text-xs font-label font-semibold text-brand uppercase tracking-widest mb-1">Guest</p>
@@ -294,6 +489,12 @@ export default function InviteClient({ id }: { id: string }) {
 
           {rsvpCard}
 
+          {scheduleSection}
+
+          {locationSection}
+
+          {seatingSection}
+
           {guestPhotoSection}
 
           {invitation.qr_code && (
@@ -330,6 +531,8 @@ export default function InviteClient({ id }: { id: string }) {
       </div>
 
       <main className="flex flex-col items-center px-4 sm:px-5 py-10 gap-6 max-w-lg w-full mx-auto">
+        {guestHome}
+
         {/* Invitee name */}
         <div className="text-center">
           <p className="text-xs font-semibold uppercase tracking-widest text-brand mb-1">You're Invited</p>
@@ -367,6 +570,12 @@ export default function InviteClient({ id }: { id: string }) {
         )}
 
         {rsvpCard}
+
+        {scheduleSection}
+
+        {locationSection}
+
+        {seatingSection}
 
         {guestPhotoSection}
 

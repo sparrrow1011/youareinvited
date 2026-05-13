@@ -13,6 +13,7 @@ import { resolveMediaUrl } from '@/lib/api';
 import ThemePicker from '@/components/ThemePicker';
 import InvitationPreviewModal from '@/components/InvitationPreviewModal';
 import BulkWhatsAppModal from '@/components/BulkWhatsAppModal';
+import ProFeatureBanner from '@/components/ProFeatureBanner';
 
 const NAV_LINKS = [
   { icon: 'dashboard', label: 'Dashboard', href: '/dashboard' },
@@ -34,6 +35,12 @@ const EVENT_TABS = [
     label: 'Design',
     icon: 'brush',
     description: 'Template uploads, zones, and guest-facing styling.',
+  },
+  {
+    id: 'guest_app',
+    label: 'Guest App',
+    icon: 'app_shortcut',
+    description: 'Itinerary, location, and travel details for private guest portals.',
   },
   {
     id: 'sharing',
@@ -114,6 +121,20 @@ export default function EventPage() {
   const [savingTheme, setSavingTheme] = useState(false);
   const [themeSaved, setThemeSaved] = useState(false);
   const [activeTab, setActiveTab] = useState<EventTab>('guests');
+  const [guestAppForm, setGuestAppForm] = useState({
+    start_time: '',
+    venue_name: '',
+    venue_address: '',
+    google_maps_url: '',
+    parking_info: '',
+    hotel_info: '',
+    travel_note: '',
+    schedule_items: [
+      { time: '14:00', title: 'Guest arrival', description: '', sort_order: 0 },
+    ],
+  });
+  const [savingGuestApp, setSavingGuestApp] = useState(false);
+  const [guestAppSaved, setGuestAppSaved] = useState(false);
 
   const [eventPhotos, setEventPhotos] = useState<EventPhoto[]>([]);
   const [photosLoading, setPhotosLoading] = useState(false);
@@ -177,6 +198,23 @@ export default function EventPage() {
       setWaTemplate(ev.whatsapp_message_template ?? '');
       setSelectedTheme(ev.theme ?? '');
       setThemeData(ev.theme_data ?? {});
+      setGuestAppForm({
+        start_time: ev.start_time ? ev.start_time.slice(0, 5) : '',
+        venue_name: ev.venue_name ?? '',
+        venue_address: ev.venue_address ?? '',
+        google_maps_url: ev.google_maps_url ?? '',
+        parking_info: ev.parking_info ?? '',
+        hotel_info: ev.hotel_info ?? '',
+        travel_note: ev.travel_note ?? '',
+        schedule_items: ev.schedule_items.length > 0
+          ? ev.schedule_items.map((item, index) => ({
+              time: item.time.slice(0, 5),
+              title: item.title,
+              description: item.description,
+              sort_order: item.sort_order ?? index,
+            }))
+          : [{ time: '14:00', title: 'Guest arrival', description: '', sort_order: 0 }],
+      });
       setInvitations(invs.results);
       setInvitationCount(invs.count);
       setInvitationPage(invs.page);
@@ -211,7 +249,7 @@ export default function EventPage() {
   }, [invitationPage, debouncedInvitationSearch, rsvpFilter]);
 
   useEffect(() => {
-    if (activeTab !== 'photos' || !event) return;
+    if (activeTab !== 'photos' || !event || !event.features?.gallery) return;
     setPhotosLoading(true);
     setPhotosError('');
     eventService
@@ -521,6 +559,39 @@ export default function EventPage() {
       setThemeData(event?.theme_data ?? {});
     } finally {
       setSavingTheme(false);
+    }
+  };
+
+  const handleSaveGuestApp = async () => {
+    setSavingGuestApp(true);
+    setGuestAppSaved(false);
+    try {
+      const cleanedSchedule = guestAppForm.schedule_items
+        .map((item, index) => ({
+          time: item.time,
+          title: item.title.trim(),
+          description: item.description.trim(),
+          sort_order: index,
+        }))
+        .filter((item) => item.time && item.title);
+
+      const updated = await eventService.update(id, {
+        start_time: guestAppForm.start_time || null,
+        venue_name: guestAppForm.venue_name.trim(),
+        venue_address: guestAppForm.venue_address.trim(),
+        google_maps_url: guestAppForm.google_maps_url.trim(),
+        parking_info: guestAppForm.parking_info.trim(),
+        hotel_info: guestAppForm.hotel_info.trim(),
+        travel_note: guestAppForm.travel_note.trim(),
+        schedule_items: cleanedSchedule,
+      });
+      setEvent(updated);
+      setGuestAppSaved(true);
+      window.setTimeout(() => setGuestAppSaved(false), 2000);
+    } catch {
+      setError('Failed to save guest app details.');
+    } finally {
+      setSavingGuestApp(false);
     }
   };
 
@@ -1157,8 +1228,11 @@ export default function EventPage() {
 
           {activeTab === 'photos' && event && (
             <div className="space-y-6">
+              {!event.features?.gallery && (
+                <ProFeatureBanner featureName="Event Photo Gallery" />
+              )}
               {/* Header row */}
-              <div className="flex flex-wrap items-center gap-3">
+              <div className={`flex flex-wrap items-center gap-3${!event.features?.gallery ? ' opacity-50 pointer-events-none' : ''}`}>
                 <h2 className="text-lg font-bold text-on-surface flex-1">
                   Photo Gallery
                   {eventPhotos.length > 0 && (
@@ -1269,6 +1343,125 @@ export default function EventPage() {
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {activeTab === 'guest_app' && (
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <div className="bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-xl p-5 sm:p-6">
+                <div className="mb-5">
+                  <p className="text-xs font-label font-semibold text-brand uppercase tracking-widest">Guest App Details</p>
+                  <h2 className="mt-1 font-headline text-2xl text-on-lp-background">Location and travel</h2>
+                </div>
+                <div className="space-y-4">
+                  {[
+                    { label: 'Event start time', key: 'start_time', type: 'time', placeholder: '' },
+                    { label: 'Venue name', key: 'venue_name', type: 'text', placeholder: 'e.g. The Civic Centre' },
+                    { label: 'Venue address', key: 'venue_address', type: 'text', placeholder: 'Street, city, country' },
+                    { label: 'Google Maps URL', key: 'google_maps_url', type: 'url', placeholder: 'https://maps.google.com/...' },
+                    { label: 'Parking info', key: 'parking_info', type: 'text', placeholder: 'Where guests should park' },
+                    { label: 'Hotel info', key: 'hotel_info', type: 'text', placeholder: 'Recommended hotel or area' },
+                    { label: 'Travel note', key: 'travel_note', type: 'text', placeholder: 'Taxi, airport, or arrival notes' },
+                  ].map(({ label, key, type, placeholder }) => (
+                    <label key={key} className="block">
+                      <span className="text-xs font-semibold uppercase tracking-widest text-on-surface-variant">{label}</span>
+                      <input
+                        type={type}
+                        value={(guestAppForm as any)[key]}
+                        onChange={(event) => setGuestAppForm((current) => ({ ...current, [key]: event.target.value }))}
+                        placeholder={placeholder}
+                        className="mt-2 h-11 w-full rounded-2xl border border-outline-variant/20 bg-surface-container px-4 text-sm text-on-surface outline-none focus:ring-2 focus:ring-brand/30"
+                      />
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-xl p-5 sm:p-6">
+                <div className="mb-5 flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-label font-semibold text-brand uppercase tracking-widest">Itinerary</p>
+                    <h2 className="mt-1 font-headline text-2xl text-on-lp-background">Guest timeline</h2>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setGuestAppForm((current) => ({
+                      ...current,
+                      schedule_items: [
+                        ...current.schedule_items,
+                        { time: '18:00', title: '', description: '', sort_order: current.schedule_items.length },
+                      ],
+                    }))}
+                    className="inline-flex h-9 items-center gap-1.5 rounded-full bg-brand px-3 text-xs font-semibold text-white"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">add</span>
+                    Add
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  {guestAppForm.schedule_items.map((item, index) => (
+                    <div key={index} className="rounded-2xl border border-outline-variant/20 bg-surface-container/70 p-4">
+                      <div className="grid gap-3 sm:grid-cols-[120px_1fr]">
+                        <input
+                          type="time"
+                          value={item.time}
+                          onChange={(event) => setGuestAppForm((current) => ({
+                            ...current,
+                            schedule_items: current.schedule_items.map((row, rowIndex) => rowIndex === index ? { ...row, time: event.target.value } : row),
+                          }))}
+                          className="h-10 rounded-xl border border-outline-variant/20 bg-white/70 px-3 text-sm outline-none focus:ring-2 focus:ring-brand/30"
+                        />
+                        <input
+                          value={item.title}
+                          onChange={(event) => setGuestAppForm((current) => ({
+                            ...current,
+                            schedule_items: current.schedule_items.map((row, rowIndex) => rowIndex === index ? { ...row, title: event.target.value } : row),
+                          }))}
+                          placeholder="Schedule title"
+                          className="h-10 rounded-xl border border-outline-variant/20 bg-white/70 px-3 text-sm outline-none focus:ring-2 focus:ring-brand/30"
+                        />
+                      </div>
+                      <textarea
+                        value={item.description}
+                        onChange={(event) => setGuestAppForm((current) => ({
+                          ...current,
+                          schedule_items: current.schedule_items.map((row, rowIndex) => rowIndex === index ? { ...row, description: event.target.value } : row),
+                        }))}
+                        rows={2}
+                        placeholder="Optional description"
+                        className="mt-3 w-full rounded-xl border border-outline-variant/20 bg-white/70 px-3 py-2 text-sm outline-none resize-none focus:ring-2 focus:ring-brand/30"
+                      />
+                      {guestAppForm.schedule_items.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setGuestAppForm((current) => ({
+                            ...current,
+                            schedule_items: current.schedule_items.filter((_, rowIndex) => rowIndex !== index),
+                          }))}
+                          className="mt-2 text-xs font-semibold text-tertiary"
+                        >
+                          Remove item
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="lg:col-span-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+                {guestAppSaved && (
+                  <span className="text-sm font-semibold text-brand">Guest app saved</span>
+                )}
+                <button
+                  type="button"
+                  onClick={handleSaveGuestApp}
+                  disabled={savingGuestApp}
+                  className="h-11 rounded-full bg-brand px-6 text-sm font-semibold text-white transition hover:bg-brand/90 disabled:opacity-50"
+                >
+                  {savingGuestApp ? 'Saving...' : 'Save Guest App'}
+                </button>
+              </div>
             </div>
           )}
 
