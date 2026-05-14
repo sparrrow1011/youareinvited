@@ -1,6 +1,6 @@
 import json
 from rest_framework import serializers
-from .models import Invitation, EventScheduleItem
+from .models import Invitation, EventScheduleItem, EventGiftLink
 
 
 def _public_brand_payload(profile):
@@ -39,6 +39,7 @@ class InvitationSerializer(serializers.ModelSerializer):
     event_guest_app_template = serializers.CharField(source='event.guest_app_template', read_only=True)
     event_features = serializers.JSONField(source='event.features', read_only=True)
     event_schedule_items = serializers.SerializerMethodField()
+    event_gift_links = serializers.SerializerMethodField()
     event_has_template = serializers.SerializerMethodField()
     invitation_url = serializers.SerializerMethodField()
     whatsapp_share_url = serializers.SerializerMethodField()
@@ -65,6 +66,7 @@ class InvitationSerializer(serializers.ModelSerializer):
             'event_guest_app_template',
             'event_features',
             'event_schedule_items',
+            'event_gift_links',
             'event_has_template',
             'name',
             'seat_number',
@@ -104,6 +106,10 @@ class InvitationSerializer(serializers.ModelSerializer):
 
     def get_event_schedule_items(self, obj):
         return EventScheduleItemSerializer(obj.event.schedule_items.all(), many=True).data
+
+    def get_event_gift_links(self, obj):
+        links = [link for link in obj.event.gift_links.all() if link.is_active]
+        return EventGiftLinkSerializer(links, many=True).data
 
     def get_invitation_url(self, obj):
         return obj.get_invitation_url()
@@ -198,9 +204,26 @@ class EventScheduleItemSerializer(serializers.ModelSerializer):
         read_only_fields = ['id']
 
 
+class EventGiftLinkSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EventGiftLink
+        fields = ['id', 'title', 'url', 'description', 'is_active', 'sort_order']
+        read_only_fields = ['id']
+
+    def validate_title(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError('Title is required.')
+        return value
+
+    def validate_description(self, value):
+        return value.strip()
+
+
 class EventSerializer(serializers.ModelSerializer):
     has_security_pin = serializers.SerializerMethodField()
     schedule_items = EventScheduleItemSerializer(many=True, required=False)
+    gift_links = EventGiftLinkSerializer(many=True, required=False)
     # background_image uses the default ImageField for writes (so uploads are
     # saved) and to_representation converts it to a URL for reads.
 
@@ -212,7 +235,8 @@ class EventSerializer(serializers.ModelSerializer):
             'parking_info', 'hotel_info', 'travel_note',
             'background_image', 'qr_zone', 'name_zone', 'tag_zone',
             'created_at', 'has_security_pin', 'whatsapp_message_template',
-            'theme', 'theme_data', 'guest_app_template', 'schedule_items', 'features',
+            'theme', 'theme_data', 'guest_app_template', 'schedule_items',
+            'gift_links', 'features',
         ]
         read_only_fields = ['id', 'owner', 'created_at']
 
@@ -247,15 +271,20 @@ class EventSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         schedule_items = validated_data.pop('schedule_items', [])
+        gift_links = validated_data.pop('gift_links', [])
         event = super().create(validated_data)
         self._replace_schedule_items(event, schedule_items)
+        self._replace_gift_links(event, gift_links)
         return event
 
     def update(self, instance, validated_data):
         schedule_items = validated_data.pop('schedule_items', None)
+        gift_links = validated_data.pop('gift_links', None)
         event = super().update(instance, validated_data)
         if schedule_items is not None:
             self._replace_schedule_items(event, schedule_items)
+        if gift_links is not None:
+            self._replace_gift_links(event, gift_links)
         return event
 
     def _replace_schedule_items(self, event, schedule_items):
@@ -272,4 +301,21 @@ class EventSerializer(serializers.ModelSerializer):
                 sort_order=item.get('sort_order', index),
             )
             for index, item in enumerate(schedule_items)
+        ])
+
+    def _replace_gift_links(self, event, gift_links):
+        if gift_links is None:
+            return
+
+        event.gift_links.all().delete()
+        EventGiftLink.objects.bulk_create([
+            EventGiftLink(
+                event=event,
+                title=item['title'],
+                url=item['url'],
+                description=item.get('description', ''),
+                is_active=item.get('is_active', True),
+                sort_order=item.get('sort_order', index),
+            )
+            for index, item in enumerate(gift_links)
         ])

@@ -268,6 +268,7 @@ export default function InviteClient({ id }: { id: string }) {
           ['#rsvp', 'event_available', 'RSVP'],
           ['#location', 'location_on', 'Location'],
           ['#schedule', 'calendar_month', 'Schedule'],
+          ['#gifts', 'card_giftcard', 'Gifts'],
           ['#memories', 'add_a_photo', 'Memories'],
         ].map(([href, icon, label]) => (
           <a key={href} href={href} className="inline-flex items-center justify-center gap-1.5 rounded-full bg-surface-container px-3 py-2 text-xs font-semibold text-on-surface">
@@ -311,6 +312,32 @@ export default function InviteClient({ id }: { id: string }) {
         {invitation.event_parking_info && <p><span className="font-semibold text-on-surface">Parking:</span> {invitation.event_parking_info}</p>}
         {invitation.event_hotel_info && <p><span className="font-semibold text-on-surface">Hotels:</span> {invitation.event_hotel_info}</p>}
         {invitation.event_travel_note && <p><span className="font-semibold text-on-surface">Travel:</span> {invitation.event_travel_note}</p>}
+      </div>
+    </div>
+  ) : null;
+
+  const giftSection = invitation.event_gift_links.length > 0 ? (
+    <div id="gifts" className="w-full bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-xl p-5 sm:p-6">
+      <p className="text-xs font-label font-semibold text-brand uppercase tracking-widest mb-3">Gifts</p>
+      <h2 className="font-headline text-xl text-on-lp-background">Gift and contribution links</h2>
+      <div className="mt-4 grid gap-3">
+        {invitation.event_gift_links.map((link) => (
+          <a
+            key={link.id ?? `${link.title}-${link.url}`}
+            href={link.url}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-start justify-between gap-3 rounded-2xl bg-surface-container/80 px-4 py-3 transition hover:bg-surface-container-high"
+          >
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold text-on-surface">{link.title}</span>
+              {link.description && (
+                <span className="mt-1 block text-xs leading-5 text-on-surface-variant">{link.description}</span>
+              )}
+            </span>
+            <span className="material-symbols-outlined mt-0.5 shrink-0 text-[18px] text-brand">open_in_new</span>
+          </a>
+        ))}
       </div>
     </div>
   ) : null;
@@ -457,11 +484,12 @@ export default function InviteClient({ id }: { id: string }) {
             </div>
           </section>
 
-          <nav className="grid gap-3 sm:grid-cols-4">
+          <nav className="grid gap-3 sm:grid-cols-5">
             {[
               ['#rsvp', 'event_available', 'RSVP'],
               ['#location', 'location_on', 'Location'],
               ['#schedule', 'calendar_month', 'Schedule'],
+              ['#gifts', 'card_giftcard', 'Gifts'],
               ['#memories', 'add_a_photo', 'Memories'],
             ].map(([href, icon, label]) => (
               <a
@@ -484,6 +512,7 @@ export default function InviteClient({ id }: { id: string }) {
             <div className="flex flex-col gap-6">
               {scheduleSection}
               {locationSection}
+              {giftSection}
               {guestPhotoSection}
             </div>
           </section>
@@ -522,6 +551,7 @@ export default function InviteClient({ id }: { id: string }) {
           {rsvpCard}
           {scheduleSection}
           {locationSection}
+          {giftSection}
           {seatingSection}
           {guestPhotoSection}
         </div>
@@ -598,6 +628,8 @@ export default function InviteClient({ id }: { id: string }) {
           {scheduleSection}
 
           {locationSection}
+
+          {giftSection}
 
           {seatingSection}
 
@@ -680,6 +712,8 @@ export default function InviteClient({ id }: { id: string }) {
         {scheduleSection}
 
         {locationSection}
+
+        {giftSection}
 
         {seatingSection}
 

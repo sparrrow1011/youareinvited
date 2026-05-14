@@ -113,10 +113,27 @@ def test_event_guest_app_details_are_exposed_on_public_invitation(auth_client, a
             {'time': '14:00', 'title': 'Guest arrival', 'description': 'Doors open.', 'sort_order': 0},
             {'time': '15:00', 'title': 'Ceremony', 'description': '', 'sort_order': 1},
         ],
+        'gift_links': [
+            {
+                'title': 'Gift registry',
+                'url': 'https://example.com/registry',
+                'description': 'Send a gift or contribution.',
+                'is_active': True,
+                'sort_order': 0,
+            },
+            {
+                'title': 'Hidden gift link',
+                'url': 'https://example.com/hidden',
+                'description': '',
+                'is_active': False,
+                'sort_order': 1,
+            },
+        ],
     }, format='json')
 
     assert response.status_code == 200
     assert len(response.data['schedule_items']) == 2
+    assert len(response.data['gift_links']) == 2
     assert response.data['guest_app_template'] == 'spotlight'
 
     public_response = api_client.get(f'/api/invitations/{invitation.id}/')
@@ -126,6 +143,8 @@ def test_event_guest_app_details_are_exposed_on_public_invitation(auth_client, a
     assert public_response.data['event_start_time'] == '14:00:00'
     assert public_response.data['event_guest_app_template'] == 'spotlight'
     assert public_response.data['event_schedule_items'][0]['title'] == 'Guest arrival'
+    assert len(public_response.data['event_gift_links']) == 1
+    assert public_response.data['event_gift_links'][0]['title'] == 'Gift registry'
 
 
 @pytest.mark.django_db

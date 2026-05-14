@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Invitation, UserProfile, Event
+from .models import Invitation, UserProfile, Event, EventGiftLink
 
 
 @admin.register(Invitation)
@@ -66,6 +66,12 @@ class UserProfileAdmin(admin.ModelAdmin):
     search_fields = ['user__email', 'brand_name']
 
 
+class EventGiftLinkInline(admin.TabularInline):
+    model = EventGiftLink
+    extra = 0
+    fields = ['title', 'url', 'description', 'is_active', 'sort_order']
+
+
 @admin.register(Event)
 class EventAdmin(admin.ModelAdmin):
     list_display = ['name', 'owner', 'date', 'guest_app_template', 'created_at']
@@ -78,3 +84,4 @@ class EventAdmin(admin.ModelAdmin):
         'security_pin', 'whatsapp_message_template',
         'theme', 'theme_data', 'guest_app_template', 'features',
     ]
+    inlines = [EventGiftLinkInline]

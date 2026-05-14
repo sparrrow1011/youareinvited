@@ -362,7 +362,10 @@ class InvitationViewSet(viewsets.ModelViewSet):
         Bypasses the owner-scoped queryset used for organizer actions.
         """
         invitation = get_object_or_404(
-            Invitation.objects.select_related('event__owner__profile').prefetch_related('event__schedule_items'),
+            Invitation.objects.select_related('event__owner__profile').prefetch_related(
+                'event__schedule_items',
+                'event__gift_links',
+            ),
             pk=kwargs['pk'],
         )
         if request.query_params.get('track_view') == '1':
@@ -373,7 +376,10 @@ class InvitationViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], permission_classes=[], authentication_classes=[])
     def track_share(self, request, pk=None):
         invitation = get_object_or_404(
-            Invitation.objects.select_related('event__owner__profile').prefetch_related('event__schedule_items'),
+            Invitation.objects.select_related('event__owner__profile').prefetch_related(
+                'event__schedule_items',
+                'event__gift_links',
+            ),
             pk=pk,
         )
         channel = str(request.data.get('channel', '')).strip().lower()
@@ -394,7 +400,10 @@ class InvitationViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], permission_classes=[], authentication_classes=[])
     def rsvp(self, request, pk=None):
         invitation = get_object_or_404(
-            Invitation.objects.select_related('event__owner__profile').prefetch_related('event__schedule_items'),
+            Invitation.objects.select_related('event__owner__profile').prefetch_related(
+                'event__schedule_items',
+                'event__gift_links',
+            ),
             pk=pk,
         )
         serializer = RSVPSerializer(data=request.data)
@@ -943,7 +952,7 @@ class EventViewSet(viewsets.ModelViewSet):
         return (
             Event.objects.filter(owner=self.request.user)
             .select_related('owner__profile')
-            .prefetch_related('schedule_items')
+            .prefetch_related('schedule_items', 'gift_links')
         )
 
     def perform_create(self, serializer):

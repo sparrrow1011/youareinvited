@@ -595,3 +595,25 @@ class EventScheduleItem(models.Model):
 
     def __str__(self):
         return f"{self.event.name} - {self.time} - {self.title}"
+
+
+class EventGiftLink(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    event = models.ForeignKey(
+        Event, on_delete=models.CASCADE, related_name='gift_links'
+    )
+    title = models.CharField(max_length=120)
+    url = models.URLField(max_length=1000)
+    description = models.CharField(max_length=240, blank=True, default='')
+    is_active = models.BooleanField(default=True)
+    sort_order = models.PositiveSmallIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['sort_order', 'created_at']
+        indexes = [
+            models.Index(fields=['event', 'is_active', 'sort_order']),
+        ]
+
+    def __str__(self):
+        return f"{self.event.name} - {self.title}"

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { eventService, invitationService, authService, api, Event, Invitation, InvitationStats, AuthUser, EventPhoto } from '@/lib/api';
+import { eventService, invitationService, authService, api, Event, Invitation, InvitationStats, AuthUser, EventPhoto, EventGiftLink } from '@/lib/api';
 import PhotoGallery from '@/components/PhotoGallery';
 import OrganizerWorkspaceHeader from '@/components/OrganizerWorkspaceHeader';
 import OrganizerWorkspaceSidebar from '@/components/OrganizerWorkspaceSidebar';
@@ -155,6 +155,9 @@ export default function EventPage() {
     schedule_items: [
       { time: '14:00', title: 'Guest arrival', description: '', sort_order: 0 },
     ],
+    gift_links: [
+      { title: '', url: '', description: '', is_active: true, sort_order: 0 },
+    ] as EventGiftLink[],
   });
   const [savingGuestApp, setSavingGuestApp] = useState(false);
   const [guestAppSaved, setGuestAppSaved] = useState(false);
@@ -246,6 +249,16 @@ export default function EventPage() {
               sort_order: item.sort_order ?? index,
             }))
           : [{ time: '14:00', title: 'Guest arrival', description: '', sort_order: 0 }],
+        gift_links: ev.gift_links?.length > 0
+          ? ev.gift_links.map((link, index) => ({
+              id: link.id,
+              title: link.title,
+              url: link.url,
+              description: link.description,
+              is_active: link.is_active,
+              sort_order: link.sort_order ?? index,
+            }))
+          : [{ title: '', url: '', description: '', is_active: true, sort_order: 0 }],
       });
       setInvitations(invs.results);
       setInvitationCount(invs.count);
@@ -606,6 +619,15 @@ export default function EventPage() {
           sort_order: index,
         }))
         .filter((item) => item.time && item.title);
+      const cleanedGiftLinks = guestAppForm.gift_links
+        .map((link, index) => ({
+          title: link.title.trim(),
+          url: link.url.trim(),
+          description: link.description.trim(),
+          is_active: link.is_active,
+          sort_order: index,
+        }))
+        .filter((link) => link.title && link.url);
 
       const updated = await eventService.update(id, {
         guest_app_template: guestAppForm.guest_app_template,
@@ -617,6 +639,7 @@ export default function EventPage() {
         hotel_info: guestAppForm.hotel_info.trim(),
         travel_note: guestAppForm.travel_note.trim(),
         schedule_items: cleanedSchedule,
+        gift_links: cleanedGiftLinks,
       });
       setEvent(updated);
       setGuestAppSaved(true);
@@ -1531,6 +1554,92 @@ export default function EventPage() {
                           Remove item
                         </button>
                       )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="lg:col-span-2 bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-xl p-5 sm:p-6">
+                <div className="mb-5 flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-label font-semibold text-brand uppercase tracking-widest">Gifts & Payments</p>
+                    <h2 className="mt-1 font-headline text-2xl text-on-lp-background">Gift and contribution links</h2>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setGuestAppForm((current) => ({
+                      ...current,
+                      gift_links: [
+                        ...current.gift_links,
+                        { title: '', url: '', description: '', is_active: true, sort_order: current.gift_links.length },
+                      ],
+                    }))}
+                    className="inline-flex h-9 items-center gap-1.5 rounded-full bg-brand px-3 text-xs font-semibold text-white"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">add</span>
+                    Add
+                  </button>
+                </div>
+
+                <div className="grid gap-4 lg:grid-cols-2">
+                  {guestAppForm.gift_links.map((link, index) => (
+                    <div key={index} className="rounded-2xl border border-outline-variant/20 bg-surface-container/70 p-4">
+                      <div className="grid gap-3 sm:grid-cols-[1fr_1.4fr]">
+                        <input
+                          value={link.title}
+                          onChange={(event) => setGuestAppForm((current) => ({
+                            ...current,
+                            gift_links: current.gift_links.map((row, rowIndex) => rowIndex === index ? { ...row, title: event.target.value } : row),
+                          }))}
+                          placeholder="Link title, e.g. Gift registry"
+                          className="h-10 rounded-xl border border-outline-variant/20 bg-white/70 px-3 text-sm outline-none focus:ring-2 focus:ring-brand/30"
+                        />
+                        <input
+                          type="url"
+                          value={link.url}
+                          onChange={(event) => setGuestAppForm((current) => ({
+                            ...current,
+                            gift_links: current.gift_links.map((row, rowIndex) => rowIndex === index ? { ...row, url: event.target.value } : row),
+                          }))}
+                          placeholder="https://..."
+                          className="h-10 rounded-xl border border-outline-variant/20 bg-white/70 px-3 text-sm outline-none focus:ring-2 focus:ring-brand/30"
+                        />
+                      </div>
+                      <textarea
+                        value={link.description}
+                        onChange={(event) => setGuestAppForm((current) => ({
+                          ...current,
+                          gift_links: current.gift_links.map((row, rowIndex) => rowIndex === index ? { ...row, description: event.target.value } : row),
+                        }))}
+                        rows={2}
+                        placeholder="Optional description, e.g. Contribute to the honeymoon fund."
+                        className="mt-3 w-full rounded-xl border border-outline-variant/20 bg-white/70 px-3 py-2 text-sm outline-none resize-none focus:ring-2 focus:ring-brand/30"
+                      />
+                      <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                        <label className="inline-flex items-center gap-2 text-sm font-medium text-on-surface">
+                          <input
+                            type="checkbox"
+                            checked={link.is_active}
+                            onChange={(event) => setGuestAppForm((current) => ({
+                              ...current,
+                              gift_links: current.gift_links.map((row, rowIndex) => rowIndex === index ? { ...row, is_active: event.target.checked } : row),
+                            }))}
+                          />
+                          Show to guests
+                        </label>
+                        {guestAppForm.gift_links.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => setGuestAppForm((current) => ({
+                              ...current,
+                              gift_links: current.gift_links.filter((_, rowIndex) => rowIndex !== index),
+                            }))}
+                            className="text-xs font-semibold text-tertiary"
+                          >
+                            Remove link
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>

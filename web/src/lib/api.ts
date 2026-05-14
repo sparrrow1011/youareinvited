@@ -265,6 +265,7 @@ export interface Event {
   theme_data: Record<string, unknown>;
   guest_app_template: 'classic' | 'spotlight';
   schedule_items: EventScheduleItem[];
+  gift_links: EventGiftLink[];
   created_at: string;
   features: Record<string, boolean>;
 }
@@ -274,6 +275,15 @@ export interface EventScheduleItem {
   time: string;
   title: string;
   description: string;
+  sort_order: number;
+}
+
+export interface EventGiftLink {
+  id?: string;
+  title: string;
+  url: string;
+  description: string;
+  is_active: boolean;
   sort_order: number;
 }
 
@@ -292,6 +302,7 @@ export interface EventCreate {
   theme_data?: Record<string, unknown>;
   guest_app_template?: 'classic' | 'spotlight';
   schedule_items?: EventScheduleItem[];
+  gift_links?: EventGiftLink[];
 }
 
 // Event service
@@ -379,6 +390,7 @@ export interface Invitation {
   event_theme_data: Record<string, unknown>;
   event_guest_app_template: 'classic' | 'spotlight';
   event_schedule_items: EventScheduleItem[];
+  event_gift_links: EventGiftLink[];
   event_has_template: boolean;
   name: string;
   seat_number: string;
