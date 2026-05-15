@@ -14,7 +14,15 @@ export default function PoweredByFooter({ hostLabel, className = '' }: PoweredBy
         </p>
       )}
       <p className="text-xs text-on-surface-variant">
-        Powered by <span className="font-semibold text-brand">youareinvited</span>
+        Powered by{' '}
+        <a
+          href="https://www.youare-invited.com/"
+          target="_blank"
+          rel="noreferrer"
+          className="font-semibold text-brand hover:underline"
+        >
+          youareinvited
+        </a>
       </p>
       <LegalFooterLinks className="mt-3 text-[11px] text-on-surface-variant font-medium" />
     </footer>
