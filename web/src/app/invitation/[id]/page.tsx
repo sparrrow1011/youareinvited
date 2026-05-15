@@ -30,6 +30,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return {
       title,
       description: `View your personal invitation — ${inv.name}`,
+      robots: {
+        index: false,
+        follow: false,
+      },
       openGraph: {
         title,
         description: `You're invited! View your invitation here.`,
@@ -46,6 +50,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     return {
       title: 'Your Invitation',
       description: 'View your personal invitation.',
+      robots: {
+        index: false,
+        follow: false,
+      },
     };
   }
 }

@@ -1,6 +1,14 @@
 import Link from 'next/link';
 import NavBar from '@/components/NavBar';
 import PublicSiteFooter from '@/components/PublicSiteFooter';
+import { createPageMetadata } from '@/lib/seo';
+
+export const metadata = createPageMetadata({
+  title: 'Digital Invitation Features',
+  description:
+    'Explore YouAreInvited features for custom invitation templates, guest list management, WhatsApp sharing, QR check-in, and live event analytics.',
+  path: '/features',
+});
 
 const FEATURE_PILLARS = [
   {

@@ -1,6 +1,15 @@
 import Link from 'next/link';
 import NavBar from '@/components/NavBar';
 import PublicSiteFooter from '@/components/PublicSiteFooter';
+import { createPageMetadata } from '@/lib/seo';
+
+export const metadata = createPageMetadata({
+  title: 'Guest Invitation Experience',
+  description:
+    'Give guests a polished mobile invitation experience with personalized event details, shareable links, and QR access ready for venue arrival.',
+  path: '/guest-experience',
+  image: '/img/lady_standing.jpg',
+});
 
 const EXPERIENCE_STEPS = [
   {

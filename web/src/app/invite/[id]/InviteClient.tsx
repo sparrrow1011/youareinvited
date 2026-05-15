@@ -165,24 +165,37 @@ export default function InviteClient({ id }: { id: string }) {
           <h2 className="font-headline text-xl text-on-lp-background">Confirm your plans</h2>
           <p className="mt-1 text-sm text-on-surface-variant">{rsvpLabel}</p>
         </div>
-        <label className="relative inline-flex cursor-pointer items-center">
-          <input
-            type="checkbox"
-            checked={rsvpForm.attending}
-            onChange={(event) => handleRsvpChange(event.target.checked)}
-            disabled={savingRsvp}
-            className="peer sr-only"
-            aria-label="Yes, I will be attending"
-          />
-          <span className="h-7 w-12 rounded-full bg-surface-container-high transition peer-checked:bg-brand peer-disabled:opacity-50" />
-          <span className="absolute left-1 top-1 h-5 w-5 rounded-full bg-white shadow-sm transition peer-checked:translate-x-5" />
-        </label>
       </div>
-      <div className="mt-4 flex items-center gap-2 rounded-2xl bg-surface-container/70 px-4 py-3">
-        <span className={`material-symbols-outlined text-[18px] ${invitation.rsvp_responded_at && invitation.rsvp_attending ? 'text-brand' : 'text-on-surface-variant'}`}>
-          {invitation.rsvp_responded_at && invitation.rsvp_attending ? 'event_available' : 'event_busy'}
-        </span>
-        <span className="text-sm font-semibold text-on-surface">Yes, I will be attending</span>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        {[
+          { value: true, label: 'Yes, I am coming', icon: 'event_available' },
+          { value: false, label: 'No, I cannot attend', icon: 'event_busy' },
+        ].map((option) => {
+          const selected = Boolean(invitation.rsvp_responded_at) && rsvpForm.attending === option.value;
+          return (
+            <label
+              key={option.label}
+              className={`flex cursor-pointer items-center gap-3 rounded-2xl border px-4 py-3 transition ${
+                selected
+                  ? 'border-brand bg-brand-container/35'
+                  : 'border-outline-variant/20 bg-surface-container/70 hover:border-brand/30'
+              } ${savingRsvp ? 'cursor-not-allowed opacity-60' : ''}`}
+            >
+              <input
+                type="radio"
+                name="rsvp-attendance"
+                checked={selected}
+                onChange={() => handleRsvpChange(option.value)}
+                disabled={savingRsvp}
+                className="h-4 w-4 accent-brand"
+              />
+              <span className={`material-symbols-outlined text-[18px] ${selected ? 'text-brand' : 'text-on-surface-variant'}`}>
+                {option.icon}
+              </span>
+              <span className="text-sm font-semibold text-on-surface">{option.label}</span>
+            </label>
+          );
+        })}
       </div>
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <label className="block">

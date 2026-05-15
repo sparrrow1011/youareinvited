@@ -2,8 +2,17 @@ import Link from 'next/link';
 import NavBar from '@/components/NavBar';
 import PublicSiteFooter from '@/components/PublicSiteFooter';
 import ThemeCardPreview from '@/components/ThemeCardPreview';
+import { createPageMetadata } from '@/lib/seo';
 import { THEMES } from '@/themes';
 import { getThemeSampleData, getThemeSampleProps } from '@/themes/samples';
+
+export const metadata = createPageMetadata({
+  title: 'Digital Invitation Templates',
+  description:
+    'Browse digital invitation templates for weddings, birthdays, and private events, then create a personalized guest invite experience.',
+  path: '/templates',
+  image: '/img/theme.png',
+});
 
 export default function TemplatesPage() {
   return (

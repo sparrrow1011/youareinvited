@@ -95,11 +95,50 @@ export default function InvitationClient({ id, embedded = false }: InvitationCli
   }
 
   const checkedIn = invitation.checked_in;
+  const rsvpStatus = !invitation.rsvp_responded_at
+    ? 'No RSVP yet'
+    : invitation.rsvp_attending
+      ? 'Coming'
+      : 'Not coming';
   const showEventBranding = invitation.show_event_branding;
   const publicBrandName = invitation.brand_name?.trim() || '';
   const publicBrandLogoUrl = resolveMediaUrl(invitation.brand_logo_url);
   const publicBrandLabel = publicBrandName || invitation.event_name || 'Event Host';
   const useMinimalOrganizerPreview = !invitation.event_theme && !invitation.event_has_template;
+  const eventDateTime = new Date(`${invitation.event_date}T${invitation.event_start_time || '00:00:00'}`);
+  const eventDateLabel = eventDateTime.toLocaleDateString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+  const eventTimeLabel = invitation.event_start_time
+    ? eventDateTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    : '';
+  const inviteeDetails = [
+    ['Seat', invitation.seat_number],
+    ['Tag', invitation.tag],
+    ['Table', invitation.table_number],
+    ['Group', invitation.group_label],
+    ['Phone', invitation.phone_number],
+  ].filter(([, value]) => Boolean(value));
+  const rsvpDetails = [
+    ['RSVP status', rsvpStatus],
+    ['People attending', invitation.rsvp_guest_count ? String(invitation.rsvp_guest_count) : ''],
+    ['Meal preference', invitation.meal_preference],
+    ['Allergies / note', invitation.allergies],
+    ['Needs parking info', invitation.needs_parking ? 'Yes' : 'No'],
+    ['Needs hotel info', invitation.needs_hotel_info ? 'Yes' : 'No'],
+    ['Guest note', invitation.rsvp_note],
+  ].filter(([, value]) => Boolean(value));
+  const hasLocationDetails = Boolean(
+    invitation.event_venue_name ||
+    invitation.event_venue_address ||
+    invitation.event_google_maps_url ||
+    invitation.event_parking_info ||
+    invitation.event_hotel_info ||
+    invitation.event_travel_note
+  );
   const mainClass = embedded
     ? `flex flex-col items-center px-4 sm:px-5 gap-5 max-w-lg mx-auto ${useMinimalOrganizerPreview ? 'py-10 sm:py-12' : 'py-8 sm:py-10'}`
     : `flex flex-col items-center px-4 sm:px-5 gap-5 max-w-lg mx-auto ${useMinimalOrganizerPreview ? 'py-12 sm:py-16' : 'py-8 sm:py-10'}`;
@@ -198,6 +237,86 @@ export default function InvitationClient({ id, embedded = false }: InvitationCli
                 <p className="text-sm font-semibold text-brand">Not yet checked in</p>
                 <p className="text-xs text-on-surface-variant mt-0.5">Show your QR code at the venue entrance</p>
               </div>
+            </div>
+          )}
+        </div>
+
+        {/* Full invitee details */}
+        <div className="w-full bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-xl p-5 sm:p-6">
+          <p className="text-xs font-label font-semibold text-brand uppercase tracking-widest mb-4">Invitee Details</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {inviteeDetails.length > 0 ? inviteeDetails.map(([label, value]) => (
+              <div key={label} className="rounded-2xl bg-surface-container px-4 py-3">
+                <p className="text-xs text-on-surface-variant">{label}</p>
+                <p className="mt-1 text-sm font-semibold text-on-surface">{value}</p>
+              </div>
+            )) : (
+              <p className="text-sm text-on-surface-variant sm:col-span-2">No extra invitee details have been added yet.</p>
+            )}
+          </div>
+        </div>
+
+        {/* RSVP details */}
+        <div className="w-full bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-xl p-5 sm:p-6">
+          <p className="text-xs font-label font-semibold text-brand uppercase tracking-widest mb-4">RSVP Details</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {rsvpDetails.map(([label, value]) => (
+              <div key={label} className="rounded-2xl bg-surface-container px-4 py-3">
+                <p className="text-xs text-on-surface-variant">{label}</p>
+                <p className="mt-1 text-sm font-semibold text-on-surface">{value}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Event guest app details */}
+        <div className="w-full bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-xl p-5 sm:p-6">
+          <p className="text-xs font-label font-semibold text-brand uppercase tracking-widest mb-4">Event Details</p>
+          <div className="rounded-2xl bg-surface-container px-4 py-3">
+            <p className="text-xs text-on-surface-variant">Date and time</p>
+            <p className="mt-1 text-sm font-semibold text-on-surface">
+              {eventDateLabel}{eventTimeLabel ? ` at ${eventTimeLabel}` : ''}
+            </p>
+          </div>
+          {hasLocationDetails && (
+            <div className="mt-3 space-y-3 rounded-2xl bg-surface-container px-4 py-3 text-sm text-on-surface-variant">
+              {invitation.event_venue_name && <p><span className="font-semibold text-on-surface">Venue:</span> {invitation.event_venue_name}</p>}
+              {invitation.event_venue_address && <p><span className="font-semibold text-on-surface">Address:</span> {invitation.event_venue_address}</p>}
+              {invitation.event_parking_info && <p><span className="font-semibold text-on-surface">Parking:</span> {invitation.event_parking_info}</p>}
+              {invitation.event_hotel_info && <p><span className="font-semibold text-on-surface">Hotels:</span> {invitation.event_hotel_info}</p>}
+              {invitation.event_travel_note && <p><span className="font-semibold text-on-surface">Travel:</span> {invitation.event_travel_note}</p>}
+              {invitation.event_google_maps_url && (
+                <a href={invitation.event_google_maps_url} target="_blank" rel="noreferrer" className="inline-flex h-9 items-center gap-2 rounded-full bg-brand px-4 text-xs font-semibold text-white">
+                  <span className="material-symbols-outlined text-[16px]">map</span>
+                  Open map
+                </a>
+              )}
+            </div>
+          )}
+          {invitation.event_schedule_items.length > 0 && (
+            <div className="mt-4 space-y-3">
+              {invitation.event_schedule_items.map((item) => (
+                <div key={`${item.time}-${item.title}`} className="flex gap-3 rounded-2xl bg-surface-container px-4 py-3">
+                  <div className="w-16 shrink-0 text-sm font-semibold text-brand">{item.time.slice(0, 5)}</div>
+                  <div>
+                    <p className="text-sm font-semibold text-on-surface">{item.title}</p>
+                    {item.description && <p className="mt-1 text-xs text-on-surface-variant">{item.description}</p>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {invitation.event_gift_links.length > 0 && (
+            <div className="mt-4 grid gap-3">
+              {invitation.event_gift_links.map((link) => (
+                <a key={link.id ?? `${link.title}-${link.url}`} href={link.url} target="_blank" rel="noreferrer" className="flex items-start justify-between gap-3 rounded-2xl bg-surface-container px-4 py-3">
+                  <span>
+                    <span className="block text-sm font-semibold text-on-surface">{link.title}</span>
+                    {link.description && <span className="mt-1 block text-xs text-on-surface-variant">{link.description}</span>}
+                  </span>
+                  <span className="material-symbols-outlined text-[18px] text-brand">open_in_new</span>
+                </a>
+              ))}
             </div>
           )}
         </div>

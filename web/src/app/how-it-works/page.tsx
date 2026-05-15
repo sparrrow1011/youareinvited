@@ -2,6 +2,14 @@ import Link from 'next/link';
 import HeroScroll from '@/components/HeroScroll';
 import NavBar from '@/components/NavBar';
 import PublicSiteFooter from '@/components/PublicSiteFooter';
+import { createPageMetadata } from '@/lib/seo';
+
+export const metadata = createPageMetadata({
+  title: 'How Digital Invitations Work',
+  description:
+    'See how YouAreInvited connects event setup, invitation design, guest sharing, QR verification, and arrival tracking in one workflow.',
+  path: '/how-it-works',
+});
 
 const WORKFLOW_BENEFITS = [
   {
