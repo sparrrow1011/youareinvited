@@ -94,6 +94,17 @@ const getRSVPBadgeClass = (invitation: Invitation) => {
     : 'bg-tertiary-container/25 text-tertiary';
 };
 
+const getOpenLabel = (invitation: Invitation) => {
+  if (!invitation.first_viewed_at) return 'Not opened';
+  const countLabel = invitation.view_count === 1 ? '1 open' : `${invitation.view_count} opens`;
+  return countLabel;
+};
+
+const getLastOpenLabel = (invitation: Invitation) => {
+  if (!invitation.last_viewed_at) return '';
+  return new Date(invitation.last_viewed_at).toLocaleString();
+};
+
 const getPlanLabel = (plan?: AuthUser['plan']) => (
   plan === 'pro' ? 'Pro Organizer' : 'Free Organizer'
 );
@@ -1004,6 +1015,12 @@ export default function EventPage() {
                                   <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getRSVPBadgeClass(inv)}`}>
                                     {getRSVPLabel(inv)}
                                   </span>
+                                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${inv.first_viewed_at
+                                    ? 'bg-brand-container/30 text-on-brand-container'
+                                    : 'bg-surface-container text-on-surface-variant'
+                                  }`}>
+                                    {getOpenLabel(inv)}
+                                  </span>
                                 </div>
                               </div>
                             </div>
@@ -1079,7 +1096,7 @@ export default function EventPage() {
                     )}
 
                     <div className="hidden md:block overflow-x-auto">
-                      <table className="w-full min-w-[760px] text-sm">
+                      <table className="w-full min-w-[920px] text-sm">
                         <thead>
                           <tr className="border-b border-outline-variant/10 bg-surface-container-low">
                             <th className="px-4 py-3 text-left">
@@ -1090,7 +1107,7 @@ export default function EventPage() {
                                 className="rounded"
                               />
                             </th>
-                            {['Name', 'Status', 'Actions'].map((h) => (
+                            {['Name', 'Opened', 'Status', 'Actions'].map((h) => (
                               <th key={h} className="text-left px-6 py-4 text-xs font-semibold uppercase tracking-widest text-on-surface-variant">{h}</th>
                             ))}
                           </tr>
@@ -1120,6 +1137,22 @@ export default function EventPage() {
                                   <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getRSVPBadgeClass(inv)}`}>
                                     {getRSVPLabel(inv)}
                                   </span>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4">
+                                <div className="flex flex-col gap-1">
+                                  <span className={`inline-flex w-fit items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${inv.first_viewed_at
+                                    ? 'bg-brand-container/40 text-on-brand-container'
+                                    : 'bg-surface-container text-on-surface-variant'
+                                  }`}>
+                                    <span className={`w-1.5 h-1.5 rounded-full ${inv.first_viewed_at ? 'bg-brand' : 'bg-outline-variant'}`} />
+                                    {getOpenLabel(inv)}
+                                  </span>
+                                  {inv.last_viewed_at && (
+                                    <span className="text-xs text-on-surface-variant">
+                                      Last: {getLastOpenLabel(inv)}
+                                    </span>
+                                  )}
                                 </div>
                               </td>
                               <td className="px-6 py-4">

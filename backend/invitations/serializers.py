@@ -75,6 +75,9 @@ class InvitationSerializer(serializers.ModelSerializer):
             'group_label',
             'qr_code',
             'e_invite_image',
+            'view_count',
+            'first_viewed_at',
+            'last_viewed_at',
             'checked_in',
             'checked_in_at',
             'rsvp_attending',
@@ -97,6 +100,7 @@ class InvitationSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             'id', 'event', 'qr_code', 'e_invite_image',
+            'view_count', 'first_viewed_at', 'last_viewed_at',
             'checked_in_at', 'created_at', 'updated_at',
             'whatsapp_sent_at', 'rsvp_responded_at',
         ]

@@ -400,6 +400,9 @@ export interface Invitation {
   phone_number: string | null;
   qr_code: string;
   e_invite_image: string;
+  view_count: number;
+  first_viewed_at: string | null;
+  last_viewed_at: string | null;
   checked_in: boolean;
   checked_in_at: string | null;
   rsvp_attending: boolean;
