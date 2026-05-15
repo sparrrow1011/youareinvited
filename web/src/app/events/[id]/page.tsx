@@ -60,6 +60,7 @@ type EventTab = (typeof EVENT_TABS)[number]['id'];
 const INVITATIONS_PAGE_SIZE = 20;
 type RSVPFilter = '' | 'attending' | 'not_attending' | 'no_response';
 type CheckInStatusFilter = '' | 'checked_in' | 'pending';
+type OpenStatusFilter = '' | 'opened' | 'not_opened';
 type GuestAppTemplate = 'classic' | 'spotlight';
 
 const GUEST_APP_TEMPLATES: Array<{
@@ -191,12 +192,14 @@ export default function EventPage() {
   const [invitationsLoading, setInvitationsLoading] = useState(false);
   const [rsvpFilter, setRsvpFilter] = useState<RSVPFilter>('');
   const [checkInStatusFilter, setCheckInStatusFilter] = useState<CheckInStatusFilter>('');
+  const [openStatusFilter, setOpenStatusFilter] = useState<OpenStatusFilter>('');
 
   const loadInvitations = async (
     page = invitationPage,
     search = debouncedInvitationSearch,
     rsvp = rsvpFilter,
-    checkInStatus = checkInStatusFilter
+    checkInStatus = checkInStatusFilter,
+    openStatus = openStatusFilter
   ) => {
     setInvitationsLoading(true);
     try {
@@ -206,6 +209,7 @@ export default function EventPage() {
         search,
         rsvp,
         checkInStatus,
+        openStatus,
       });
       setInvitations(result.results);
       setInvitationCount(result.count);
@@ -235,6 +239,7 @@ export default function EventPage() {
           search: debouncedInvitationSearch,
           rsvp: rsvpFilter,
           checkInStatus: checkInStatusFilter,
+          openStatus: openStatusFilter,
         }),
       ]);
       setUser(me);
@@ -301,8 +306,8 @@ export default function EventPage() {
 
   useEffect(() => {
     if (!event) return;
-    loadInvitations(invitationPage, debouncedInvitationSearch, rsvpFilter, checkInStatusFilter);
-  }, [invitationPage, debouncedInvitationSearch, rsvpFilter, checkInStatusFilter]);
+    loadInvitations(invitationPage, debouncedInvitationSearch, rsvpFilter, checkInStatusFilter, openStatusFilter);
+  }, [invitationPage, debouncedInvitationSearch, rsvpFilter, checkInStatusFilter, openStatusFilter]);
 
   useEffect(() => {
     if (activeTab !== 'photos' || !event || !event.features?.gallery) return;
@@ -887,7 +892,7 @@ export default function EventPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-xs text-on-surface-variant">
-                    {debouncedInvitationSearch || rsvpFilter || checkInStatusFilter
+                    {debouncedInvitationSearch || rsvpFilter || checkInStatusFilter || openStatusFilter
                       ? `${invitationCount} match${invitationCount !== 1 ? 'es' : ''}`
                       : `${stats?.total_invitations ?? invitationCount} guest${(stats?.total_invitations ?? invitationCount) !== 1 ? 's' : ''}`}
                   </span>
@@ -956,6 +961,26 @@ export default function EventPage() {
                       expand_more
                     </span>
                   </label>
+                  <label className="relative block w-full sm:max-w-56">
+                    <span className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-on-surface-variant">
+                      visibility
+                    </span>
+                    <select
+                      value={openStatusFilter}
+                      onChange={(event) => {
+                        setOpenStatusFilter(event.target.value as OpenStatusFilter);
+                        setInvitationPage(1);
+                      }}
+                      className="h-11 w-full appearance-none rounded-full border border-outline-variant/20 bg-white/70 pl-10 pr-8 text-sm text-on-surface outline-none transition focus:border-brand/40 focus:ring-2 focus:ring-brand/20"
+                    >
+                      <option value="">All opens</option>
+                      <option value="opened">Opened</option>
+                      <option value="not_opened">Not opened</option>
+                    </select>
+                    <span className="material-symbols-outlined pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[18px] text-on-surface-variant">
+                      expand_more
+                    </span>
+                  </label>
                 </div>
                 {invitationCount > 0 && (
                   <span className="text-xs text-on-surface-variant">
@@ -976,9 +1001,9 @@ export default function EventPage() {
                       {debouncedInvitationSearch ? 'search_off' : 'group_add'}
                     </span>
                     <p className="text-on-surface-variant text-sm mb-4">
-                      {debouncedInvitationSearch || rsvpFilter || checkInStatusFilter ? 'No guests match your filters.' : 'No guests yet.'}
+                      {debouncedInvitationSearch || rsvpFilter || checkInStatusFilter || openStatusFilter ? 'No guests match your filters.' : 'No guests yet.'}
                     </p>
-                    {!debouncedInvitationSearch && !rsvpFilter && !checkInStatusFilter && (
+                    {!debouncedInvitationSearch && !rsvpFilter && !checkInStatusFilter && !openStatusFilter && (
                       <button
                         onClick={openAddForm}
                         className="px-6 py-2.5 bg-brand text-white rounded-full text-sm font-medium"

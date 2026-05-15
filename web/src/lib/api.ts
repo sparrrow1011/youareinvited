@@ -534,6 +534,7 @@ export const invitationService = {
       search?: string;
       rsvp?: 'attending' | 'not_attending' | 'no_response' | '';
       checkInStatus?: 'checked_in' | 'pending' | '';
+      openStatus?: 'opened' | 'not_opened' | '';
     }
   ): Promise<PaginatedInvitations> => {
     const response = await api.get<PaginatedInvitations>('/invitations/', {
@@ -544,6 +545,7 @@ export const invitationService = {
         search: options?.search || undefined,
         rsvp: options?.rsvp || undefined,
         check_in_status: options?.checkInStatus || undefined,
+        open_status: options?.openStatus || undefined,
       },
     });
     return response.data;

@@ -11,8 +11,6 @@ import VerificationBanner from '@/components/VerificationBanner';
 const NAV_LINKS = [
   { icon: 'dashboard', label: 'Dashboard', href: '/dashboard', active: true },
   // { icon: 'group', label: 'Guest List', href: '#' },
-  { icon: 'brush', label: 'Design Studio', href: '/events/new' },
-  { icon: 'card_giftcard', label: 'Registry', href: '#' },
   { icon: 'leaderboard', label: 'Analytics', href: '/analytics' },
 ];
 

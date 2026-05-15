@@ -277,6 +277,12 @@ class InvitationViewSet(viewsets.ModelViewSet):
         elif check_in_status == 'pending':
             queryset = queryset.filter(checked_in=False)
 
+        open_status = self.request.query_params.get('open_status', '').strip().lower()
+        if open_status == 'opened':
+            queryset = queryset.filter(first_viewed_at__isnull=False)
+        elif open_status == 'not_opened':
+            queryset = queryset.filter(first_viewed_at__isnull=True)
+
         return queryset
 
     def list(self, request, *args, **kwargs):
