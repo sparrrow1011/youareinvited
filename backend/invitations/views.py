@@ -976,7 +976,7 @@ class EventViewSet(viewsets.ModelViewSet):
         serializer.save(owner=self.request.user)
 
     def get_permissions(self):
-        if self.action in ('public_info', 'verify_security_pin', 'photos'):
+        if self.action in ('public_info', 'verify_security_pin', 'photos', 'security_guests'):
             return []
         return [IsAuthenticated()]
 
@@ -1042,6 +1042,75 @@ class EventViewSet(viewsets.ModelViewSet):
             salt='security-checkin'
         )
         return Response({'token': token})
+
+    @action(detail=True, methods=['get'], url_path='security-guests', permission_classes=[], authentication_classes=[])
+    def security_guests(self, request, pk=None):
+        token = request.headers.get('X-Security-Token')
+        if not token:
+            return Response({'detail': 'Authentication required.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        try:
+            payload = signing.loads(token, salt='security-checkin', max_age=SECURITY_TOKEN_MAX_AGE)
+        except signing.SignatureExpired:
+            return Response({'detail': 'Security session expired. Please re-enter PIN.'}, status=status.HTTP_401_UNAUTHORIZED)
+        except signing.BadSignature:
+            return Response({'detail': 'Invalid security token.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        if str(payload['event_id']) != str(pk):
+            return Response({'detail': 'Token scoped to wrong event.'}, status=status.HTTP_403_FORBIDDEN)
+
+        queryset = Invitation.objects.filter(event_id=pk).order_by('name')
+        search = request.query_params.get('search', '').strip()
+        if search:
+            queryset = queryset.filter(
+                Q(name__icontains=search) |
+                Q(seat_number__icontains=search) |
+                Q(tag__icontains=search) |
+                Q(table_number__icontains=search) |
+                Q(group_label__icontains=search) |
+                Q(phone_number__icontains=search)
+            )
+
+        try:
+            page_size = min(max(int(request.query_params.get('page_size', 100)), 1), 200)
+        except (TypeError, ValueError):
+            return Response({'detail': 'page_size must be a positive integer.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            page_number = max(int(request.query_params.get('page', 1)), 1)
+        except (TypeError, ValueError):
+            return Response({'detail': 'page must be a positive integer.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        paginator = Paginator(queryset, page_size)
+        try:
+            page = paginator.page(page_number)
+        except EmptyPage:
+            page = paginator.page(paginator.num_pages or 1)
+
+        results = [
+            {
+                'id': str(invitation.id),
+                'name': invitation.name,
+                'seat_number': invitation.seat_number,
+                'tag': invitation.tag,
+                'table_number': invitation.table_number,
+                'group_label': invitation.group_label,
+                'phone_number': invitation.phone_number,
+                'checked_in': invitation.checked_in,
+                'checked_in_at': invitation.checked_in_at,
+                'rsvp_attending': invitation.rsvp_attending,
+                'rsvp_responded_at': invitation.rsvp_responded_at,
+            }
+            for invitation in page.object_list
+        ]
+
+        return Response({
+            'count': paginator.count,
+            'page': page.number,
+            'page_size': page_size,
+            'total_pages': paginator.num_pages,
+            'results': results,
+        })
 
     @action(detail=True, methods=['get', 'post'], url_path='photos', permission_classes=[], throttle_classes=[PhotoUploadThrottle])
     def photos(self, request, pk=None):

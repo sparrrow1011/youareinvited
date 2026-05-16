@@ -11,8 +11,21 @@ interface Guest {
   name: string;
   seat_number: string | null;
   tag: string | null;
+  table_number?: string | null;
+  group_label?: string | null;
+  phone_number?: string | null;
   checked_in: boolean;
   checked_in_at: string | null;
+  rsvp_attending?: boolean;
+  rsvp_responded_at?: string | null;
+}
+
+interface SecurityGuestListResponse {
+  count: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+  results: Guest[];
 }
 
 interface PublicEventInfo {
@@ -71,6 +84,12 @@ function CheckInContent() {
   const [guestError, setGuestError] = useState<string | null>(null);
   const [checkingIn, setCheckingIn] = useState(false);
   const [checkInError, setCheckInError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'checkin' | 'guests'>('checkin');
+  const [guestSearch, setGuestSearch] = useState('');
+  const [guestList, setGuestList] = useState<Guest[]>([]);
+  const [guestListCount, setGuestListCount] = useState(0);
+  const [guestListLoading, setGuestListLoading] = useState(false);
+  const [guestListError, setGuestListError] = useState<string | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scannerSupported, setScannerSupported] = useState(true);
   const [scannerStarting, setScannerStarting] = useState(false);
@@ -148,6 +167,50 @@ function CheckInContent() {
       setGuestLoading(false);
     }
   }, []);
+
+  const loadGuestList = useCallback(async (search = guestSearch.trim()) => {
+    if (!token) return;
+    setGuestListLoading(true);
+    setGuestListError(null);
+    try {
+      const query = new URLSearchParams({ page_size: '200' });
+      if (search) query.set('search', search);
+      const res = await fetch(buildApiUrl(`/events/${eventId}/security-guests/?${query.toString()}`), {
+        headers: { 'X-Security-Token': token },
+      });
+
+      if (res.status === 401) {
+        const data = await res.json();
+        if (data.detail?.toLowerCase().includes('expired')) {
+          setSessionExpired(true);
+          return;
+        }
+        setGuestListError('Authentication failed.');
+        return;
+      }
+      if (!res.ok) {
+        setGuestListError('Failed to load guest list.');
+        return;
+      }
+
+      const data = await res.json() as SecurityGuestListResponse;
+      setGuestList(data.results);
+      setGuestListCount(data.count);
+    } catch {
+      setGuestListError('Network error loading guest list.');
+    } finally {
+      setGuestListLoading(false);
+    }
+  }, [eventId, guestSearch, token]);
+
+  useEffect(() => {
+    if (activeTab !== 'guests' || !token) return;
+    const timeout = window.setTimeout(() => {
+      loadGuestList(guestSearch.trim());
+    }, 250);
+
+    return () => window.clearTimeout(timeout);
+  }, [activeTab, guestSearch, loadGuestList, token]);
 
   const scanForQrCode = useCallback(() => {
     const scan = async () => {
@@ -288,6 +351,9 @@ function CheckInContent() {
         return;
       }
       setGuest(await res.json());
+      if (activeTab === 'guests') {
+        loadGuestList();
+      }
     } catch {
       setCheckInError('Network error. Please try again.');
     } finally {
@@ -379,7 +445,7 @@ function CheckInContent() {
         </button>
       </header>
 
-      <main className="max-w-xl mx-auto px-4 sm:px-5 py-6 sm:py-8 space-y-5">
+      <main className="max-w-4xl mx-auto px-4 sm:px-5 py-6 sm:py-8 space-y-5">
         {/* Title */}
         <div>
           <p className="text-xs font-label font-semibold text-brand uppercase tracking-widest mb-1">Gate Scanner</p>
@@ -391,8 +457,30 @@ function CheckInContent() {
           )}
         </div>
 
+        <div className="grid grid-cols-2 gap-2 rounded-full bg-white/70 p-1 shadow-sm border border-white/40 backdrop-blur-xl">
+          {[
+            { id: 'checkin', label: 'Check-In', icon: 'qr_code_scanner' },
+            { id: 'guests', label: 'Guest List', icon: 'group' },
+          ].map((tab) => {
+            const selected = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id as 'checkin' | 'guests')}
+                className={`inline-flex h-11 items-center justify-center gap-2 rounded-full text-sm font-semibold transition ${
+                  selected ? 'bg-brand text-white shadow-sm' : 'text-on-surface-variant hover:text-brand'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[18px]">{tab.icon}</span>
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+
         {/* Search */}
-        <div className="bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-xl p-5 sm:p-6">
+        {activeTab === 'checkin' && <div className="bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-xl p-5 sm:p-6">
           <label className="text-xs font-label font-semibold text-on-surface-variant uppercase tracking-wider mb-2 block">
             Invitation ID
           </label>
@@ -470,10 +558,10 @@ function CheckInContent() {
               {scannerError}
             </p>
           )}
-        </div>
+        </div>}
 
         {/* Guest card */}
-        {guest && (
+        {activeTab === 'checkin' && guest && (
           <div className="bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-xl p-5 sm:p-6">
             {/* Name */}
             <div className="mb-4">
@@ -536,6 +624,97 @@ function CheckInContent() {
                 </button>
               </>
             )}
+          </div>
+        )}
+
+        {activeTab === 'guests' && (
+          <div className="bg-white/70 backdrop-blur-xl rounded-3xl border border-white/40 shadow-xl p-5 sm:p-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs font-label font-semibold text-brand uppercase tracking-widest mb-1">Guest List</p>
+                <h2 className="font-headline text-2xl text-on-lp-background">All guests</h2>
+              </div>
+              <span className="text-xs text-on-surface-variant">
+                {guestListCount} guest{guestListCount === 1 ? '' : 's'}
+              </span>
+            </div>
+
+            <label className="relative mt-5 block">
+              <span className="material-symbols-outlined pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-on-surface-variant">
+                search
+              </span>
+              <input
+                type="search"
+                value={guestSearch}
+                onChange={(event) => setGuestSearch(event.target.value)}
+                placeholder="Search name, seat, tag, table, group, or phone"
+                className="h-11 w-full rounded-full border border-outline-variant/20 bg-surface-container pl-10 pr-4 text-sm text-on-surface outline-none transition focus:border-brand/40 focus:ring-2 focus:ring-brand/20"
+              />
+            </label>
+
+            {guestListError && (
+              <p className="mt-3 text-sm text-red-600 flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-[16px]">error</span>
+                {guestListError}
+              </p>
+            )}
+
+            <div className="mt-5 overflow-hidden rounded-2xl border border-outline-variant/10 bg-white/60">
+              {guestListLoading ? (
+                <div className="py-12 text-center">
+                  <div className="mx-auto w-8 h-8 rounded-full border-2 border-brand border-t-transparent animate-spin" />
+                  <p className="mt-3 text-sm text-on-surface-variant">Loading guests...</p>
+                </div>
+              ) : guestList.length === 0 ? (
+                <div className="py-12 text-center">
+                  <span className="material-symbols-outlined text-4xl text-outline-variant mb-3 block">group_off</span>
+                  <p className="text-sm text-on-surface-variant">No guests match your search.</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-outline-variant/10">
+                  {guestList.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => {
+                        setInvitationInput(item.id);
+                        setGuest(item);
+                        setActiveTab('checkin');
+                      }}
+                      className="w-full px-4 py-4 text-left transition hover:bg-surface-container/70"
+                    >
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-on-surface truncate">{item.name}</p>
+                          <div className="mt-1 flex flex-wrap gap-2 text-xs text-on-surface-variant">
+                            {item.seat_number && <span>Seat {item.seat_number}</span>}
+                            {item.table_number && <span>Table {item.table_number}</span>}
+                            {item.tag && <span>{item.tag}</span>}
+                            {item.group_label && <span>{item.group_label}</span>}
+                            {item.phone_number && <span>{item.phone_number}</span>}
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
+                            item.checked_in ? 'bg-green-50 text-green-700' : 'bg-surface-container text-on-surface-variant'
+                          }`}>
+                            <span className={`h-1.5 w-1.5 rounded-full ${item.checked_in ? 'bg-green-500' : 'bg-outline-variant'}`} />
+                            {item.checked_in ? 'Checked In' : 'Pending'}
+                          </span>
+                          <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
+                            item.rsvp_responded_at
+                              ? item.rsvp_attending ? 'bg-brand-container/40 text-on-brand-container' : 'bg-tertiary-container/25 text-tertiary'
+                              : 'bg-surface-container text-on-surface-variant'
+                          }`}>
+                            {item.rsvp_responded_at ? (item.rsvp_attending ? 'Coming' : 'Not coming') : 'No RSVP'}
+                          </span>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </main>
