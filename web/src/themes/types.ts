@@ -17,6 +17,8 @@ export interface ThemeProps {
   eventDate: string;
   location?: string;
   time?: string;
+  themeHeroImage?: string | null;
+  themeSecondaryImage?: string | null;
   qrContent?: ReactNode;
   /** Theme-specific extras from event.theme_data */
   [key: string]: unknown;

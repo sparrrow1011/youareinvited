@@ -9,10 +9,15 @@ interface Props {
   selectedTheme: string;
   themeData: Record<string, unknown>;
   onSave: (theme: string, themeData: Record<string, unknown>) => void;
+  onImageUpload?: (field: 'theme_hero_image' | 'theme_secondary_image', file: File) => Promise<void>;
+  onImageClear?: (field: 'theme_hero_image' | 'theme_secondary_image') => Promise<void>;
   saving?: boolean;
   saved?: boolean;
+  imageSavingField?: 'theme_hero_image' | 'theme_secondary_image' | null;
   eventName?: string;
   eventDate?: string;
+  themeHeroImage?: string | null;
+  themeSecondaryImage?: string | null;
   hasTemplate?: boolean;
 }
 
@@ -28,10 +33,15 @@ export default function ThemePicker({
   selectedTheme,
   themeData,
   onSave,
+  onImageUpload,
+  onImageClear,
   saving = false,
   saved = false,
+  imageSavingField = null,
   eventName,
   eventDate,
+  themeHeroImage,
+  themeSecondaryImage,
   hasTemplate = false,
 }: Props) {
   const [draftTheme, setDraftTheme] = useState(selectedTheme);
@@ -79,6 +89,23 @@ export default function ThemePicker({
     setDraftThemeData({});
     onSave('', {});
   };
+
+  const imageSlots = [
+    {
+      field: 'theme_hero_image' as const,
+      label: 'Hero Image',
+      description: 'Main portrait or editorial photo used at the top of the guest invitation.',
+      icon: 'photo_camera',
+      src: themeHeroImage,
+    },
+    {
+      field: 'theme_secondary_image' as const,
+      label: 'Detail Image',
+      description: 'Optional supporting image for rings, cake, florals, venue, or celebration details.',
+      icon: 'image',
+      src: themeSecondaryImage,
+    },
+  ];
 
   return (
     <div className="space-y-6">
@@ -251,6 +278,78 @@ export default function ThemePicker({
                   {draftTheme
                     ? 'This theme does not require extra inputs. It is ready to apply as-is.'
                     : 'Choosing no theme keeps the public invite page minimal and utility-focused.'}
+                </div>
+              )}
+
+              {draftTheme && onImageUpload && (
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-xs font-label font-bold uppercase tracking-widest text-on-surface-variant">
+                      Theme Images
+                    </p>
+                    <p className="mt-1 text-xs leading-relaxed text-on-surface-variant/80">
+                      Upload theme-specific photos for the luxury guest invitation surface.
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    {imageSlots.map((slot) => {
+                      const savingThis = imageSavingField === slot.field;
+                      return (
+                        <div key={slot.field} className="overflow-hidden rounded-2xl border border-outline-variant/15 bg-white/70">
+                          <div className="flex gap-3 p-3">
+                            <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-surface-container">
+                              {slot.src ? (
+                                <img
+                                  src={slot.src}
+                                  alt=""
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <div className="flex h-full w-full items-center justify-center text-on-surface-variant/55">
+                                  <span className="material-symbols-outlined text-2xl">{slot.icon}</span>
+                                </div>
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-semibold text-on-surface">{slot.label}</p>
+                              <p className="mt-1 text-xs leading-relaxed text-on-surface-variant">{slot.description}</p>
+                              <div className="mt-3 flex flex-wrap gap-2">
+                                <label className={`inline-flex cursor-pointer items-center gap-2 rounded-full bg-on-surface px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-white transition hover:bg-on-surface/85 ${savingThis ? 'opacity-60 pointer-events-none' : ''}`}>
+                                  <span className="material-symbols-outlined text-sm">{savingThis ? 'hourglass_top' : 'upload'}</span>
+                                  {savingThis ? 'Uploading' : slot.src ? 'Replace' : 'Upload'}
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="sr-only"
+                                    disabled={savingThis}
+                                    onChange={async (event) => {
+                                      const file = event.target.files?.[0];
+                                      event.currentTarget.value = '';
+                                      if (file) {
+                                        await onImageUpload(slot.field, file);
+                                      }
+                                    }}
+                                  />
+                                </label>
+                                {slot.src && onImageClear && (
+                                  <button
+                                    type="button"
+                                    onClick={() => onImageClear(slot.field)}
+                                    disabled={savingThis}
+                                    className="inline-flex items-center gap-2 rounded-full bg-surface-container px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-on-surface-variant transition hover:bg-surface-container-high disabled:opacity-50"
+                                  >
+                                    <span className="material-symbols-outlined text-sm">close</span>
+                                    Clear
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
 

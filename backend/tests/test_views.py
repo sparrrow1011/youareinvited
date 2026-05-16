@@ -267,6 +267,41 @@ def test_upload_template_works_with_local_file_storage(auth_client, user, tmp_pa
 
 
 @pytest.mark.django_db
+def test_theme_image_uploads_are_exposed_on_event_and_public_invitation(auth_client, api_client, user, tmp_path, monkeypatch):
+    """Theme image uploads are saved separately from invitation artwork and exposed to guests."""
+    monkeypatch.setattr(Invitation, 'generate_qr_code', lambda self: None)
+    monkeypatch.setattr(Invitation, 'generate_e_invite', lambda self, **kwargs: None)
+    event = Event.objects.create(owner=user, name='Luxury Theme Event', date='2026-06-01', theme='wedding')
+    invitation = Invitation.objects.create(name='Guest', event=event)
+    local_storage = {
+        'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+        'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+    }
+
+    with override_settings(STORAGES=local_storage, MEDIA_ROOT=tmp_path, MEDIA_URL='/media/'):
+        response = auth_client.patch(
+            f'/api/events/{event.id}/',
+            {
+                'theme_hero_image': make_upload_file(),
+                'theme_secondary_image': make_upload_file(),
+            },
+            format='multipart',
+        )
+
+        public_response = api_client.get(f'/api/invitations/{invitation.id}/')
+
+    assert response.status_code == 200
+    assert response.data['theme_hero_image'].startswith('/media/')
+    assert response.data['theme_secondary_image'].startswith('/media/')
+    event.refresh_from_db()
+    assert '/theme/hero/' in event.theme_hero_image.name
+    assert '/theme/secondary/' in event.theme_secondary_image.name
+    assert public_response.status_code == 200
+    assert public_response.data['event_theme_hero_image'].startswith('/media/')
+    assert public_response.data['event_theme_secondary_image'].startswith('/media/')
+
+
+@pytest.mark.django_db
 def test_upload_template_returns_400_on_vercel_without_s3(auth_client, user):
     """Template upload on Vercel without S3 returns 400."""
     event = Event.objects.create(owner=user, name='Vercel Event', date='2026-06-01')

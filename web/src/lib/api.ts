@@ -256,6 +256,8 @@ export interface Event {
   hotel_info: string;
   travel_note: string;
   background_image: string | null;
+  theme_hero_image: string | null;
+  theme_secondary_image: string | null;
   qr_zone: Record<string, number> | null;
   name_zone: Record<string, number | string> | null;
   tag_zone: Record<string, number | string> | null;
@@ -298,6 +300,8 @@ export interface EventCreate {
   parking_info?: string;
   hotel_info?: string;
   travel_note?: string;
+  theme_hero_image?: File | string | null;
+  theme_secondary_image?: File | string | null;
   theme?: string;
   theme_data?: Record<string, unknown>;
   guest_app_template?: 'classic' | 'spotlight';
@@ -322,8 +326,13 @@ export const eventService = {
     return response.data;
   },
 
-  update: async (id: string, data: Partial<EventCreate>): Promise<Event> => {
-    const response = await api.patch<Event>(`/events/${id}/`, data);
+  update: async (id: string, data: Partial<EventCreate> | FormData): Promise<Event> => {
+    const isMultipart = typeof FormData !== 'undefined' && data instanceof FormData;
+    const response = await api.patch<Event>(
+      `/events/${id}/`,
+      data,
+      isMultipart ? { headers: { 'Content-Type': 'multipart/form-data' } } : undefined
+    );
     return response.data;
   },
 
@@ -388,6 +397,8 @@ export interface Invitation {
   event_travel_note: string;
   event_theme: string;
   event_theme_data: Record<string, unknown>;
+  event_theme_hero_image: string | null;
+  event_theme_secondary_image: string | null;
   event_guest_app_template: 'classic' | 'spotlight';
   event_schedule_items: EventScheduleItem[];
   event_gift_links: EventGiftLink[];

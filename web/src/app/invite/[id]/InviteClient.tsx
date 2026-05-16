@@ -555,6 +555,8 @@ export default function InviteClient({ id }: { id: string }) {
             seatNumber: invitation.seat_number,
             tag: invitation.tag,
             eventDate: invitation.event_date,
+            themeHeroImage: resolveMediaUrl(invitation.event_theme_hero_image),
+            themeSecondaryImage: resolveMediaUrl(invitation.event_theme_secondary_image),
             qrContent,
             ...invitation.event_theme_data,
           }}

@@ -6,8 +6,8 @@ export const THEMES: ThemeMeta[] = [
   {
     id: 'birthday',
     name: 'Birthday',
-    description: 'Elegant birthday celebration card',
-    accentColor: '#C9B99A',
+    description: 'Luxury birthday soirée with portrait-led editorial styling',
+    accentColor: '#D8B15F',
     component: BirthdayTheme,
     extraFields: [
       { key: 'ageNumber', label: 'Age (number)', placeholder: '30' },
@@ -19,8 +19,8 @@ export const THEMES: ThemeMeta[] = [
   {
     id: 'wedding',
     name: 'Wedding',
-    description: 'Romantic editorial wedding invitation with a chateau mood',
-    accentColor: '#B8AE9A',
+    description: 'Editorial wedding invitation with custom photography and formal guest pass details',
+    accentColor: '#B9975B',
     component: WeddingTheme,
     extraFields: [
       { key: 'location', label: 'Venue', placeholder: 'Chateau du Lac' },

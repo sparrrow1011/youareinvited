@@ -36,6 +36,8 @@ class InvitationSerializer(serializers.ModelSerializer):
     event_travel_note = serializers.CharField(source='event.travel_note', read_only=True)
     event_theme = serializers.CharField(source='event.theme', read_only=True)
     event_theme_data = serializers.JSONField(source='event.theme_data', read_only=True)
+    event_theme_hero_image = serializers.SerializerMethodField()
+    event_theme_secondary_image = serializers.SerializerMethodField()
     event_guest_app_template = serializers.CharField(source='event.guest_app_template', read_only=True)
     event_features = serializers.JSONField(source='event.features', read_only=True)
     event_schedule_items = serializers.SerializerMethodField()
@@ -63,6 +65,8 @@ class InvitationSerializer(serializers.ModelSerializer):
             'event_travel_note',
             'event_theme',
             'event_theme_data',
+            'event_theme_hero_image',
+            'event_theme_secondary_image',
             'event_guest_app_template',
             'event_features',
             'event_schedule_items',
@@ -107,6 +111,18 @@ class InvitationSerializer(serializers.ModelSerializer):
 
     def get_event_has_template(self, obj):
         return obj.event.has_template() if obj.event_id else False
+
+    def get_event_theme_hero_image(self, obj):
+        try:
+            return obj.event.theme_hero_image.url if obj.event_id and obj.event.theme_hero_image else None
+        except ValueError:
+            return None
+
+    def get_event_theme_secondary_image(self, obj):
+        try:
+            return obj.event.theme_secondary_image.url if obj.event_id and obj.event.theme_secondary_image else None
+        except ValueError:
+            return None
 
     def get_event_schedule_items(self, obj):
         return EventScheduleItemSerializer(obj.event.schedule_items.all(), many=True).data
@@ -228,8 +244,8 @@ class EventSerializer(serializers.ModelSerializer):
     has_security_pin = serializers.SerializerMethodField()
     schedule_items = EventScheduleItemSerializer(many=True, required=False)
     gift_links = EventGiftLinkSerializer(many=True, required=False)
-    # background_image uses the default ImageField for writes (so uploads are
-    # saved) and to_representation converts it to a URL for reads.
+    # ImageFields use default writes for uploads; to_representation converts
+    # stored files to URL strings for reads.
 
     class Meta:
         model = Event
@@ -237,7 +253,8 @@ class EventSerializer(serializers.ModelSerializer):
             'id', 'owner', 'name', 'date', 'description',
             'start_time', 'venue_name', 'venue_address', 'google_maps_url',
             'parking_info', 'hotel_info', 'travel_note',
-            'background_image', 'qr_zone', 'name_zone', 'tag_zone',
+            'background_image', 'theme_hero_image', 'theme_secondary_image',
+            'qr_zone', 'name_zone', 'tag_zone',
             'created_at', 'has_security_pin', 'whatsapp_message_template',
             'theme', 'theme_data', 'guest_app_template', 'schedule_items',
             'gift_links', 'features',
@@ -250,10 +267,11 @@ class EventSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
         # Convert the ImageField to a URL string (or None)
-        try:
-            data['background_image'] = instance.background_image.url if instance.background_image else None
-        except Exception:
-            data['background_image'] = None
+        for field_name in ('background_image', 'theme_hero_image', 'theme_secondary_image'):
+            try:
+                data[field_name] = getattr(instance, field_name).url if getattr(instance, field_name) else None
+            except Exception:
+                data[field_name] = None
         return data
 
     def _parse_zone(self, value):

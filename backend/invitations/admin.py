@@ -80,7 +80,8 @@ class EventAdmin(admin.ModelAdmin):
         'name', 'owner', 'date', 'start_time', 'description',
         'venue_name', 'venue_address', 'google_maps_url',
         'parking_info', 'hotel_info', 'travel_note',
-        'background_image', 'qr_zone', 'name_zone', 'tag_zone',
+        'background_image', 'theme_hero_image', 'theme_secondary_image',
+        'qr_zone', 'name_zone', 'tag_zone',
         'security_pin', 'whatsapp_message_template',
         'theme', 'theme_data', 'guest_app_template', 'features',
     ]

@@ -33,6 +33,16 @@ def event_template_path(instance, filename):
     return f"{_safe_username(instance.owner)}/{slugify(instance.name)}/template/background.{ext}"
 
 
+def event_theme_hero_path(instance, filename):
+    ext = filename.rsplit('.', 1)[-1] if '.' in filename else 'jpg'
+    return f"{_safe_username(instance.owner)}/{slugify(instance.name)}/theme/hero/hero.{ext}"
+
+
+def event_theme_secondary_path(instance, filename):
+    ext = filename.rsplit('.', 1)[-1] if '.' in filename else 'jpg'
+    return f"{_safe_username(instance.owner)}/{slugify(instance.name)}/theme/secondary/secondary.{ext}"
+
+
 def invitation_qr_path(instance, filename):
     owner = instance.event.owner
     return f"{_safe_username(owner)}/{slugify(instance.event.name)}/qr/{instance.id}.png"
@@ -105,6 +115,12 @@ class Event(models.Model):
     travel_note = models.CharField(max_length=500, blank=True, default='')
     background_image = models.ImageField(
         upload_to=event_template_path, blank=True, null=True
+    )
+    theme_hero_image = models.ImageField(
+        upload_to=event_theme_hero_path, blank=True, null=True
+    )
+    theme_secondary_image = models.ImageField(
+        upload_to=event_theme_secondary_path, blank=True, null=True
     )
     qr_zone = models.JSONField(null=True, blank=True)
     name_zone = models.JSONField(null=True, blank=True)

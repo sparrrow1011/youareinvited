@@ -13,288 +13,279 @@ function parseEventDate(isoDate: string) {
 }
 
 const fonts = {
-  display: "'Cormorant Garamond', 'Noto Serif', serif",
+  display: "'Cormorant Garamond', 'Noto Serif', Georgia, serif",
   body: "'Manrope', 'Helvetica Neue', Arial, sans-serif",
   script: "'Great Vibes', 'Brush Script MT', cursive",
 };
 
 const styles: Record<string, CSSProperties> = {
   body: {
-    position: 'relative',
     width: '100%',
-    maxWidth: 390,
-    minHeight: 1480,
+    maxWidth: 430,
+    minHeight: 1180,
     margin: '0 auto',
     overflow: 'hidden',
-    background: '#DDD6CB',
-    color: '#2C2A28',
+    background: '#171512',
+    color: '#F9F1E5',
+    fontFamily: fonts.body,
   },
   hero: {
     position: 'relative',
-    height: 560,
+    minHeight: 640,
+    padding: '28px 26px 34px',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'space-between',
     overflow: 'hidden',
-    background: 'linear-gradient(180deg, rgba(28, 28, 26, 0.18) 0%, rgba(28, 28, 26, 0.58) 100%), linear-gradient(145deg, #b2b39e 0%, #7b8574 32%, #545a50 62%, #232523 100%)',
   },
-  heroGlowTop: {
+  heroImage: {
     position: 'absolute',
-    top: -80,
-    left: 24,
-    width: 280,
-    height: 180,
+    inset: 0,
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+  },
+  heroFallback: {
+    position: 'absolute',
+    inset: 0,
+    background:
+      'radial-gradient(circle at 74% 12%, rgba(222,197,150,0.32), transparent 32%), radial-gradient(circle at 10% 38%, rgba(111,128,105,0.28), transparent 34%), linear-gradient(145deg, #39362f 0%, #1f231f 45%, #11100e 100%)',
+  },
+  heroOverlay: {
+    position: 'absolute',
+    inset: 0,
+    background:
+      'linear-gradient(180deg, rgba(10,10,9,0.12) 0%, rgba(10,10,9,0.45) 46%, rgba(10,10,9,0.84) 100%)',
+  },
+  topBar: {
+    position: 'relative',
+    zIndex: 2,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 16,
+    color: 'rgba(249,241,229,0.86)',
+  },
+  monogram: {
+    width: 48,
+    height: 48,
     borderRadius: '50%',
-    background: 'rgba(255, 255, 255, 0.22)',
-    filter: 'blur(28px)',
-  },
-  heroGlowBottom: {
-    position: 'absolute',
-    bottom: 48,
-    right: -36,
-    width: 240,
-    height: 160,
-    borderRadius: '50%',
-    background: 'rgba(43, 52, 39, 0.46)',
-    filter: 'blur(24px)',
-  },
-  estateFrame: {
-    position: 'absolute',
-    inset: '48px 34px auto',
-    height: 270,
-    borderRadius: 28,
-    border: '1px solid rgba(255, 255, 255, 0.18)',
-    background: 'linear-gradient(180deg, rgba(255,255,255,0.22), rgba(255,255,255,0.02))',
-    boxShadow: '0 24px 50px rgba(23, 22, 20, 0.18)',
-  },
-  lakeReflection: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 86,
-    height: 96,
-    background: 'linear-gradient(180deg, rgba(27, 29, 28, 0) 0%, rgba(19, 21, 20, 0.55) 100%)',
-  },
-  boat: {
-    position: 'absolute',
-    left: 62,
-    bottom: 104,
-    width: 116,
-    height: 28,
-    borderRadius: '0 0 60px 60px',
-    background: 'linear-gradient(180deg, #5c3d28 0%, #302018 100%)',
-    boxShadow: '0 10px 18px rgba(0, 0, 0, 0.16)',
-  },
-  heroTextWrap: {
-    position: 'absolute',
-    inset: '180px 42px auto',
-    textAlign: 'center',
-    color: '#F8F4EE',
-    textShadow: '0 8px 24px rgba(0,0,0,0.28)',
+    border: '1px solid rgba(249,241,229,0.5)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontFamily: fonts.display,
+    fontSize: 20,
+    background: 'rgba(23,21,18,0.26)',
+    backdropFilter: 'blur(10px)',
   },
   eyebrow: {
-    fontFamily: fonts.display,
-    fontSize: 15,
-    letterSpacing: '0.36em',
+    fontSize: 10,
+    lineHeight: '14px',
+    letterSpacing: '0.3em',
     textTransform: 'uppercase',
-    opacity: 0.82,
-    marginBottom: 14,
+    textAlign: 'right',
   },
-  heroTitle: {
-    fontFamily: fonts.display,
-    fontSize: 54,
-    lineHeight: '0.92',
-    textTransform: 'uppercase',
-    letterSpacing: '-0.04em',
-  },
-  heroNames: {
-    marginTop: 170,
-    fontFamily: fonts.display,
-    fontSize: 26,
-    lineHeight: '1.05',
-  },
-  heroDate: {
-    marginTop: 8,
-    fontFamily: fonts.display,
-    fontSize: 22,
-    letterSpacing: '0.04em',
-  },
-  flowerCluster: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: 138,
-    background: 'radial-gradient(circle at 14% 78%, rgba(242, 242, 234, 0.92) 0%, rgba(242, 242, 234, 0.92) 12%, transparent 13%), radial-gradient(circle at 24% 70%, rgba(242, 242, 234, 0.82) 0%, rgba(242, 242, 234, 0.82) 12%, transparent 13%), radial-gradient(circle at 33% 79%, rgba(242, 242, 234, 0.84) 0%, rgba(242, 242, 234, 0.84) 11%, transparent 12%), linear-gradient(180deg, rgba(221,214,203,0) 0%, rgba(221,214,203,0.82) 54%, #ddd6cb 100%)',
-    opacity: 0.95,
-  },
-  paperWrap: {
+  titleBlock: {
     position: 'relative',
-    marginTop: -16,
-    background: '#F7F2EA',
-    borderTopLeftRadius: 38,
-    borderTopRightRadius: 38,
-    padding: '56px 30px 34px',
+    zIndex: 2,
+    paddingTop: 190,
   },
-  paperWave: {
-    position: 'absolute',
-    top: -36,
-    left: -18,
-    right: -18,
-    height: 72,
-    background: 'radial-gradient(circle at 12% 55%, #F7F2EA 0, #F7F2EA 24%, transparent 25%), radial-gradient(circle at 37% 42%, #F7F2EA 0, #F7F2EA 24%, transparent 25%), radial-gradient(circle at 62% 56%, #F7F2EA 0, #F7F2EA 24%, transparent 25%), radial-gradient(circle at 86% 46%, #F7F2EA 0, #F7F2EA 24%, transparent 25%)',
-  },
-  sectionTitle: {
-    fontFamily: fonts.display,
-    fontSize: 31,
-    lineHeight: '1',
-    textAlign: 'center',
-    textTransform: 'uppercase',
-    letterSpacing: '-0.04em',
-    color: '#554D44',
-  },
-  invitationCopy: {
-    marginTop: 22,
-    fontFamily: fonts.body,
-    fontSize: 14,
-    lineHeight: '1.8',
-    textAlign: 'center',
-    color: '#655D54',
-  },
-  blossom: {
-    width: 76,
-    height: 76,
-    borderRadius: '50%',
-    margin: '26px auto 18px',
-    background: 'radial-gradient(circle at 50% 50%, #d4b55d 0, #d4b55d 8%, transparent 9%), radial-gradient(circle at 50% 26%, rgba(255,255,255,0.96) 0, rgba(255,255,255,0.96) 28%, transparent 29%), radial-gradient(circle at 74% 44%, rgba(255,255,255,0.96) 0, rgba(255,255,255,0.96) 28%, transparent 29%), radial-gradient(circle at 66% 76%, rgba(255,255,255,0.96) 0, rgba(255,255,255,0.96) 28%, transparent 29%), radial-gradient(circle at 34% 76%, rgba(255,255,255,0.96) 0, rgba(255,255,255,0.96) 28%, transparent 29%), radial-gradient(circle at 24% 44%, rgba(255,255,255,0.96) 0, rgba(255,255,255,0.96) 28%, transparent 29%)',
-    boxShadow: '0 18px 34px rgba(87, 83, 74, 0.12)',
-  },
-  detailPanel: {
-    marginTop: 18,
-    padding: '22px 20px',
-    borderRadius: 24,
-    background: 'rgba(255,255,255,0.72)',
-    border: '1px solid rgba(173, 166, 155, 0.24)',
-    boxShadow: '0 18px 44px rgba(73, 67, 58, 0.08)',
-  },
-  detailLabel: {
-    fontFamily: fonts.body,
+  invitationLabel: {
     fontSize: 11,
     lineHeight: '16px',
+    letterSpacing: '0.36em',
+    textTransform: 'uppercase',
+    color: 'rgba(249,241,229,0.74)',
+  },
+  names: {
+    marginTop: 12,
+    fontFamily: fonts.display,
+    fontSize: 58,
+    lineHeight: '0.92',
+    letterSpacing: '-0.02em',
+    color: '#FFF8EC',
+    textShadow: '0 14px 34px rgba(0,0,0,0.34)',
+  },
+  dateLine: {
+    marginTop: 18,
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 12,
+    borderTop: '1px solid rgba(249,241,229,0.34)',
+    borderBottom: '1px solid rgba(249,241,229,0.34)',
+    padding: '10px 0',
+    fontSize: 11,
+    letterSpacing: '0.28em',
+    textTransform: 'uppercase',
+    color: 'rgba(249,241,229,0.82)',
+  },
+  content: {
+    position: 'relative',
+    marginTop: -42,
+    padding: '44px 24px 30px',
+    borderTopLeftRadius: 34,
+    borderTopRightRadius: 34,
+    background: '#F6EFE4',
+    color: '#211D18',
+  },
+  introCard: {
+    border: '1px solid rgba(111,91,61,0.18)',
+    background: 'linear-gradient(180deg, rgba(255,255,255,0.7), rgba(255,255,255,0.34))',
+    padding: '28px 24px',
+    textAlign: 'center',
+  },
+  sectionKicker: {
+    fontSize: 10,
+    lineHeight: '14px',
     letterSpacing: '0.32em',
     textTransform: 'uppercase',
-    color: '#7B746B',
-    textAlign: 'center',
+    color: '#8E7347',
   },
-  detailValue: {
-    marginTop: 10,
+  invitationCopy: {
+    margin: '16px 0 0',
     fontFamily: fonts.display,
-    fontSize: 30,
-    lineHeight: '1',
-    letterSpacing: '-0.04em',
-    textAlign: 'center',
-    color: '#4A433C',
+    fontSize: 25,
+    lineHeight: '1.18',
+    color: '#342D24',
   },
-  metaRow: {
+  detailGrid: {
     display: 'grid',
     gridTemplateColumns: '1fr 1fr',
     gap: 12,
     marginTop: 18,
   },
-  metaCard: {
-    padding: '14px 12px',
-    borderRadius: 20,
-    background: 'rgba(255,255,255,0.68)',
-    border: '1px solid rgba(173, 166, 155, 0.2)',
+  detailCard: {
+    minHeight: 104,
+    padding: '16px 14px',
+    border: '1px solid rgba(111,91,61,0.16)',
+    background: '#FFFBF4',
+  },
+  detailLabel: {
+    fontSize: 10,
+    lineHeight: '14px',
+    letterSpacing: '0.24em',
+    textTransform: 'uppercase',
+    color: '#8A7A68',
+  },
+  detailValue: {
+    marginTop: 10,
+    fontFamily: fonts.display,
+    fontSize: 24,
+    lineHeight: '1.02',
+    color: '#2A241D',
+  },
+  venueCard: {
+    marginTop: 12,
+    padding: '18px 16px',
+    border: '1px solid rgba(111,91,61,0.16)',
+    background: '#E8DED0',
     textAlign: 'center',
   },
-  metaCardTitle: {
-    fontFamily: fonts.body,
-    fontSize: 10,
-    lineHeight: '15px',
-    letterSpacing: '0.28em',
-    textTransform: 'uppercase',
-    color: '#8A8178',
-  },
-  metaCardValue: {
+  venueName: {
     marginTop: 8,
     fontFamily: fonts.display,
-    fontSize: 20,
-    lineHeight: '1.05',
-    color: '#4A433C',
+    fontSize: 29,
+    lineHeight: '1.04',
+    color: '#2E2921',
+  },
+  secondaryImage: {
+    marginTop: 18,
+    height: 178,
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    border: '8px solid #FFFBF4',
+    boxShadow: '0 20px 42px rgba(31,26,19,0.13)',
+  },
+  secondaryFallback: {
+    marginTop: 18,
+    height: 178,
+    border: '8px solid #FFFBF4',
+    background:
+      'radial-gradient(circle at 20% 40%, rgba(145,122,83,0.28), transparent 22%), radial-gradient(circle at 70% 36%, rgba(103,121,101,0.24), transparent 24%), linear-gradient(135deg, #d7c8b3, #f7efe4 52%, #b9aa94)',
+    boxShadow: '0 20px 42px rgba(31,26,19,0.13)',
   },
   dressCode: {
     marginTop: 18,
-    padding: '18px 20px',
-    borderRadius: 22,
-    background: 'rgba(215, 207, 197, 0.28)',
-    border: '1px solid rgba(173, 166, 155, 0.22)',
+    padding: '18px 18px',
+    background: '#211D18',
+    color: '#F9F1E5',
+    textAlign: 'center',
   },
-  dressCodeText: {
+  dressText: {
     marginTop: 8,
-    fontFamily: fonts.body,
     fontSize: 13,
-    lineHeight: '1.7',
-    textAlign: 'center',
-    color: '#645C53',
+    lineHeight: '1.6',
+    color: 'rgba(249,241,229,0.76)',
   },
-  guestBlock: {
-    marginTop: 22,
+  guestPass: {
+    marginTop: 18,
+    padding: '20px 18px',
+    border: '1px solid rgba(111,91,61,0.18)',
+    background: '#FFFBF4',
     textAlign: 'center',
   },
-  guestLabel: {
+  guestScript: {
     fontFamily: fonts.script,
     fontSize: 28,
     lineHeight: '1',
-    color: '#8C8377',
+    color: '#9C7C48',
   },
   guestName: {
     marginTop: 10,
     fontFamily: fonts.display,
-    fontSize: 27,
-    lineHeight: '1.05',
+    fontSize: 29,
+    lineHeight: '1.02',
     textTransform: 'uppercase',
-    color: '#443D37',
+    color: '#29231C',
   },
   guestMeta: {
     display: 'flex',
     justifyContent: 'center',
-    gap: 10,
     flexWrap: 'wrap',
+    gap: 10,
     marginTop: 12,
-    fontFamily: fonts.body,
-    fontSize: 11,
-    lineHeight: '16px',
-    letterSpacing: '0.18em',
+    fontSize: 10,
+    lineHeight: '14px',
+    letterSpacing: '0.22em',
     textTransform: 'uppercase',
-    color: '#7F776E',
+    color: '#7E6E5E',
   },
   qrFrame: {
-    marginTop: 28,
-    borderRadius: 20,
-    background: 'rgba(255,255,255,0.85)',
-    border: '1px solid rgba(173, 166, 155, 0.25)',
+    marginTop: 18,
     padding: '18px 16px',
+    background: '#171512',
+    color: '#F9F1E5',
+    textAlign: 'center',
   },
   qrLabel: {
-    fontFamily: fonts.body,
     fontSize: 10,
-    lineHeight: '15px',
-    letterSpacing: '0.34em',
+    lineHeight: '14px',
+    letterSpacing: '0.32em',
     textTransform: 'uppercase',
-    textAlign: 'center',
-    color: '#7A7269',
+    color: 'rgba(249,241,229,0.66)',
   },
   qrFallback: {
     display: 'flex',
-    justifyContent: 'center',
     alignItems: 'center',
+    justifyContent: 'center',
     minHeight: 120,
     marginTop: 12,
+    border: '1px solid rgba(249,241,229,0.2)',
     fontFamily: fonts.display,
-    fontSize: 15,
-    letterSpacing: '0.3em',
+    fontSize: 16,
+    letterSpacing: '0.24em',
     textTransform: 'uppercase',
-    color: '#534B44',
   },
 };
+
+function getInitials(name: string) {
+  return name
+    .split(/[&\s]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('') || 'W';
+}
 
 export default function WeddingTheme({
   eventName,
@@ -304,90 +295,102 @@ export default function WeddingTheme({
   eventDate,
   location,
   time,
+  themeHeroImage,
+  themeSecondaryImage,
   qrContent,
   dressCode,
   note,
 }: ThemeProps) {
   const { dayNumber, monthLabel, yearLabel } = parseEventDate(eventDate || '2026-01-01');
+  const displayName = eventName || 'Alina & Andrew';
   const displayDressCode =
     typeof dressCode === 'string' && dressCode.trim()
       ? dressCode
-      : 'Garden formal in soft neutrals, champagne tones, or classic black.';
+      : 'Black tie optional, soft neutrals, champagne, or classic evening wear.';
   const displayNote =
     typeof note === 'string' && note.trim()
       ? note
-      : 'We have waited for this day with full hearts and would be honoured to celebrate it with you.';
+      : 'Together with their families, they request the pleasure of your company for an intimate celebration of love.';
 
   return (
     <div style={styles.body}>
       <section style={styles.hero}>
-        <div style={styles.heroGlowTop} />
-        <div style={styles.heroGlowBottom} />
-        <div style={styles.estateFrame} />
-        <div style={styles.lakeReflection} />
-        <div style={styles.boat} />
+        {themeHeroImage ? (
+          <div style={{ ...styles.heroImage, backgroundImage: `url("${themeHeroImage}")` }} />
+        ) : (
+          <div style={styles.heroFallback} />
+        )}
+        <div style={styles.heroOverlay} />
 
-        <div style={styles.heroTextWrap}>
-          <div style={styles.eyebrow}>Wedding Celebration</div>
-          <div style={styles.heroTitle}>
-            Wedding
-            <br />
-            Day
-          </div>
-          <div style={styles.heroNames}>{eventName || 'Alina & Andrew'}</div>
-          <div style={styles.heroDate}>{dayNumber}.{eventDate ? eventDate.slice(5, 7) : '07'}.{yearLabel}</div>
+        <div style={styles.topBar}>
+          <div style={styles.monogram}>{getInitials(displayName)}</div>
+          <div style={styles.eyebrow}>Private Wedding Invitation</div>
         </div>
 
-        <div style={styles.flowerCluster} />
+        <div style={styles.titleBlock}>
+          <div style={styles.invitationLabel}>The Wedding Of</div>
+          <div style={styles.names}>{displayName}</div>
+          <div style={styles.dateLine}>
+            <span>{dayNumber}</span>
+            <span>{monthLabel}</span>
+            <span>{yearLabel}</span>
+          </div>
+        </div>
       </section>
 
-      <section style={styles.paperWrap}>
-        <div style={styles.paperWave} />
-        <div style={styles.sectionTitle}>Wedding Invitation</div>
-        <p style={styles.invitationCopy}>{displayNote}</p>
-        <div style={styles.blossom} />
+      <section style={styles.content}>
+        <div style={styles.introCard}>
+          <div style={styles.sectionKicker}>With Honour</div>
+          <p style={styles.invitationCopy}>{displayNote}</p>
+        </div>
 
-        <div style={styles.detailPanel}>
-          <div style={styles.detailLabel}>Ceremony</div>
-          <div style={styles.detailValue}>{location || 'Chateau du Lac'}</div>
-
-          <div style={styles.metaRow}>
-            <div style={styles.metaCard}>
-              <div style={styles.metaCardTitle}>Date</div>
-              <div style={styles.metaCardValue}>{`${dayNumber} ${monthLabel}`}</div>
-            </div>
-            <div style={styles.metaCard}>
-              <div style={styles.metaCardTitle}>Time</div>
-              <div style={styles.metaCardValue}>{time || '4PM Prompt'}</div>
-            </div>
+        <div style={styles.detailGrid}>
+          <div style={styles.detailCard}>
+            <div style={styles.detailLabel}>Date</div>
+            <div style={styles.detailValue}>{`${dayNumber} ${monthLabel}`}</div>
           </div>
-
-          <div style={styles.dressCode}>
-            <div style={styles.detailLabel}>Dress Code</div>
-            <div style={styles.dressCodeText}>{displayDressCode}</div>
+          <div style={styles.detailCard}>
+            <div style={styles.detailLabel}>Time</div>
+            <div style={styles.detailValue}>{time || '4PM Prompt'}</div>
           </div>
+        </div>
 
-          {inviteeName && (
-            <div style={styles.guestBlock}>
-              <div style={styles.guestLabel}>with love for</div>
-              <div style={styles.guestName}>{inviteeName}</div>
-              {(seatNumber || tag) && (
-                <div style={styles.guestMeta}>
-                  {seatNumber && <span>Seat {seatNumber}</span>}
-                  {tag && <span>{tag}</span>}
-                </div>
-              )}
-            </div>
-          )}
+        <div style={styles.venueCard}>
+          <div style={styles.sectionKicker}>Ceremony & Reception</div>
+          <div style={styles.venueName}>{location || 'Chateau du Lac'}</div>
+        </div>
 
-          <div style={styles.qrFrame}>
-            <div style={styles.qrLabel}>Your Entry QR</div>
-            {qrContent ? (
-              <div style={{ marginTop: 14, display: 'flex', justifyContent: 'center' }}>{qrContent as ReactNode}</div>
-            ) : (
-              <div style={styles.qrFallback}>QR Code</div>
+        {themeSecondaryImage ? (
+          <div style={{ ...styles.secondaryImage, backgroundImage: `url("${themeSecondaryImage}")` }} />
+        ) : (
+          <div style={styles.secondaryFallback} />
+        )}
+
+        <div style={styles.dressCode}>
+          <div style={styles.sectionKicker}>Dress Code</div>
+          <div style={styles.dressText}>{displayDressCode}</div>
+        </div>
+
+        {inviteeName && (
+          <div style={styles.guestPass}>
+            <div style={styles.guestScript}>reserved for</div>
+            <div style={styles.guestName}>{inviteeName}</div>
+            {(seatNumber || tag) && (
+              <div style={styles.guestMeta}>
+                {seatNumber && <span>Seat {seatNumber}</span>}
+                {tag && <span>{tag}</span>}
+              </div>
             )}
           </div>
+        )}
+
+        <div style={styles.qrFrame}>
+          <div style={styles.qrLabel}>Entry Pass QR</div>
+          {qrContent ? (
+            <div style={{ marginTop: 14, display: 'flex', justifyContent: 'center' }}>{qrContent as ReactNode}</div>
+          ) : (
+            <div style={styles.qrFallback}>QR Code</div>
+          )}
         </div>
       </section>
     </div>

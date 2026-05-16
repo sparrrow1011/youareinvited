@@ -981,9 +981,9 @@ class EventViewSet(viewsets.ModelViewSet):
         return [IsAuthenticated()]
 
     def create(self, request, *args, **kwargs):
-        if request.FILES.get('background_image'):
+        if any(request.FILES.get(field) for field in ('background_image', 'theme_hero_image', 'theme_secondary_image')):
             storage_error = media_storage_unavailable_response(
-                'Template uploads require S3 storage on Vercel.'
+                'Image uploads require S3 storage on Vercel.'
                 'Set AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and AWS_STORAGE_BUCKET_NAME first.'
             )
             if storage_error is not None:
@@ -991,9 +991,9 @@ class EventViewSet(viewsets.ModelViewSet):
         return super().create(request, *args, **kwargs)
 
     def update(self, request, *args, **kwargs):
-        if request.FILES.get('background_image'):
+        if any(request.FILES.get(field) for field in ('background_image', 'theme_hero_image', 'theme_secondary_image')):
             storage_error = media_storage_unavailable_response(
-                'Template uploads require S3 storage on Vercel.'
+                'Image uploads require S3 storage on Vercel.'
                 'Set AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, and AWS_STORAGE_BUCKET_NAME first.'
             )
             if storage_error is not None:

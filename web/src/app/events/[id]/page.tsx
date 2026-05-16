@@ -154,6 +154,7 @@ export default function EventPage() {
   const [themeData, setThemeData] = useState<Record<string, unknown>>({});
   const [savingTheme, setSavingTheme] = useState(false);
   const [themeSaved, setThemeSaved] = useState(false);
+  const [savingThemeImageField, setSavingThemeImageField] = useState<'theme_hero_image' | 'theme_secondary_image' | null>(null);
   const [activeTab, setActiveTab] = useState<EventTab>('guests');
   const [guestAppForm, setGuestAppForm] = useState({
     guest_app_template: 'classic' as GuestAppTemplate,
@@ -620,6 +621,39 @@ export default function EventPage() {
       setThemeData(event?.theme_data ?? {});
     } finally {
       setSavingTheme(false);
+    }
+  };
+
+  const handleUploadThemeImage = async (
+    field: 'theme_hero_image' | 'theme_secondary_image',
+    file: File
+  ) => {
+    setSavingThemeImageField(field);
+    try {
+      const payload = new FormData();
+      payload.append(field, file);
+      const updated = await eventService.update(id, payload);
+      setEvent(updated);
+      setThemeSaved(true);
+      window.setTimeout(() => setThemeSaved(false), 2000);
+    } catch {
+      setError('Failed to upload theme image.');
+    } finally {
+      setSavingThemeImageField(null);
+    }
+  };
+
+  const handleClearThemeImage = async (field: 'theme_hero_image' | 'theme_secondary_image') => {
+    setSavingThemeImageField(field);
+    try {
+      const updated = await eventService.update(id, { [field]: null });
+      setEvent(updated);
+      setThemeSaved(true);
+      window.setTimeout(() => setThemeSaved(false), 2000);
+    } catch {
+      setError('Failed to clear theme image.');
+    } finally {
+      setSavingThemeImageField(null);
     }
   };
 
@@ -1349,10 +1383,15 @@ export default function EventPage() {
                     selectedTheme={selectedTheme}
                     themeData={themeData}
                     onSave={handleSaveTheme}
+                    onImageUpload={handleUploadThemeImage}
+                    onImageClear={handleClearThemeImage}
                     saving={savingTheme}
                     saved={themeSaved}
+                    imageSavingField={savingThemeImageField}
                     eventName={event?.name}
                     eventDate={event?.date}
+                    themeHeroImage={resolveMediaUrl(event?.theme_hero_image)}
+                    themeSecondaryImage={resolveMediaUrl(event?.theme_secondary_image)}
                     hasTemplate={Boolean(event?.background_image)}
                   />
                 </div>
