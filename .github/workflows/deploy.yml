@@ -1,0 +1,37 @@
+name: Deploy to DigitalOcean
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Deploy backend to droplet
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DROPLET_IP }}
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+            APP_DIR="/app/youareinvited"
+
+            echo "⬇️  Pulling latest code..."
+            cd "$APP_DIR"
+            git pull origin main
+
+            echo "🐳  Rebuilding backend image..."
+            docker compose -f docker-compose.prod.yml build backend
+
+            echo "▶️  Restarting containers..."
+            docker compose -f docker-compose.prod.yml up -d
+
+            echo "🔄  Running migrations..."
+            docker exec youareinvited-backend python manage.py migrate --noinput
+
+            echo "✅  Deploy complete."
+            docker compose -f docker-compose.prod.yml ps
