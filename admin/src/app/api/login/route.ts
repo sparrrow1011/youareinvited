@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
   const backendUrl =
     process.env.BACKEND_URL ||
     process.env.NEXT_PUBLIC_BACKEND_URL ||
-    'http://localhost:8000';
+    'https://backend.v0.youare-invited.com';
 
   let data: { access?: string; is_staff?: boolean; detail?: string };
   try {

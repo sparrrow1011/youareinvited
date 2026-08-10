@@ -2,18 +2,18 @@ import axios from 'axios';
 import { getToken, setToken, clearToken } from './auth';
 import { isExpiredJwt } from './jwt';
 
-const LOCAL_BACKEND_URL = 'http://127.0.0.1:8000';
-const PRODUCTION_DIRECT_API_BASE_URL = 'https://backend.v0.youare-invited.com/api';
-const DIRECT_BROWSER_API_HOSTS = new Set(['youare-invited.com', 'www.youare-invited.com']);
-const LOCAL_BROWSER_HOSTS = new Set(['localhost', '127.0.0.1']);
+const PRODUCTION_BACKEND_URL = 'https://backend.v0.youare-invited.com';
+const PRODUCTION_DIRECT_API_BASE_URL = `${PRODUCTION_BACKEND_URL}/api`;
+const DIRECT_BROWSER_API_HOSTS = new Set([
+  'youare-invited.com',
+  'www.youare-invited.com',
+  'localhost',
+  '127.0.0.1',
+]);
 
 const getDefaultApiBaseUrl = (): string => {
   if (typeof window === 'undefined') {
-    return `${(process.env.BACKEND_URL || LOCAL_BACKEND_URL).replace(/\/$/, '')}/api`;
-  }
-
-  if (LOCAL_BROWSER_HOSTS.has(window.location.hostname)) {
-    return `${LOCAL_BACKEND_URL}/api`;
+    return `${(process.env.BACKEND_URL || PRODUCTION_BACKEND_URL).replace(/\/$/, '')}/api`;
   }
 
   if (DIRECT_BROWSER_API_HOSTS.has(window.location.hostname)) {
@@ -53,13 +53,13 @@ const API_ORIGIN = (() => {
     if (typeof window !== 'undefined') {
       return window.location.origin;
     }
-    return (process.env.BACKEND_URL || LOCAL_BACKEND_URL).replace(/\/$/, '');
+    return (process.env.BACKEND_URL || PRODUCTION_BACKEND_URL).replace(/\/$/, '');
   }
 
   try {
     return new URL(API_BASE_URL).origin;
   } catch {
-    return (process.env.BACKEND_URL || LOCAL_BACKEND_URL).replace(/\/$/, '');
+    return (process.env.BACKEND_URL || PRODUCTION_BACKEND_URL).replace(/\/$/, '');
   }
 })();
 

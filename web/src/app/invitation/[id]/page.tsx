@@ -5,7 +5,7 @@ interface Props {
   params: { id: string };
 }
 
-const BACKEND_URL = (process.env.BACKEND_URL ?? 'http://127.0.0.1:8000').replace(/\/$/, '');
+const BACKEND_URL = (process.env.BACKEND_URL ?? 'https://backend.v0.youare-invited.com').replace(/\/$/, '');
 const SERVER_API_BASE_URL = `${BACKEND_URL}/api`;
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? SERVER_API_BASE_URL;
 const API_ORIGIN = (() => {
