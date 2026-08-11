@@ -10,6 +10,7 @@ import {
   useState,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { useDialogStack } from '@/components/DialogProvider';
 
 const FOCUSABLE_SELECTOR = [
   'a[href]',
@@ -23,45 +24,6 @@ const FOCUSABLE_SELECTOR = [
   '[contenteditable="true"]',
   '[tabindex]:not([tabindex="-1"])',
 ].join(',');
-
-// Scroll-lock state derived from the open-dialog stack.
-let savedBodyOverflow = '';
-let savedBodyPaddingRight = '';
-let savedBodyOverscrollBehavior = '';
-let savedRootOverscrollBehavior = '';
-const openDialogs: symbol[] = [];
-
-function pushDialog(dialogId: symbol) {
-  if (openDialogs.length === 0) {
-    savedBodyOverflow = document.body.style.overflow;
-    savedBodyPaddingRight = document.body.style.paddingRight;
-    savedBodyOverscrollBehavior = document.body.style.overscrollBehavior;
-    savedRootOverscrollBehavior = document.documentElement.style.overscrollBehavior;
-
-    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
-    document.body.style.overflow = 'hidden';
-    document.body.style.overscrollBehavior = 'none';
-    document.documentElement.style.overscrollBehavior = 'none';
-    if (scrollbarWidth > 0) {
-      const existing = parseFloat(document.body.style.paddingRight) || 0;
-      document.body.style.paddingRight = `${scrollbarWidth + existing}px`;
-    }
-  }
-
-  openDialogs.push(dialogId);
-}
-
-function popDialog(dialogId: symbol) {
-  const stackIndex = openDialogs.lastIndexOf(dialogId);
-  if (stackIndex >= 0) openDialogs.splice(stackIndex, 1);
-
-  if (openDialogs.length === 0) {
-    document.body.style.overflow = savedBodyOverflow;
-    document.body.style.paddingRight = savedBodyPaddingRight;
-    document.body.style.overscrollBehavior = savedBodyOverscrollBehavior;
-    document.documentElement.style.overscrollBehavior = savedRootOverscrollBehavior;
-  }
-}
 
 function getFocusableElements(container: HTMLElement) {
   return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter((element) => (
@@ -124,6 +86,7 @@ export default function Dialog({
   const initialFocusRefRef = useRef(initialFocusRef);
   const busyRef = useRef(busy);
   const [, setMounted] = useState(false);
+  const { stack, register, unregister } = useDialogStack();
 
   const setPanelRef = useCallback((node: HTMLDivElement | null) => {
     panelRef.current = node;
@@ -154,7 +117,7 @@ export default function Dialog({
       ? document.activeElement
       : null;
 
-    pushDialog(dialogId);
+    register(dialogId);
 
     // Focusable-node cache: build once per dialog content, then revalidate
     // cheaply on Tab instead of re-querying the panel on every keypress.
@@ -212,7 +175,7 @@ export default function Dialog({
     });
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (openDialogs[openDialogs.length - 1] !== dialogId) return;
+      if (stack.current[stack.current.length - 1] !== dialogId) return;
 
       if (event.key === 'Escape' && !busyRef.current) {
         event.preventDefault();
@@ -253,10 +216,10 @@ export default function Dialog({
       observer?.disconnect();
       focusableCache = null;
 
-      popDialog(dialogId);
+      unregister(dialogId);
 
       // Only restore focus when no other dialogs remain open.
-      if (openDialogs.length === 0 && previouslyFocused?.isConnected) {
+      if (stack.current.length === 0 && previouslyFocused?.isConnected) {
         previouslyFocused.focus({ preventScroll: true });
       }
     };

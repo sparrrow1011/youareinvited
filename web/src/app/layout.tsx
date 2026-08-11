@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Inter, Noto_Serif, Manrope } from 'next/font/google';
 import GoogleAuthProvider from '@/components/GoogleAuthProvider';
+import { DialogProvider } from '@/components/DialogProvider';
 import {
   defaultDescription,
   organizationJsonLd,
@@ -97,7 +98,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className={`${inter.className} ${notoSerif.variable} ${manrope.variable}`}>
         <GoogleAuthProvider>
-          {children}
+          <DialogProvider>
+            {children}
+          </DialogProvider>
         </GoogleAuthProvider>
       </body>
     </html>
