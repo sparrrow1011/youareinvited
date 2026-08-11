@@ -19,8 +19,6 @@ export default function InvitationPreviewModal({
   const titleId = useId();
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
-  if (!invitationId) return null;
-
   return (
     <Dialog
       open={Boolean(invitationId)}
@@ -57,27 +55,31 @@ export default function InvitationPreviewModal({
         </motion.div>
       )}
     >
-      <div className="flex items-center justify-between gap-3 border-b border-outline-variant/15 bg-white px-5 py-4 sm:px-6">
-        <div className="min-w-0">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-on-surface-variant">Organizer Preview</p>
-          <h2 id={titleId} className="truncate font-headline text-xl text-on-lp-background">
-            {invitationName || 'Invitation Preview'}
-          </h2>
-        </div>
-        <button
-          ref={closeButtonRef}
-          type="button"
-          onClick={onClose}
-          className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-surface-container text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface"
-          aria-label="Close invitation preview"
-        >
-          <span className="material-symbols-outlined" aria-hidden="true">close</span>
-        </button>
-      </div>
+      {() => (
+        <div className="flex h-full min-h-0 flex-col">
+          <div className="flex items-center justify-between gap-3 border-b border-outline-variant/15 bg-white px-5 py-4 sm:px-6">
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-on-surface-variant">Organizer Preview</p>
+              <h2 id={titleId} className="truncate font-headline text-xl text-on-lp-background">
+                {invitationName || 'Invitation Preview'}
+              </h2>
+            </div>
+            <button
+              ref={closeButtonRef}
+              type="button"
+              onClick={onClose}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-surface-container text-on-surface-variant transition-colors hover:bg-surface-container-high hover:text-on-surface"
+              aria-label="Close invitation preview"
+            >
+              <span className="material-symbols-outlined" aria-hidden="true">close</span>
+            </button>
+          </div>
 
-      <div className="relative flex-1 overflow-hidden bg-lp-background">
-        {invitationId && <InvitationClient id={invitationId} embedded />}
-      </div>
+          <div className="relative flex-1 overflow-hidden bg-lp-background">
+            {invitationId && <InvitationClient id={invitationId} embedded />}
+          </div>
+        </div>
+      )}
     </Dialog>
   );
 }

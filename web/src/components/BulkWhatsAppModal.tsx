@@ -69,7 +69,8 @@ export default function BulkWhatsAppModal({
       backdropClassName="z-50 flex items-center justify-center bg-black/50"
       panelClassName="mx-4 w-full max-w-sm rounded-lg bg-white shadow-xl"
     >
-      <div className="p-6">
+      {(modalProps) => (
+        <div className="p-6" aria-describedby={modalProps.describedBy || undefined}>
         {result ? (
           <>
             <h2 id={titleId} className="mb-2 text-xl font-bold text-green-600">✓ WhatsApp Links Sent</h2>
@@ -98,7 +99,7 @@ export default function BulkWhatsAppModal({
               </p>
               <div className="max-h-40 overflow-y-auto overscroll-contain rounded-lg bg-gray-50 p-3">
                 <ul className="space-y-1">
-                  {selectedInvitations.slice(0, 5).map((inv) => (
+                 {selectedInvitations.slice(0, 5).map((inv) => (
                     <li key={inv.id} className="text-sm text-gray-700">
                       {inv.name} <span className="text-gray-500">({inv.seat_number})</span>
                     </li>
@@ -154,7 +155,8 @@ export default function BulkWhatsAppModal({
             </p>
           </>
         )}
-      </div>
+        </div>
+      )}
     </Dialog>
   );
 }

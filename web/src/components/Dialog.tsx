@@ -7,6 +7,7 @@ import {
   useCallback,
   useEffect,
   useRef,
+  useState,
 } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -75,10 +76,16 @@ export type DialogPanelRenderProps = HTMLAttributes<HTMLDivElement> & {
   ref: (node: HTMLDivElement | null) => void;
 };
 
+type DialogChildRenderProps = {
+  labelledBy?: string;
+  describedBy?: string;
+  ariaLabel?: string;
+};
+
 export interface DialogProps {
   open: boolean;
   onClose: () => void;
-  children: ReactNode;
+  children: ReactNode | ((props: DialogChildRenderProps) => ReactNode);
   labelledBy?: string;
   describedBy?: string;
   ariaLabel?: string;
@@ -116,6 +123,7 @@ export default function Dialog({
   const onCloseRef = useRef(onClose);
   const initialFocusRefRef = useRef(initialFocusRef);
   const busyRef = useRef(busy);
+  const [, setMounted] = useState(false);
 
   const setPanelRef = useCallback((node: HTMLDivElement | null) => {
     panelRef.current = node;
@@ -129,6 +137,7 @@ export default function Dialog({
 
   useEffect(() => {
     mountedRef.current = true;
+    setMounted(true);
   }, []);
 
   useEffect(() => {
@@ -213,6 +222,10 @@ export default function Dialog({
 
   if (!open || !mountedRef.current) return null;
 
+  const resolvedChildren = typeof children === 'function'
+    ? children({ labelledBy, describedBy, ariaLabel })
+    : children;
+
   const panelProps: DialogPanelRenderProps = {
     ref: setPanelRef,
     role: 'dialog',
@@ -222,7 +235,7 @@ export default function Dialog({
     'aria-label': ariaLabel,
     tabIndex: -1,
     className: panelClassName,
-    children,
+    children: resolvedChildren,
   };
 
   const backdropProps: DialogBackdropRenderProps = {
