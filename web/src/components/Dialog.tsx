@@ -156,18 +156,58 @@ export default function Dialog({
 
     pushDialog(dialogId);
 
+    // Focusable-node cache: build once per dialog content, then revalidate
+    // cheaply on Tab instead of re-querying the panel on every keypress.
+    // A MutationObserver invalidates the cache when content changes (e.g. a
+    // modal swapping between confirmation and success states).
+    let focusableCache: HTMLElement[] | null = null;
+    let observer: MutationObserver | null = null;
+
+    const invalidateCache = () => {
+      focusableCache = null;
+    };
+
+    const getCachedFocusableElements = (panel: HTMLElement): HTMLElement[] => {
+      if (focusableCache === null) {
+        focusableCache = getFocusableElements(panel);
+        return focusableCache;
+      }
+
+      // Cheap revalidation — no layout reads on the hot path. Handles nodes
+      // detached or disabled since the list was built; structural and
+      // class/style/disabled changes are caught by the observer instead.
+      const live = focusableCache.filter(
+        (element) => element.isConnected && !element.matches(':disabled'),
+      );
+      if (live.length > 0) return live;
+
+      focusableCache = getFocusableElements(panel);
+      return focusableCache;
+    };
+
+    const panel = panelRef.current;
+    if (panel) {
+      observer = new MutationObserver(invalidateCache);
+      observer.observe(panel, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['class', 'style', 'disabled', 'aria-hidden'],
+      });
+    }
+
     const focusFrame = window.requestAnimationFrame(() => {
-      const panel = panelRef.current;
-      if (!panel) return;
+      const currentPanel = panelRef.current;
+      if (!currentPanel) return;
 
       const requestedTarget = initialFocusRefRef.current?.current;
       const canFocusRequestedTarget = requestedTarget
-        && panel.contains(requestedTarget)
+        && currentPanel.contains(requestedTarget)
         && !requestedTarget.matches(':disabled')
         && requestedTarget.getClientRects().length > 0;
       const target = canFocusRequestedTarget
         ? requestedTarget
-        : getFocusableElements(panel)[0] ?? panel;
+        : getCachedFocusableElements(currentPanel)[0] ?? currentPanel;
       target.focus({ preventScroll: true });
     });
 
@@ -182,13 +222,13 @@ export default function Dialog({
 
       if (event.key !== 'Tab') return;
 
-      const panel = panelRef.current;
-      if (!panel) return;
-      const focusableElements = getFocusableElements(panel);
+      const currentPanel = panelRef.current;
+      if (!currentPanel) return;
+      const focusableElements = getCachedFocusableElements(currentPanel);
 
       if (focusableElements.length === 0) {
         event.preventDefault();
-        panel.focus({ preventScroll: true });
+        currentPanel.focus({ preventScroll: true });
         return;
       }
 
@@ -196,7 +236,7 @@ export default function Dialog({
       const lastElement = focusableElements[focusableElements.length - 1];
       const activeElement = document.activeElement;
 
-      if (event.shiftKey && (activeElement === firstElement || !panel.contains(activeElement))) {
+      if (event.shiftKey && (activeElement === firstElement || !currentPanel.contains(activeElement))) {
         event.preventDefault();
         lastElement.focus();
       } else if (!event.shiftKey && activeElement === lastElement) {
@@ -210,6 +250,8 @@ export default function Dialog({
     return () => {
       window.cancelAnimationFrame(focusFrame);
       document.removeEventListener('keydown', handleKeyDown);
+      observer?.disconnect();
+      focusableCache = null;
 
       popDialog(dialogId);
 
