@@ -146,6 +146,7 @@ export default function DashboardPage() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [eventSearch, setEventSearch] = useState('');
   const notificationPanelRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -241,6 +242,15 @@ export default function DashboardPage() {
       },
   ];
 
+  const normalizedSearch = eventSearch.trim().toLowerCase();
+  const filteredEvents = normalizedSearch
+    ? events.filter((event) => {
+        const name = event.name?.toLowerCase() ?? '';
+        const theme = formatThemeLabel(event.theme).toLowerCase();
+        return name.includes(normalizedSearch) || theme.includes(normalizedSearch);
+      })
+    : events;
+
   return (
     <div className="bg-lp-background font-body text-on-surface min-h-screen">
       {/* Aurora background */}
@@ -322,9 +332,16 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-3 bg-surface-container-low px-4 py-2 rounded-full w-full lg:w-96 border border-outline-variant/10">
-              <span className="material-symbols-outlined text-on-surface-variant text-sm">search</span>
-              <p className="text-sm text-on-surface-variant">Use the event cards below to manage events and guests.</p>
+            <div className="flex items-center gap-3 bg-surface-container-low px-4 py-2 rounded-full w-full lg:w-96 border border-outline-variant/10 focus-within:border-brand/40 focus-within:ring-2 focus-within:ring-brand/20 transition">
+              <span className="material-symbols-outlined text-on-surface-variant text-sm" aria-hidden="true">search</span>
+              <input
+                type="search"
+                value={eventSearch}
+                onChange={(event) => setEventSearch(event.target.value)}
+                placeholder="Search events by name or theme"
+                aria-label="Search events"
+                className="w-full bg-transparent text-sm text-on-surface placeholder:text-on-surface-variant/60 outline-none"
+              />
             </div>
 
             <div className="hidden lg:flex items-center gap-4">
@@ -518,7 +535,24 @@ export default function DashboardPage() {
                 </div>
               )}
 
-              {!loading && events.map((event, idx) => {
+              {!loading && events.length > 0 && filteredEvents.length === 0 && (
+                <div className="md:col-span-1 xl:col-span-2 rounded-[2rem] border border-dashed border-outline-variant/20 bg-white/55 backdrop-blur-xl min-h-[420px] p-10 sm:p-12 flex flex-col items-center justify-center text-center">
+                  <span className="material-symbols-outlined text-4xl text-outline-variant mb-4" aria-hidden="true">search_off</span>
+                  <h4 className="font-headline text-2xl text-on-surface mb-2">No events match &quot;{eventSearch.trim()}&quot;</h4>
+                  <p className="text-sm text-on-surface-variant max-w-md">
+                    Try a different name or theme, or clear the search to see all events.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setEventSearch('')}
+                    className="mt-5 px-5 py-2.5 bg-surface-container rounded-full text-sm font-medium text-on-surface hover:bg-surface-container-high transition-colors"
+                  >
+                    Clear search
+                  </button>
+                </div>
+              )}
+
+              {!loading && filteredEvents.map((event, idx) => {
                 const status = getEventStatus(event.date);
                 const detailLine = getEventDetailLine(event);
                 const eventPills = getEventPills(event);
