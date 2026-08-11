@@ -2,6 +2,7 @@
 
 import type { Dispatch, SetStateAction } from 'react';
 import type { EventGiftLink } from '@/lib/api';
+import FormField from '@/components/FormField';
 
 type GuestAppTemplate = 'classic' | 'spotlight';
 
@@ -110,16 +111,23 @@ export default function EventGuestAppSection({
             { label: 'Hotel info', key: 'hotel_info', type: 'text', placeholder: 'Recommended hotel or area' },
             { label: 'Travel note', key: 'travel_note', type: 'text', placeholder: 'Taxi, airport, or arrival notes' },
           ].map(({ label, key, type, placeholder }) => (
-            <label key={key} className="block">
-              <span className="text-xs font-semibold uppercase tracking-widest text-on-surface-variant">{label}</span>
-              <input
-                type={type}
-                value={(form as any)[key]}
-                onChange={(event) => setGuestAppForm((current) => ({ ...current, [key]: event.target.value }))}
-                placeholder={placeholder}
-                className="mt-2 h-11 w-full rounded-2xl border border-outline-variant/20 bg-surface-container px-4 text-sm text-on-surface outline-none focus:ring-2 focus:ring-brand/30"
-              />
-            </label>
+            <FormField
+              key={key}
+              id={`guest-app-${key}`}
+              label={label}
+              labelClassName="text-xs font-semibold uppercase tracking-widest text-on-surface-variant"
+            >
+              {(fieldProps) => (
+                <input
+                  {...fieldProps}
+                  type={type}
+                  value={(form as any)[key]}
+                  onChange={(event) => setGuestAppForm((current) => ({ ...current, [key]: event.target.value }))}
+                  placeholder={placeholder}
+                  className="mt-2 h-11 w-full rounded-2xl border border-outline-variant/20 bg-surface-container px-4 text-sm text-on-surface outline-none focus:ring-2 focus:ring-brand/30"
+                />
+              )}
+            </FormField>
           ))}
         </div>
       </div>

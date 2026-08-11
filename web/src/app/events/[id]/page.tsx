@@ -14,6 +14,7 @@ import InvitationPreviewModal from '@/components/InvitationPreviewModal';
 import BulkWhatsAppModal from '@/components/BulkWhatsAppModal';
 import Dialog from '@/components/Dialog';
 import EventDesignSection from '@/components/EventDesignSection';
+import FormField from '@/components/FormField';
 import EventGuestAppSection from '@/components/EventGuestAppSection';
 import EventGuestsSection from '@/components/EventGuestsSection';
 import EventPhotosSection from '@/components/EventPhotosSection';
@@ -1056,13 +1057,11 @@ export default function EventPage() {
             { label: 'Seat Number', key: 'seat_number', placeholder: 'e.g. A-12', required: false, type: 'text' },
             { label: 'Tag', key: 'tag', placeholder: 'e.g. VIP, Family, Friend', required: false, type: 'text' },
             { label: 'Phone Number', key: 'phone_number', placeholder: 'e.g. 8060681740', required: false, type: 'tel' },
-          ].map(({ label, key, placeholder, required, type }) => {
-            const inputId = `guest-${key}`;
-            return (
-              <div key={key}>
-                <label htmlFor={inputId} className="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2">{label}</label>
+          ].map(({ label, key, placeholder, required, type }) => (
+            <FormField key={key} id={`guest-${key}`} label={label} required={required}>
+              {(fieldProps) => (
                 <input
-                  id={inputId}
+                  {...fieldProps}
                   value={(formData as any)[key]}
                   onChange={(e) => setFormData({ ...formData, [key]: e.target.value })}
                   required={required}
@@ -1071,9 +1070,9 @@ export default function EventPage() {
                   placeholder={placeholder}
                   className="w-full px-4 py-3 rounded-2xl bg-surface-container border border-outline-variant/20 text-on-surface placeholder:text-on-surface-variant/50 outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand/40 transition-all text-sm"
                 />
-              </div>
-            );
-          })}
+              )}
+            </FormField>
+          ))}
           <div className="flex flex-col sm:flex-row gap-3 pt-2">
             <button
               type="submit"
