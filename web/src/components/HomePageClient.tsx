@@ -65,16 +65,16 @@ const ANALYTICS_SNAPSHOTS = [
 ] as const;
 
 const CTA_COLLAGE_IMAGES = [
-  '/img/collage/first.png',
-  '/img/collage/second.png',
-  '/img/collage/third.png',
-  '/img/collage/fouth.png',
-  '/img/collage/fifth.png',
-  '/img/collage/sixth.png',
-  '/img/collage/seven.png',
-  '/img/collage/eigth.png',
-  '/img/collage/ninth.png',
-  '/img/collage/tenth.png',
+  '/img/collage/first.webp',
+  '/img/collage/second.webp',
+  '/img/collage/third.webp',
+  '/img/collage/fouth.webp',
+  '/img/collage/fifth.webp',
+  '/img/collage/sixth.webp',
+  '/img/collage/seven.webp',
+  '/img/collage/eigth.webp',
+  '/img/collage/ninth.webp',
+  '/img/collage/tenth.webp',
 ] as const;
 
 const CTA_GRID_IMAGES = Array.from({ length: 10 }, (_, index) => CTA_COLLAGE_IMAGES[index % CTA_COLLAGE_IMAGES.length]);
@@ -298,7 +298,7 @@ export default function HomePageClient() {
                 flex flex-col justify-between rotate-3"
               >
                 <div className="w-full h-56 rounded-2xl bg-gradient-to-br from-brand-container/40 to-secondary-container/40 shadow-inner relative overflow-hidden" >
-                  <NextImage src="/img/marriage_party.png" alt="Femi & Chioma Wedding" fill sizes="380px" className='rounded-2xl object-cover' priority />
+                  <NextImage src="/img/marriage_party.webp" alt="Femi & Chioma Wedding" fill sizes="380px" className='rounded-2xl object-cover' priority />
                 </div>
                 <div className="space-y-3">
                   <h3 className="font-headline text-2xl text-on-lp-background">Femi & Chioma's Wedding</h3>
@@ -318,7 +318,7 @@ export default function HomePageClient() {
                 className="absolute -top-[10%] right-[2%] w-60 h-72 bg-white/20 backdrop-blur-2xl rounded-[2rem] shadow-xl z-20 border border-white/40 -rotate-12"
               >
                 <div className="w-full h-full rounded-[2rem] bg-gradient-to-br from-surface-container to-outline-variant/20 relative overflow-hidden" >
-                  <NextImage src="/img/afro_woman.jpg" alt="Charity Gala" fill sizes="240px" className='rounded-[2rem] object-cover' priority />
+                  <NextImage src="/img/afro_woman.webp" alt="Charity Gala" fill sizes="240px" className='rounded-[2rem] object-cover' priority />
                 </div>
 
               </motion.div>
@@ -405,7 +405,7 @@ export default function HomePageClient() {
                 </p>
               </div>
               <div className="mt-10 rounded-2xl overflow-hidden bg-gradient-to-br from-brand-container/30 to-secondary-container/30 h-36 relative" >
-                <NextImage src="/img/event.jpg" alt="Guest List" fill sizes="(max-width: 768px) 100vw, 500px" className='object-cover' />
+                <NextImage src="/img/event.webp" alt="Guest List" fill sizes="(max-width: 768px) 100vw, 500px" className='object-cover' />
               </div>
             </motion.div>
 
@@ -463,7 +463,7 @@ export default function HomePageClient() {
                 description: 'Create your event, upload your design, import guests from CSV, and configure every detail — all in one elegant command centre.',
                 illustration: (
                   <div className="w-full h-36 rounded-2xl bg-gradient-to-br from-brand-container/30 to-secondary-container/30 relative overflow-hidden">
-                    <NextImage src="/img/dashboard.png" alt="Organizer Dashboard" fill sizes="(max-width: 768px) 100vw, 400px" className='object-cover' />
+                    <NextImage src="/img/dashboard.webp" alt="Organizer Dashboard" fill sizes="(max-width: 768px) 100vw, 400px" className='object-cover' />
                   </div>
                 ),
                 extraClass: '',
@@ -748,7 +748,7 @@ export default function HomePageClient() {
             </motion.blockquote>
             <motion.div {...revealInView} className="flex flex-col items-center gap-3">
               <div className="w-16 h-16 rounded-full bg-gradient-to-br from-brand-container to-secondary-container ring-4 ring-white shadow-lg relative overflow-hidden" >
-                <NextImage src="/img/ifeoluwa.png" alt="Ifeoluwa Oyedepo" fill sizes="64px" className='object-cover rounded-full' />
+                <NextImage src="/img/ifeoluwa.webp" alt="Ifeoluwa Oyedepo" fill sizes="64px" className='object-cover rounded-full' />
               </div>
               <cite className="not-italic">
                 <div className="font-bold text-lg text-white">Ifeoluwa Oyedepo</div>
@@ -766,7 +766,7 @@ export default function HomePageClient() {
               className="w-full md:w-1/2 relative"
             >
               <div className="aspect-[4/5] rounded-[4rem] overflow-hidden shadow-2xl relative z-10 bg-gradient-to-br from-brand-container/40 to-secondary-container/60" >
-                <NextImage src="/img/lady_standing.jpg" alt="Elegant event guest" fill sizes="(max-width: 768px) 100vw, 50vw" className='object-cover' />
+                <NextImage src="/img/lady_standing.webp" alt="Elegant event guest" fill sizes="(max-width: 768px) 100vw, 50vw" className='object-cover' />
               </div>
               <div className="absolute -bottom-10 -right-10 w-64 h-80 bg-secondary-container rounded-[3rem] -z-10 hidden md:block" />
               <div className="absolute -top-10 -left-10 w-64 h-64 bg-brand-container/30 rounded-full blur-3xl -z-10" />

@@ -102,7 +102,7 @@ export default function GuestExperiencePage() {
 
             <div className="relative">
               <div className="aspect-[4/5] rounded-[3rem] overflow-hidden shadow-2xl relative z-10 bg-gradient-to-br from-brand-container/40 to-secondary-container/60">
-                <img src="/img/lady_standing.jpg" alt="Guest invitation experience" className="w-full h-full object-cover" />
+                <img src="/img/lady_standing.webp" alt="Guest invitation experience" className="w-full h-full object-cover" />
               </div>
               <div className="absolute -bottom-8 -right-8 w-56 h-72 rounded-[2.5rem] bg-secondary-container -z-10 hidden md:block" />
               <div className="absolute -top-8 -left-8 w-56 h-56 rounded-full bg-brand-container/30 blur-3xl -z-10" />

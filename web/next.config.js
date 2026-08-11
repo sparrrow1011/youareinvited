@@ -5,6 +5,7 @@ const BACKEND_URL =
 const nextConfig = {
   skipTrailingSlashRedirect: true,
   images: {
+    formats: ['image/avif', 'image/webp'],
     remotePatterns: [
       {
         protocol: 'http',
