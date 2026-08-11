@@ -165,26 +165,35 @@ export default function SecurityPinPage() {
           {/* PIN form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="text-xs font-label font-semibold text-on-surface-variant uppercase tracking-wider mb-2 block">
+              <label htmlFor="security-pin" className="text-xs font-label font-semibold text-on-surface-variant uppercase tracking-wider mb-2 block">
                 Security PIN
               </label>
               <input
+                id="security-pin"
+                name="security-pin"
                 type="password"
                 inputMode="numeric"
+                autoComplete="one-time-code"
+                spellCheck={false}
                 pattern="\d{4,6}"
+                minLength={4}
                 maxLength={6}
                 value={pin}
                 onChange={e => setPin(e.target.value.replace(/\D/g, ''))}
+                required
+                aria-invalid={error ? true : undefined}
+                aria-describedby={error ? 'security-pin-hint security-pin-error' : 'security-pin-hint'}
                 placeholder="••••"
                 className="w-full h-12 rounded-2xl bg-surface-container border border-outline-variant/30 px-4 text-center text-lg sm:text-xl font-semibold tracking-[0.35em] sm:tracking-[0.5em] text-on-lp-background focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand/40 transition-all"
                 disabled={loading}
               />
+              <p id="security-pin-hint" className="sr-only">Enter the 4 to 6 digit PIN provided by the event organizer.</p>
             </div>
 
             {/* Error */}
             {error && (
-              <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-2xl px-4 py-3">
-                <span className="material-symbols-outlined text-red-400 text-base mt-0.5 shrink-0">warning</span>
+              <div id="security-pin-error" role="alert" className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-2xl px-4 py-3">
+                <span className="material-symbols-outlined text-red-400 text-base mt-0.5 shrink-0" aria-hidden="true">warning</span>
                 <p className="text-sm text-red-700">{error}</p>
               </div>
             )}
@@ -196,7 +205,10 @@ export default function SecurityPinPage() {
               className="w-full h-12 rounded-full bg-brand text-white font-semibold text-sm hover:bg-brand/90 active:bg-brand/80 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
             >
               {loading ? (
-                <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                <>
+                  <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" aria-hidden="true" />
+                  Unlocking check-in…
+                </>
               ) : (
                 <>
                   <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>lock_open</span>

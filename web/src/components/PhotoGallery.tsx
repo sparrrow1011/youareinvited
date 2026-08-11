@@ -76,12 +76,13 @@ export default function PhotoGallery({ photos, onDelete, showUploaderName }: Pho
                     e.stopPropagation();
                     onDelete(photo.id);
                   }}
+                  aria-label={`Delete photo ${index + 1}`}
                   className="absolute top-1.5 right-1.5 w-7 h-7 rounded-full bg-black/60 text-white
-                             flex items-center justify-center opacity-0 group-hover:opacity-100
-                             transition-opacity hover:bg-red-600"
-                  title="Delete photo"
+                             flex items-center justify-center
+                             opacity-100 sm:opacity-0 sm:group-hover:sm:opacity-100 sm:group-focus-within:opacity-100
+                             transition-opacity hover:bg-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
                 >
-                  <span className="material-symbols-outlined text-[14px]">close</span>
+                  <span className="material-symbols-outlined text-[14px]" aria-hidden="true">close</span>
                 </button>
               )}
             </div>
@@ -106,21 +107,23 @@ export default function PhotoGallery({ photos, onDelete, showUploaderName }: Pho
         >
           {/* Close */}
           <button
+            aria-label="Close photo viewer"
             className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 text-white
-                       flex items-center justify-center hover:bg-white/20 transition-colors"
+                       flex items-center justify-center hover:bg-white/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
             onClick={closeLightbox}
           >
-            <span className="material-symbols-outlined text-xl">close</span>
+            <span className="material-symbols-outlined text-xl" aria-hidden="true">close</span>
           </button>
 
           {/* Prev */}
           {photos.length > 1 && (
             <button
+              aria-label="Previous photo"
               className="absolute left-4 w-10 h-10 rounded-full bg-white/10 text-white
-                         flex items-center justify-center hover:bg-white/20 transition-colors"
+                         flex items-center justify-center hover:bg-white/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
               onClick={(e) => { e.stopPropagation(); prev(); }}
             >
-              <span className="material-symbols-outlined text-xl">chevron_left</span>
+              <span className="material-symbols-outlined text-xl" aria-hidden="true">chevron_left</span>
             </button>
           )}
 
@@ -148,11 +151,12 @@ export default function PhotoGallery({ photos, onDelete, showUploaderName }: Pho
           {/* Next */}
           {photos.length > 1 && (
             <button
+              aria-label="Next photo"
               className="absolute right-4 w-10 h-10 rounded-full bg-white/10 text-white
-                         flex items-center justify-center hover:bg-white/20 transition-colors"
+                         flex items-center justify-center hover:bg-white/20 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
               onClick={(e) => { e.stopPropagation(); next(); }}
             >
-              <span className="material-symbols-outlined text-xl">chevron_right</span>
+              <span className="material-symbols-outlined text-xl" aria-hidden="true">chevron_right</span>
             </button>
           )}
         </div>

@@ -324,11 +324,7 @@ export default function DashboardPage() {
 
             <div className="flex items-center gap-3 bg-surface-container-low px-4 py-2 rounded-full w-full lg:w-96 border border-outline-variant/10">
               <span className="material-symbols-outlined text-on-surface-variant text-sm">search</span>
-              <input
-                className="bg-transparent border-none outline-none text-sm w-full placeholder:text-on-surface-variant/60"
-                placeholder="Search events or guests..."
-                type="text"
-              />
+              <p className="text-sm text-on-surface-variant">Use the event cards below to manage events and guests.</p>
             </div>
 
             <div className="hidden lg:flex items-center gap-4">

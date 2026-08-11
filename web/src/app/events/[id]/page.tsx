@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { eventService, invitationService, authService, api, Event, Invitation, InvitationStats, AuthUser, EventPhoto, EventGiftLink } from '@/lib/api';
@@ -13,6 +13,7 @@ import { resolveMediaUrl } from '@/lib/api';
 import ThemePicker from '@/components/ThemePicker';
 import InvitationPreviewModal from '@/components/InvitationPreviewModal';
 import BulkWhatsAppModal from '@/components/BulkWhatsAppModal';
+import Dialog from '@/components/Dialog';
 import ProFeatureBanner from '@/components/ProFeatureBanner';
 
 const NAV_LINKS = [
@@ -179,6 +180,7 @@ export default function EventPage() {
   const [photosLoading, setPhotosLoading] = useState(false);
   const [photosError, setPhotosError] = useState('');
   const [showVenueQr, setShowVenueQr] = useState(false);
+  const templatePreviewCleanupRef = useRef<string | null>(null);
   const [venueQrBlobUrl, setVenueQrBlobUrl] = useState<string | null>(null);
 
   const [selectedInvitationIds, setSelectedInvitationIds] = useState<Set<string>>(new Set());
@@ -330,9 +332,31 @@ export default function EventPage() {
       }
       return;
     }
-    eventService.fetchPhotoQrBlob(event.id).then(setVenueQrBlobUrl).catch(() => {});
+
+    let cancelled = false;
+    eventService.fetchPhotoQrBlob(event.id)
+      .then((url) => { if (!cancelled) setVenueQrBlobUrl(url); else URL.revokeObjectURL(url); })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+      if (venueQrBlobUrl) {
+        URL.revokeObjectURL(venueQrBlobUrl);
+        setVenueQrBlobUrl(null);
+      }
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showVenueQr, event]);
+
+  // Revoke template preview blob URL on unmount.
+  useEffect(() => {
+    return () => {
+      if (templatePreviewCleanupRef.current) {
+        URL.revokeObjectURL(templatePreviewCleanupRef.current);
+        templatePreviewCleanupRef.current = null;
+      }
+    };
+  }, []);
 
   // Poll for pending image generation after bulk import
   useEffect(() => {
@@ -452,8 +476,8 @@ export default function EventPage() {
         loadData();
       }, 2000);
       return {
-        invitation_count: selectedInvitationIds.size,
-        link_preview: ''
+        invitation_count: result.invitation_count,
+        link_preview: result.link_preview,
       };
     } catch (err) {
       throw err;
@@ -488,6 +512,15 @@ export default function EventPage() {
     setShowCsvModal(true);
   };
 
+  const closeCsvImport = () => {
+    if (csvImporting || generatingImages) return;
+    setShowCsvModal(false);
+    setCsvFile(null);
+    setCsvPreview([]);
+    setCsvResult(null);
+    setCsvRowCount(0);
+  };
+
   const handleCsvImport = async () => {
     if (!csvFile) return;
     setCsvImporting(true);
@@ -515,8 +548,13 @@ export default function EventPage() {
   const handleTemplateFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (templatePreviewCleanupRef.current) {
+      URL.revokeObjectURL(templatePreviewCleanupRef.current);
+    }
+    const url = URL.createObjectURL(file);
+    templatePreviewCleanupRef.current = url;
     setTemplateFile(file);
-    setTemplatePreviewUrl(URL.createObjectURL(file));
+    setTemplatePreviewUrl(url);
     setShowZoneEditor(true);
   };
 
@@ -732,6 +770,10 @@ export default function EventPage() {
     : planLabel;
   const workspaceBrandLogoUrl = resolveMediaUrl(user?.brand_logo_url);
   const activeEventTab = EVENT_TABS.find((tab) => tab.id === activeTab) ?? EVENT_TABS[0];
+  const selectedInvitations = useMemo(
+    () => invitations.filter((invitation) => selectedInvitationIds.has(invitation.id)),
+    [invitations, selectedInvitationIds],
+  );
 
   if (loading) {
     return (
@@ -1470,51 +1512,57 @@ export default function EventPage() {
 
               {/* Venue QR modal */}
               {showVenueQr && (
-                <div
-                  className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
-                  onClick={() => setShowVenueQr(false)}
-                >
-                  <div
-                    className="bg-surface rounded-3xl p-6 max-w-xs w-full shadow-xl"
-                    onClick={(e) => e.stopPropagation()}
+              <Dialog
+                open={showVenueQr}
+                onClose={() => setShowVenueQr(false)}
+                labelledBy="venue-qr-dialog-title"
+                describedBy="venue-qr-dialog-description"
+                backdropClassName="z-50 flex items-center justify-center bg-black/50 p-4"
+                panelClassName="w-full max-w-xs rounded-3xl bg-surface-container-lowest p-6 shadow-xl"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h3 id="venue-qr-dialog-title" className="font-bold text-on-surface">Venue QR Code</h3>
+                  <button
+                    type="button"
+                    onClick={() => setShowVenueQr(false)}
+                    aria-label="Close venue QR dialog"
+                    className="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center"
                   >
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="font-bold text-on-surface">Venue QR Code</h3>
-                      <button
-                        onClick={() => setShowVenueQr(false)}
-                        className="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center"
-                      >
-                        <span className="material-symbols-outlined text-base">close</span>
-                      </button>
-                    </div>
-                    <p className="text-xs text-on-surface/60 mb-4">
-                      Display this at your venue. Guests scan it with their camera app, then use their
-                      personal invite QR to verify check-in.
-                    </p>
-                    {venueQrBlobUrl ? (
-                      <>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={venueQrBlobUrl}
-                          alt="Venue QR code"
-                          className="w-full rounded-2xl"
-                        />
-                        <a
-                          href={venueQrBlobUrl}
-                          download={`${event.name}-photo-qr.png`}
-                          className="mt-3 w-full h-10 rounded-full border border-outline/30 text-sm font-medium
-                                     text-on-surface flex items-center justify-center gap-1.5 hover:bg-surface-container
-                                     transition-colors"
-                        >
-                          <span className="material-symbols-outlined text-[16px]">download</span>
-                          Save QR Image
-                        </a>
-                      </>
-                    ) : (
-                      <div className="w-full aspect-square rounded-2xl bg-surface-container animate-pulse" />
-                    )}
-                  </div>
+                    <span className="material-symbols-outlined text-base" aria-hidden="true">close</span>
+                  </button>
                 </div>
+                <p id="venue-qr-dialog-description" className="text-xs text-on-surface/60 mb-4">
+                  Display this at your venue. Guests scan it with their camera app, then use their
+                  personal invite QR to verify check-in.
+                </p>
+                {venueQrBlobUrl ? (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={venueQrBlobUrl}
+                      alt="Venue QR code"
+                      className="w-full rounded-2xl"
+                    />
+                    <a
+                      href={venueQrBlobUrl}
+                      download={`${event.name}-photo-qr.png`}
+                      className="mt-3 w-full h-10 rounded-full border border-outline/30 text-sm font-medium
+                                 text-on-surface flex items-center justify-center gap-1.5 hover:bg-surface-container
+                                 transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-[16px]" aria-hidden="true">download</span>
+                      Save QR Image
+                    </a>
+                  </>
+                ) : (
+                  <div
+                    className="w-full aspect-square rounded-2xl bg-surface-container animate-pulse"
+                    role="status"
+                    aria-live="polite"
+                    aria-label="Loading venue QR code"
+                  />
+                )}
+              </Dialog>
               )}
             </div>
           )}
@@ -1779,6 +1827,7 @@ export default function EventPage() {
                         </div>
                       </div>
                       <button
+                        type="button"
                         onClick={handleClearPin}
                         disabled={savingPin}
                         className="w-full h-10 rounded-full border border-outline-variant/30 text-sm text-on-surface-variant hover:border-red-300 hover:text-red-600 disabled:opacity-50 transition-all"
@@ -1788,17 +1837,31 @@ export default function EventPage() {
                     </div>
                   ) : (
                     <div className="space-y-3">
+                      <label htmlFor="organizer-security-pin" className="sr-only">New security PIN</label>
                       <input
+                        id="organizer-security-pin"
+                        name="security-pin"
                         type="password"
                         inputMode="numeric"
+                        autoComplete="new-password"
+                        spellCheck={false}
+                        pattern="\d{4,6}"
+                        minLength={4}
                         maxLength={6}
                         value={securityPin}
-                        onChange={e => setSecurityPin(e.target.value.replace(/\D/g, ''))}
+                        onChange={e => {
+                          setSecurityPin(e.target.value.replace(/\D/g, ''));
+                          setPinSaveStatus('idle');
+                        }}
+                        aria-invalid={pinSaveStatus === 'error' ? true : undefined}
+                        aria-describedby="organizer-security-pin-hint organizer-security-pin-status"
                         placeholder="4–6 digit PIN"
                         className="w-full h-10 rounded-2xl bg-surface-container border border-outline-variant/30 px-4 text-center text-base font-semibold tracking-widest text-on-lp-background focus:outline-none focus:ring-2 focus:ring-brand/40 transition-all"
                         disabled={savingPin}
                       />
+                      <p id="organizer-security-pin-hint" className="sr-only">Enter a 4 to 6 digit PIN to share with your security team.</p>
                       <button
+                        type="button"
                         onClick={handleSavePin}
                         disabled={savingPin || securityPin.length < 4}
                         className="w-full h-10 rounded-full bg-brand text-white text-sm font-semibold hover:bg-brand/90 disabled:opacity-50 transition-all"
@@ -1808,18 +1871,20 @@ export default function EventPage() {
                     </div>
                   )}
 
-                  {pinSaveStatus === 'saved' && (
-                    <p className="text-xs text-green-600 text-center mt-3 flex items-center justify-center gap-1">
-                      <span className="material-symbols-outlined text-[14px]">check_circle</span>
-                      PIN saved
-                    </p>
-                  )}
-                  {pinSaveStatus === 'cleared' && (
-                    <p className="text-xs text-on-surface-variant text-center mt-3">PIN cleared</p>
-                  )}
-                  {pinSaveStatus === 'error' && (
-                    <p className="text-xs text-red-600 text-center mt-3">Something went wrong</p>
-                  )}
+                  <div id="organizer-security-pin-status" aria-live="polite" aria-atomic="true">
+                    {pinSaveStatus === 'saved' && (
+                      <p className="text-xs text-green-600 text-center mt-3 flex items-center justify-center gap-1">
+                        <span className="material-symbols-outlined text-[14px]" aria-hidden="true">check_circle</span>
+                        PIN saved
+                      </p>
+                    )}
+                    {pinSaveStatus === 'cleared' && (
+                      <p className="text-xs text-on-surface-variant text-center mt-3">PIN cleared</p>
+                    )}
+                    {pinSaveStatus === 'error' && (
+                      <p className="text-xs text-red-600 text-center mt-3" role="alert">Something went wrong. Please try again.</p>
+                    )}
+                  </div>
 
                   <div className="mt-5 pt-4 border-t border-outline-variant/20">
                     <p className="text-xs text-on-surface-variant mb-3">Share this link + PIN with your security team</p>
@@ -1914,200 +1979,254 @@ export default function EventPage() {
 
       {/* ── Add / Edit Guest Modal ── */}
       {showForm && (
-        <div className="fixed inset-0 bg-on-lp-background/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-surface-container-lowest rounded-3xl p-5 sm:p-8 w-full max-w-md shadow-2xl border border-white/60">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="font-headline text-2xl font-light">{editingId ? 'Edit Guest' : 'Add Guest'}</h2>
-              <button onClick={() => setShowForm(false)} className="text-on-surface-variant hover:text-on-surface transition-colors">
-                <span className="material-symbols-outlined">close</span>
-              </button>
-            </div>
-            <form onSubmit={handleSave} className="space-y-4">
-              {[
-                { label: 'Full Name', key: 'name', placeholder: 'e.g. Sarah Al-Rashid', required: true, type: 'text' },
-                { label: 'Seat Number', key: 'seat_number', placeholder: 'e.g. A-12', required: false, type: 'text' },
-                { label: 'Tag', key: 'tag', placeholder: 'e.g. VIP, Family, Friend', required: false, type: 'text' },
-                { label: 'Phone Number', key: 'phone_number', placeholder: 'e.g. 8060681740', required: false, type: 'tel' },
-              ].map(({ label, key, placeholder, required, type }) => (
-                <div key={key}>
-                  <label className="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2">{label}</label>
-                  <input
-                    value={(formData as any)[key]}
-                    onChange={(e) => setFormData({ ...formData, [key]: e.target.value })}
-                    required={required}
-                    type={type}
-                    disabled={savingGuest}
-                    placeholder={placeholder}
-                    className="w-full px-4 py-3 rounded-2xl bg-surface-container border border-outline-variant/20 text-on-surface placeholder:text-on-surface-variant/50 outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand/40 transition-all text-sm"
-                  />
-                </div>
-              ))}
-              <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                <button
-                  type="submit"
-                  disabled={savingGuest}
-                  className="flex-1 py-3 bg-brand text-white rounded-full font-semibold text-sm hover:bg-brand-dim disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-md shadow-brand/20"
-                >
-                  {savingGuest ? (editingId ? 'Saving…' : 'Adding…') : (editingId ? 'Save Changes' : 'Add Guest')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowForm(false)}
-                  disabled={savingGuest}
-                  className="flex-1 py-3 bg-surface-container rounded-full text-sm font-medium text-on-surface hover:bg-surface-container-high disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
+        <Dialog
+        open={showForm}
+        onClose={() => setShowForm(false)}
+        labelledBy="guest-dialog-title"
+        busy={savingGuest}
+        backdropClassName="z-50 flex items-center justify-center bg-on-lp-background/40 p-4 backdrop-blur-sm"
+        panelClassName="w-full max-w-md rounded-3xl border border-white/60 bg-surface-container-lowest p-5 shadow-2xl sm:p-8"
+      >
+        <div className="flex items-center justify-between mb-6">
+          <h2 id="guest-dialog-title" className="font-headline text-2xl font-light">{editingId ? 'Edit Guest' : 'Add Guest'}</h2>
+          <button
+            type="button"
+            onClick={() => setShowForm(false)}
+            disabled={savingGuest}
+            aria-label={`Close ${editingId ? 'edit' : 'add'} guest dialog`}
+            className="text-on-surface-variant hover:text-on-surface transition-colors disabled:opacity-50"
+          >
+            <span className="material-symbols-outlined" aria-hidden="true">close</span>
+          </button>
         </div>
+        <form onSubmit={handleSave} className="space-y-4">
+          {[
+            { label: 'Full Name', key: 'name', placeholder: 'e.g. Sarah Al-Rashid', required: true, type: 'text' },
+            { label: 'Seat Number', key: 'seat_number', placeholder: 'e.g. A-12', required: false, type: 'text' },
+            { label: 'Tag', key: 'tag', placeholder: 'e.g. VIP, Family, Friend', required: false, type: 'text' },
+            { label: 'Phone Number', key: 'phone_number', placeholder: 'e.g. 8060681740', required: false, type: 'tel' },
+          ].map(({ label, key, placeholder, required, type }) => {
+            const inputId = `guest-${key}`;
+            return (
+              <div key={key}>
+                <label htmlFor={inputId} className="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2">{label}</label>
+                <input
+                  id={inputId}
+                  value={(formData as any)[key]}
+                  onChange={(e) => setFormData({ ...formData, [key]: e.target.value })}
+                  required={required}
+                  type={type}
+                  disabled={savingGuest}
+                  placeholder={placeholder}
+                  className="w-full px-4 py-3 rounded-2xl bg-surface-container border border-outline-variant/20 text-on-surface placeholder:text-on-surface-variant/50 outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand/40 transition-all text-sm"
+                />
+              </div>
+            );
+          })}
+          <div className="flex flex-col sm:flex-row gap-3 pt-2">
+            <button
+              type="submit"
+              disabled={savingGuest}
+              className="flex-1 py-3 bg-brand text-white rounded-full font-semibold text-sm hover:bg-brand-dim disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-md shadow-brand/20"
+            >
+              {savingGuest ? (editingId ? 'Saving…' : 'Adding…') : (editingId ? 'Save Changes' : 'Add Guest')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowForm(false)}
+              disabled={savingGuest}
+              className="flex-1 py-3 bg-surface-container rounded-full text-sm font-medium text-on-surface hover:bg-surface-container-high disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+          <p className="sr-only" role="status" aria-live="polite">
+            {savingGuest ? (editingId ? 'Saving guest changes.' : 'Adding guest.') : ''}
+          </p>
+        </form>
+        </Dialog>
       )}
 
       {/* ── CSV Import Modal ── */}
       {showCsvModal && (
-        <div className="fixed inset-0 bg-on-lp-background/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-surface-container-lowest rounded-3xl p-5 sm:p-8 w-full max-w-lg shadow-2xl border border-white/60">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="font-headline text-2xl font-light">Import Guests</h2>
-              <button
-                onClick={() => { setShowCsvModal(false); setCsvFile(null); setCsvPreview([]); setCsvResult(null); setCsvRowCount(0); }}
-                className="text-on-surface-variant hover:text-on-surface transition-colors"
-              >
-                <span className="material-symbols-outlined">close</span>
-              </button>
+        <Dialog
+        open={showCsvModal}
+        onClose={closeCsvImport}
+        labelledBy="csv-import-dialog-title"
+        busy={csvImporting || generatingImages}
+        backdropClassName="z-50 flex items-center justify-center bg-on-lp-background/40 p-4 backdrop-blur-sm"
+        panelClassName="w-full max-w-lg rounded-3xl border border-white/60 bg-surface-container-lowest p-5 shadow-2xl sm:p-8"
+      >
+        <div className="flex items-center justify-between mb-6">
+          <h2 id="csv-import-dialog-title" className="font-headline text-2xl font-light">Import Guests</h2>
+          <button
+            type="button"
+            onClick={closeCsvImport}
+            disabled={csvImporting || generatingImages}
+            aria-label="Close CSV import dialog"
+            className="text-on-surface-variant hover:text-on-surface transition-colors disabled:opacity-50"
+          >
+            <span className="material-symbols-outlined" aria-hidden="true">close</span>
+          </button>
+        </div>
+
+        {csvResult ? (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 p-4 bg-brand-container/20 rounded-2xl" role="status" aria-live="polite">
+              <span className="material-symbols-outlined text-brand" aria-hidden="true" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
+              <p className="text-brand font-semibold text-sm">{csvResult.created} guests imported successfully</p>
             </div>
 
-            {csvResult ? (
-              <div className="space-y-4">
-                <div className="flex items-center gap-3 p-4 bg-brand-container/20 rounded-2xl">
-                  <span className="material-symbols-outlined text-brand" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
-                  <p className="text-brand font-semibold text-sm">{csvResult.created} guests imported successfully</p>
+            {generatingImages && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <p id="image-generation-label" className="text-on-surface font-medium">Generating invitation cards</p>
+                  <p className="text-on-surface-variant text-xs" aria-hidden="true">{imageProgress.done} / {imageProgress.total}</p>
                 </div>
-
-                {generatingImages && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <p className="text-on-surface font-medium">Generating invitation cards</p>
-                      <p className="text-on-surface-variant text-xs">{imageProgress.done} / {imageProgress.total}</p>
-                    </div>
-                    <div className="w-full bg-surface-container rounded-full h-2 overflow-hidden">
-                      <div
-                        className="h-full bg-brand transition-all duration-300"
-                        style={{ width: `${imageProgress.total > 0 ? (imageProgress.done / imageProgress.total) * 100 : 0}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {csvResult.errors.length > 0 && (
-                  <div className="p-4 bg-secondary-container/30 rounded-2xl text-sm text-on-secondary-container space-y-1">
-                    {csvResult.errors.map((e, i) => <p key={i}>{e}</p>)}
-                  </div>
-                )}
-
-                <button
-                  onClick={() => { setShowCsvModal(false); setCsvResult(null); }}
-                  disabled={generatingImages}
-                  className="w-full py-3 bg-brand text-white rounded-full font-semibold text-sm hover:bg-brand-dim disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                <div
+                  className="w-full bg-surface-container rounded-full h-2 overflow-hidden"
+                  role="progressbar"
+                  aria-labelledby="image-generation-label"
+                  aria-valuemin={0}
+                  aria-valuemax={imageProgress.total}
+                  aria-valuenow={imageProgress.done}
+                  aria-valuetext={`${imageProgress.done} of ${imageProgress.total} invitation cards generated`}
                 >
-                  {generatingImages ? 'Generating…' : 'Done'}
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-5">
-                <div className="p-4 bg-surface-container rounded-2xl text-xs text-on-surface-variant">
-                  CSV must have columns: <code className="bg-surface-container-high px-1.5 py-0.5 rounded-md font-mono">name</code>, <code className="bg-surface-container-high px-1.5 py-0.5 rounded-md font-mono">seat_number</code>, <code className="bg-surface-container-high px-1.5 py-0.5 rounded-md font-mono">tag</code>. Optional: <code className="bg-surface-container-high px-1.5 py-0.5 rounded-md font-mono">phone_number</code>
-                </div>
-
-                {csvFile && (
-                  <div className="flex items-center justify-between rounded-2xl bg-surface-container-low px-4 py-3 text-sm">
-                    <span className="truncate text-on-surface">{csvFile.name}</span>
-                    <span className="shrink-0 text-on-surface-variant">
-                      {csvRowCount} guest{csvRowCount !== 1 ? 's' : ''} ready
-                    </span>
-                  </div>
-                )}
-
-                {csvPreview.length > 0 && (
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-3">Preview — first {csvPreview.length} rows</p>
-                    <div className="rounded-2xl overflow-hidden border border-outline-variant/20 overflow-x-auto">
-                      <table className="w-full min-w-[360px] text-xs">
-                        <thead>
-                          <tr className="bg-surface-container">
-                            {['Name', 'Seat', 'Tag'].map((h) => (
-                              <th key={h} className="text-left px-4 py-3 text-on-surface-variant font-semibold uppercase tracking-widest">{h}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-outline-variant/10">
-                          {csvPreview.map((row, i) => (
-                            <tr key={i}>
-                              <td className="px-4 py-3 text-on-surface">{row.name}</td>
-                              <td className="px-4 py-3 text-on-surface-variant">{row.seat_number}</td>
-                              <td className="px-4 py-3">
-                                <span className="px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container">{row.tag}</span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <button
-                    onClick={handleCsvImport}
-                    disabled={!csvFile || csvImporting}
-                    className="flex-1 inline-flex items-center justify-center gap-2 py-3 bg-brand text-white rounded-full font-semibold text-sm hover:bg-brand-dim transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {csvImporting && <span className="material-symbols-outlined text-[18px] animate-spin">progress_activity</span>}
-                    {csvImporting
-                      ? `Importing ${csvRowCount} guest${csvRowCount !== 1 ? 's' : ''}...`
-                      : 'Import All'}
-                  </button>
-                  <button
-                    onClick={() => { setShowCsvModal(false); setCsvFile(null); setCsvPreview([]); setCsvRowCount(0); }}
-                    className="flex-1 py-3 bg-surface-container rounded-full text-sm font-medium text-on-surface hover:bg-surface-container-high transition-colors"
-                  >
-                    Cancel
-                  </button>
+                  <div
+                    className="h-full bg-brand transition-all duration-300"
+                    style={{ width: `${imageProgress.total > 0 ? (imageProgress.done / imageProgress.total) * 100 : 0}%` }}
+                  />
                 </div>
               </div>
             )}
+
+            {csvResult.errors.length > 0 && (
+              <div className="p-4 bg-secondary-container/30 rounded-2xl text-sm text-on-secondary-container space-y-1" role="alert" aria-live="assertive">
+                {csvResult.errors.map((e, i) => <p key={i}>{e}</p>)}
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={closeCsvImport}
+              disabled={generatingImages}
+              className="w-full py-3 bg-brand text-white rounded-full font-semibold text-sm hover:bg-brand-dim disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {generatingImages ? 'Generating…' : 'Done'}
+            </button>
           </div>
-        </div>
+        ) : (
+          <div className="space-y-5">
+            <div className="p-4 bg-surface-container rounded-2xl text-xs text-on-surface-variant">
+              CSV must have columns: <code className="bg-surface-container-high px-1.5 py-0.5 rounded-md font-mono">name</code>, <code className="bg-surface-container-high px-1.5 py-0.5 rounded-md font-mono">seat_number</code>, <code className="bg-surface-container-high px-1.5 py-0.5 rounded-md font-mono">tag</code>. Optional: <code className="bg-surface-container-high px-1.5 py-0.5 rounded-md font-mono">phone_number</code>
+            </div>
+
+            {csvFile && (
+              <div className="flex items-center justify-between rounded-2xl bg-surface-container-low px-4 py-3 text-sm">
+                <span className="truncate text-on-surface">{csvFile.name}</span>
+                <span className="shrink-0 text-on-surface-variant">
+                  {csvRowCount} guest{csvRowCount !== 1 ? 's' : ''} ready
+                </span>
+              </div>
+            )}
+
+            {csvPreview.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-3">Preview — first {csvPreview.length} rows</p>
+                <div className="rounded-2xl overflow-hidden border border-outline-variant/20 overflow-x-auto overscroll-contain">
+                  <table className="w-full min-w-[360px] text-xs">
+                    <thead>
+                      <tr className="bg-surface-container">
+                        {['Name', 'Seat', 'Tag'].map((h) => (
+                          <th key={h} className="text-left px-4 py-3 text-on-surface-variant font-semibold uppercase tracking-widest">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-outline-variant/10">
+                      {csvPreview.map((row, i) => (
+                        <tr key={i}>
+                          <td className="px-4 py-3 text-on-surface">{row.name}</td>
+                          <td className="px-4 py-3 text-on-surface-variant">{row.seat_number}</td>
+                          <td className="px-4 py-3">
+                            <span className="px-2 py-0.5 rounded-full bg-secondary-container text-on-secondary-container">{row.tag}</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                type="button"
+                onClick={handleCsvImport}
+                disabled={!csvFile || csvImporting}
+                className="flex-1 inline-flex items-center justify-center gap-2 py-3 bg-brand text-white rounded-full font-semibold text-sm hover:bg-brand-dim transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {csvImporting && <span className="material-symbols-outlined text-[18px] animate-spin" aria-hidden="true">progress_activity</span>}
+                {csvImporting
+                  ? `Importing ${csvRowCount} guest${csvRowCount !== 1 ? 's' : ''}...`
+                  : 'Import All'}
+              </button>
+              <button
+                type="button"
+                onClick={closeCsvImport}
+                disabled={csvImporting}
+                className="flex-1 py-3 bg-surface-container rounded-full text-sm font-medium text-on-surface hover:bg-surface-container-high transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
+            <p className="sr-only" role="status" aria-live="polite">
+              {csvImporting ? `Importing ${csvRowCount} guests.` : ''}
+            </p>
+          </div>
+        )}
+        </Dialog>
       )}
 
       {/* ── Zone Editor Modal ── */}
       {showZoneEditor && templatePreviewUrl && (
-        <div className="fixed inset-0 bg-on-lp-background/60 backdrop-blur-sm flex items-start justify-center z-50 overflow-y-auto p-4 sm:p-8">
-          <div className="bg-surface-container-lowest rounded-3xl p-5 sm:p-8 w-full max-w-4xl shadow-2xl border border-white/60">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="font-headline text-2xl font-light">Mark Template Zones</h2>
-              <button onClick={() => setShowZoneEditor(false)} className="text-on-surface-variant hover:text-on-surface transition-colors">
-                <span className="material-symbols-outlined">close</span>
-              </button>
-            </div>
-            <ZoneEditor
-              imageUrl={templatePreviewUrl}
-              initialZones={{
-                qr_zone: event?.qr_zone as any,
-                name_zone: event?.name_zone as any,
-                tag_zone: event?.tag_zone as any,
-              }}
-              onSave={handleZoneSave}
-            />
-            {savingTemplate && (
-              <p className="text-brand text-sm mt-3 flex items-center gap-2">
-                <span className="w-4 h-4 rounded-full border-2 border-brand border-t-transparent animate-spin" />
-                Saving template…
-              </p>
-            )}
-          </div>
+        <Dialog
+        open={showZoneEditor}
+        onClose={() => setShowZoneEditor(false)}
+        labelledBy="zone-editor-dialog-title"
+        busy={savingTemplate}
+        backdropClassName="z-50 flex items-start justify-center bg-on-lp-background/60 p-4 backdrop-blur-sm sm:p-8"
+        panelClassName="w-full max-w-4xl rounded-3xl border border-white/60 bg-surface-container-lowest p-5 shadow-2xl sm:p-8"
+      >
+        <div className="flex items-center justify-between mb-6">
+          <h2 id="zone-editor-dialog-title" className="font-headline text-2xl font-light">Mark Template Zones</h2>
+          <button
+            type="button"
+            onClick={() => setShowZoneEditor(false)}
+            disabled={savingTemplate}
+            aria-label="Close template zone editor"
+            className="text-on-surface-variant hover:text-on-surface transition-colors disabled:opacity-50"
+          >
+            <span className="material-symbols-outlined" aria-hidden="true">close</span>
+          </button>
         </div>
+        {templatePreviewUrl && (
+          <ZoneEditor
+            imageUrl={templatePreviewUrl}
+            initialZones={{
+              qr_zone: event?.qr_zone as any,
+              name_zone: event?.name_zone as any,
+              tag_zone: event?.tag_zone as any,
+            }}
+            onSave={handleZoneSave}
+          />
+        )}
+        {savingTemplate && (
+          <p className="text-brand text-sm mt-3 flex items-center gap-2" role="status" aria-live="polite">
+            <span className="w-4 h-4 rounded-full border-2 border-brand border-t-transparent animate-spin" aria-hidden="true" />
+            Saving template…
+          </p>
+        )}
+        </Dialog>
       )}
 
       <InvitationPreviewModal
@@ -2118,7 +2237,7 @@ export default function EventPage() {
 
       <BulkWhatsAppModal
         isOpen={showBulkWhatsAppModal}
-        selectedInvitations={invitations.filter((inv) => selectedInvitationIds.has(inv.id))}
+        selectedInvitations={selectedInvitations}
         onConfirm={handleBulkSendWhatsApp}
         onCancel={() => setShowBulkWhatsAppModal(false)}
       />

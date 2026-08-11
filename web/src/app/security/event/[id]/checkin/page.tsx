@@ -101,6 +101,7 @@ function CheckInContent() {
   const useJsQrRef = useRef(false); // true = jsQR fallback (iOS/Firefox), false = native BarcodeDetector
   const scanFrameRef = useRef<number | null>(null);
   const scanPendingRef = useRef(false);
+  const scannerSessionRef = useRef(0);
 
   // Read token from localStorage on mount
   useEffect(() => {
@@ -129,6 +130,7 @@ function CheckInContent() {
   }, [invitationParam, token]);
 
   const stopScanner = useCallback(() => {
+    scannerSessionRef.current += 1;
     if (scanFrameRef.current !== null) {
       cancelAnimationFrame(scanFrameRef.current);
       scanFrameRef.current = null;
@@ -212,10 +214,19 @@ function CheckInContent() {
     return () => window.clearTimeout(timeout);
   }, [activeTab, guestSearch, loadGuestList, token]);
 
-  const scanForQrCode = useCallback(() => {
-    const scan = async () => {
-      if (!videoRef.current || videoRef.current.readyState < 2) {
+  const scanForQrCode = useCallback((sessionId: number) => {
+    const sessionIsActive = () => scannerSessionRef.current === sessionId;
+    const scheduleNextScan = () => {
+      if (sessionIsActive()) {
         scanFrameRef.current = requestAnimationFrame(scan);
+      }
+    };
+
+    const scan = async () => {
+      if (!sessionIsActive()) return;
+
+      if (!videoRef.current || videoRef.current.readyState < 2) {
+        scheduleNextScan();
         return;
       }
 
@@ -250,6 +261,8 @@ function CheckInContent() {
               .find((c): c is string => !!c) ?? null;
           }
 
+          if (!sessionIsActive()) return;
+
           if (match) {
             setInvitationInput(match);
             setScannerError(null);
@@ -264,15 +277,44 @@ function CheckInContent() {
         }
       }
 
-      scanFrameRef.current = requestAnimationFrame(scan);
+      scheduleNextScan();
     };
 
-    scanFrameRef.current = requestAnimationFrame(scan);
+    scheduleNextScan();
   }, [loadGuest, stopScanner]);
+
+  useEffect(() => {
+    if (!scannerOpen || !videoRef.current || !streamRef.current) return;
+
+    const video = videoRef.current;
+    const sessionId = scannerSessionRef.current;
+    let cancelled = false;
+
+    const prepareScanner = async () => {
+      try {
+        video.srcObject = streamRef.current;
+        await video.play();
+        if (!cancelled) scanForQrCode(sessionId);
+      } catch {
+        if (!cancelled) {
+          setScannerError('Could not display the camera preview. Check permissions and try again.');
+          stopScanner();
+        }
+      }
+    };
+
+    prepareScanner();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [scanForQrCode, scannerOpen, stopScanner]);
 
   const startScanner = useCallback(async () => {
     setScannerError(null);
     setScannerStarting(true);
+    const sessionId = scannerSessionRef.current + 1;
+    scannerSessionRef.current = sessionId;
 
     if (typeof window === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
       setScannerSupported(false);
@@ -294,6 +336,11 @@ function CheckInContent() {
         audio: false,
       });
 
+      if (scannerSessionRef.current !== sessionId) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+
       streamRef.current = stream;
       if (BarcodeDetectorApi) {
         detectorRef.current = new BarcodeDetectorApi({ formats: ['qr_code'] });
@@ -301,14 +348,9 @@ function CheckInContent() {
       setScannerSupported(true);
       setScannerOpen(true);
       setScannerStarting(false);
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-      }
-
-      scanForQrCode();
     } catch (error) {
+      if (scannerSessionRef.current !== sessionId) return;
+
       setScannerStarting(false);
       const message =
         error instanceof DOMException && error.name === 'NotAllowedError'
@@ -317,7 +359,12 @@ function CheckInContent() {
       setScannerError(message);
       stopScanner();
     }
-  }, [scanForQrCode, stopScanner]);
+  }, [stopScanner]);
+
+  const selectTab = (tab: 'checkin' | 'guests') => {
+    if (tab === 'guests') stopScanner();
+    setActiveTab(tab);
+  };
 
   useEffect(() => {
     return () => stopScanner();
@@ -467,7 +514,7 @@ function CheckInContent() {
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => setActiveTab(tab.id as 'checkin' | 'guests')}
+                onClick={() => selectTab(tab.id as 'checkin' | 'guests')}
                 className={`inline-flex h-11 items-center justify-center gap-2 rounded-full text-sm font-semibold transition ${
                   selected ? 'bg-brand text-white shadow-sm' : 'text-on-surface-variant hover:text-brand'
                 }`}
@@ -502,8 +549,9 @@ function CheckInContent() {
               ) : 'Load'}
             </button>
           </div>
-          {/* <div className="mt-3 flex flex-wrap items-center gap-3">
+          <div className="mt-3 flex flex-wrap items-center gap-3">
             <button
+              type="button"
               onClick={() => {
                 if (scannerOpen) {
                   stopScanner();
@@ -511,22 +559,27 @@ function CheckInContent() {
                 }
                 startScanner();
               }}
-              disabled={scannerStarting}
+              disabled={scannerStarting || !scannerSupported}
+              aria-expanded={scannerOpen}
+              aria-controls="qr-scanner-preview"
               className="inline-flex items-center gap-2 rounded-full border border-outline-variant/30 bg-white/80 px-4 py-2 text-sm font-semibold text-on-surface hover:border-brand/30 hover:text-brand disabled:opacity-50 transition-colors"
             >
-              <span className="material-symbols-outlined text-[18px]">
+              <span className="material-symbols-outlined text-[18px]" aria-hidden="true">
                 {scannerOpen ? 'videocam_off' : 'qr_code_scanner'}
               </span>
               {scannerStarting ? 'Starting camera…' : scannerOpen ? 'Stop Scanner' : 'Scan QR Code'}
             </button>
             {!scannerSupported && (
-              <p className="text-xs text-on-surface-variant">
-                QR scanning is not supported in this browser.
+              <p role="status" className="text-xs text-on-surface-variant">
+                QR scanning is not supported in this browser. Enter the invitation ID instead.
               </p>
             )}
-          </div> */}
+          </div>
           {scannerOpen && (
-            <div className="mt-4 rounded-3xl border border-outline-variant/20 bg-on-lp-background p-3 text-white">
+            <div
+              id="qr-scanner-preview"
+              className="mt-4 rounded-3xl border border-outline-variant/20 bg-on-lp-background p-3 text-white"
+            >
               <div className="relative overflow-hidden rounded-2xl bg-black">
                 <video
                   ref={videoRef}
@@ -547,13 +600,13 @@ function CheckInContent() {
             </div>
           )}
           {guestError && (
-            <p className="text-sm text-red-600 mt-2 flex items-center gap-1.5">
+            <p role="alert" className="text-sm text-red-600 mt-2 flex items-center gap-1.5">
               <span className="material-symbols-outlined text-[16px]">error</span>
               {guestError}
             </p>
           )}
           {scannerError && (
-            <p className="text-sm text-red-600 mt-2 flex items-center gap-1.5">
+            <p role="alert" className="text-sm text-red-600 mt-2 flex items-center gap-1.5">
               <span className="material-symbols-outlined text-[16px]">camera</span>
               {scannerError}
             </p>

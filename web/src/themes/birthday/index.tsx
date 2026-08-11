@@ -13,9 +13,9 @@ function parseEventDate(isoDate: string) {
 }
 
 const fonts = {
-  display: "'Aboreto', 'Cormorant Garamond', Georgia, serif",
-  body: "'Work Sans', 'Helvetica Neue', Arial, sans-serif",
-  script: "'Great Vibes', 'Brush Script MT', cursive",
+  display: "'Noto Serif', Georgia, serif",
+  body: "'Manrope', 'Helvetica Neue', Arial, sans-serif",
+  script: "'Brush Script MT', cursive",
 };
 
 const styles: Record<string, CSSProperties> = {

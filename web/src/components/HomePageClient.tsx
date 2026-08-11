@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from 'react';
 
 const EASE_OUT = [0.22, 1, 0.36, 1] as const;
 
-const revealInView = {
+const REVEAL_IN_VIEW = {
   initial: { opacity: 0, y: 24 },
   whileInView: { opacity: 1, y: 0 },
   viewport: { once: true, amount: 0.25 },
@@ -77,7 +77,7 @@ const CTA_COLLAGE_IMAGES = [
   '/img/collage/tenth.png',
 ] as const;
 
-const CTA_GRID_IMAGES = Array.from({ length: 20 }, (_, index) => CTA_COLLAGE_IMAGES[index % CTA_COLLAGE_IMAGES.length]);
+const CTA_GRID_IMAGES = Array.from({ length: 10 }, (_, index) => CTA_COLLAGE_IMAGES[index % CTA_COLLAGE_IMAGES.length]);
 
 function MotionButton({
   href,
@@ -88,8 +88,13 @@ function MotionButton({
   className: string;
   children: React.ReactNode;
 }) {
+  const prefersReducedMotion = useReducedMotion();
+
   return (
-    <motion.div whileHover={{ y: -2, scale: 1.01 }} whileTap={{ scale: 0.985 }}>
+    <motion.div
+      whileHover={prefersReducedMotion ? undefined : { y: -2, scale: 1.01 }}
+      whileTap={prefersReducedMotion ? undefined : { scale: 0.985 }}
+    >
       <Link href={href} className={`${className} block`}>
         {children}
       </Link>
@@ -103,6 +108,14 @@ export default function HomePageClient() {
   const [analyticsSnapshotIndex, setAnalyticsSnapshotIndex] = useState(0);
   const [ctaGridIndices, setCtaGridIndices] = useState(() => CTA_GRID_IMAGES.map((_, index) => index % CTA_COLLAGE_IMAGES.length));
   const ctaGridCursorRef = useRef(0);
+  const revealInView = prefersReducedMotion
+    ? {
+      initial: { opacity: 1, y: 0 },
+      whileInView: { opacity: 1, y: 0 },
+      viewport: { once: true },
+      transition: { duration: 0 },
+    }
+    : REVEAL_IN_VIEW;
   const heroSequence = prefersReducedMotion
     ? {
       hidden: { opacity: 1 },
@@ -166,14 +179,18 @@ export default function HomePageClient() {
   const analyticsSnapshot = ANALYTICS_SNAPSHOTS[analyticsSnapshotIndex];
 
   useEffect(() => {
+    if (prefersReducedMotion) return;
+
     const interval = window.setInterval(() => {
       setAnalyticsSnapshotIndex((current) => (current + 1) % ANALYTICS_SNAPSHOTS.length);
-    }, prefersReducedMotion ? 7000 : 5000);
+    }, 5000);
 
     return () => window.clearInterval(interval);
   }, [prefersReducedMotion]);
 
   useEffect(() => {
+    if (prefersReducedMotion) return;
+
     const interval = window.setInterval(() => {
       setCtaGridIndices((current) => {
         const next = [...current];
@@ -182,7 +199,7 @@ export default function HomePageClient() {
         ctaGridCursorRef.current = (ctaGridCursorRef.current + 1) % next.length;
         return next;
       });
-    }, prefersReducedMotion ? 8000 : 5500);
+    }, 5500);
 
     return () => window.clearInterval(interval);
   }, [prefersReducedMotion]);
@@ -211,7 +228,7 @@ export default function HomePageClient() {
                   variants={heroReveal}
                   className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-brand-container/30 border border-brand-container/40 text-on-brand-container text-sm font-medium"
                 >
-                  <span className="w-1.5 h-1.5 rounded-full bg-brand animate-pulse" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-brand motion-decorative animate-pulse" />
                   Redefining the Digital Gala
                 </motion.div>
               </div>
@@ -260,7 +277,7 @@ export default function HomePageClient() {
                     Get Started
                   </MotionButton>
                   <MotionButton
-                    href="/login"
+                    href="/templates/wedding"
                     className="bg-white/40 backdrop-blur-md border border-outline-variant/20 hover:bg-white/60 text-on-surface px-8 py-4 rounded-full font-semibold text-lg transition-all"
                   >
                     View Sample Event
@@ -271,9 +288,9 @@ export default function HomePageClient() {
 
             <div className="relative h-[580px] hidden lg:block">
               <motion.div
-                initial={{ opacity: 0, y: 32, rotate: 5 }}
+                initial={prefersReducedMotion ? false : { opacity: 0, y: 32, rotate: 5 }}
                 animate={{ opacity: 1, y: 0, rotate: 3 }}
-                transition={{ duration: 0.75, delay: 0.2, ease: EASE_OUT }}
+                transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.75, delay: 0.2, ease: EASE_OUT }}
                 whileHover={prefersReducedMotion ? undefined : { y: -8, rotate: 2 }}
                 style={{ y: heroFrontY }}
                 className="absolute top-10 left-36 -translate-x-6 -translate-y-1/2 w-[380px] h-[450px] 
@@ -294,9 +311,9 @@ export default function HomePageClient() {
               </motion.div>
 
               <motion.div
-                initial={{ opacity: 0, y: 24, rotate: -15 }}
+                initial={prefersReducedMotion ? false : { opacity: 0, y: 24, rotate: -15 }}
                 animate={{ opacity: 1, y: 0, rotate: -12 }}
-                transition={{ duration: 0.7, delay: 0.32, ease: EASE_OUT }}
+                transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.7, delay: 0.32, ease: EASE_OUT }}
                 style={{ y: heroBackY }}
                 className="absolute -top-[10%] right-[2%] w-60 h-72 bg-white/20 backdrop-blur-2xl rounded-[2rem] shadow-xl z-20 border border-white/40 -rotate-12"
               >
@@ -307,9 +324,9 @@ export default function HomePageClient() {
               </motion.div>
 
               <motion.div
-                initial={{ opacity: 0, y: 24, rotate: -9 }}
+                initial={prefersReducedMotion ? false : { opacity: 0, y: 24, rotate: -9 }}
                 animate={{ opacity: 1, y: 0, rotate: -6 }}
-                transition={{ duration: 0.7, delay: 0.42, ease: EASE_OUT }}
+                transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.7, delay: 0.42, ease: EASE_OUT }}
                 whileHover={prefersReducedMotion ? undefined : { y: -6, rotate: -5 }}
                 style={{ y: heroChipY }}
                 className="absolute bottom-[12%] left-[2%] w-52 h-28 bg-white/80 backdrop-blur-xl rounded-3xl shadow-lg z-40 border border-white/50 p-5 flex flex-col justify-center space-y-2 -rotate-6"
@@ -361,7 +378,10 @@ export default function HomePageClient() {
                   </p>
                 </div>
                 <div className="pt-10">
-                  <motion.div whileHover={prefersReducedMotion ? undefined : { x: 4 }} whileTap={{ scale: 0.985 }}>
+                  <motion.div
+                    whileHover={prefersReducedMotion ? undefined : { x: 4 }}
+                    whileTap={prefersReducedMotion ? undefined : { scale: 0.985 }}
+                  >
                     <Link href="/signup" className="flex items-center gap-2 font-semibold text-brand group-hover:gap-4 transition-all">
                       Explore Studio <span className="material-symbols-outlined">north_east</span>
                     </Link>
@@ -385,7 +405,7 @@ export default function HomePageClient() {
                 </p>
               </div>
               <div className="mt-10 rounded-2xl overflow-hidden bg-gradient-to-br from-brand-container/30 to-secondary-container/30 h-36 relative" >
-                <NextImage src="/img/event.jpg" alt="Guest List" fill sizes="(max-width: 768px) 100vw, 500px" className='object-cover' priority />
+                <NextImage src="/img/event.jpg" alt="Guest List" fill sizes="(max-width: 768px) 100vw, 500px" className='object-cover' />
               </div>
             </motion.div>
 
@@ -417,7 +437,7 @@ export default function HomePageClient() {
               {...revealInView}
               className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-secondary-container/30 border border-secondary-container/40 text-on-secondary-container text-sm font-medium mb-4"
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse" />
+              <span className="w-1.5 h-1.5 rounded-full bg-secondary motion-decorative animate-pulse" />
               End-to-End Experience
             </motion.div>
             <motion.h2 {...revealInView} className="font-headline text-4xl md:text-5xl text-on-lp-background">
@@ -488,7 +508,7 @@ export default function HomePageClient() {
                           <div key={i} className={`rounded-[2px] ${[0, 2, 6, 8].includes(i) ? 'bg-on-lp-background/70' : i === 4 ? 'bg-on-lp-background/50' : 'bg-on-lp-background/20'}`} />
                         ))}
                       </div>
-                      <div className="absolute -top-1 -left-1 -right-1 h-0.5 bg-green-400 rounded-full animate-pulse" />
+                      <div className="absolute -top-1 -left-1 -right-1 h-0.5 bg-green-400 rounded-full motion-decorative animate-pulse" />
                     </div>
                     <div className="absolute bottom-4 left-4 right-4">
                       <div className="flex items-center gap-2 bg-green-100/80 backdrop-blur-sm rounded-xl px-3 py-2">
@@ -540,10 +560,10 @@ export default function HomePageClient() {
                       <AnimatePresence mode="wait" initial={false}>
                         <motion.p
                           key={analyticsSnapshot.eventName}
-                          initial={{ opacity: 0, y: 8 }}
+                          initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
                           animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -8 }}
-                          transition={{ duration: 0.35, ease: EASE_OUT }}
+                          exit={prefersReducedMotion ? undefined : { opacity: 0, y: -8 }}
+                          transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.35, ease: EASE_OUT }}
                           className="absolute inset-0 truncate text-xs text-on-surface-variant"
                         >
                           {analyticsSnapshot.eventName} · Live
@@ -552,7 +572,7 @@ export default function HomePageClient() {
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 bg-green-100 px-3 py-1.5 rounded-full">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500 motion-decorative animate-pulse" />
                     <span className="text-xs font-semibold text-green-700">Live</span>
                   </div>
                 </div>
@@ -570,10 +590,10 @@ export default function HomePageClient() {
                         <AnimatePresence mode="wait" initial={false}>
                           <motion.div
                             key={`${label}-${value}`}
-                            initial={{ opacity: 0, y: 8 }}
+                            initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
                             animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -8 }}
-                            transition={{ duration: 0.3, ease: EASE_OUT }}
+                            exit={prefersReducedMotion ? undefined : { opacity: 0, y: -8 }}
+                            transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.3, ease: EASE_OUT }}
                             className="absolute inset-0 font-headline text-2xl text-on-lp-background"
                           >
                             {value}
@@ -588,11 +608,10 @@ export default function HomePageClient() {
                   <p className="text-xs font-semibold text-on-surface-variant uppercase tracking-widest mb-4">Check-Ins by Hour</p>
                   <div className="flex items-end gap-1.5 h-20">
                     {analyticsSnapshot.bars.map((h, i) => (
-                      <motion.div
+                      <div
                         key={i}
-                        animate={{ height: `${h}%` }}
-                        transition={{ duration: 0.65, ease: EASE_OUT }}
                         className="flex-1 rounded-t-lg bg-brand/30 hover:bg-brand/60 transition-colors"
+                        style={{ height: `${h}%` }}
                       />
                     ))}
                   </div>
@@ -602,11 +621,11 @@ export default function HomePageClient() {
                     {analyticsSnapshot.guests.map(({ name, seat, status }) => (
                       <motion.div
                         key={`${analyticsSnapshot.eventName}-${name}`}
-                        layout
-                        initial={{ opacity: 0, y: 10 }}
+                        layout={!prefersReducedMotion}
+                        initial={prefersReducedMotion ? false : { opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        transition={{ duration: 0.35, ease: EASE_OUT }}
+                        exit={prefersReducedMotion ? undefined : { opacity: 0, y: -10 }}
+                        transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.35, ease: EASE_OUT }}
                         className="flex min-h-[3rem] items-center justify-between px-3 py-2 rounded-xl bg-surface-container"
                       >
                         <div className="flex items-center gap-3">
@@ -680,9 +699,11 @@ export default function HomePageClient() {
                 return (
                   <motion.div
                     key={`testimonial-${index}`}
-                    initial={{ opacity: 0, scale: 1.04 }}
+                    initial={prefersReducedMotion ? false : { opacity: 0, scale: 1.04 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: prefersReducedMotion ? 0.35 : 0.85, delay: Math.min(index * 0.13, 0.45), ease: EASE_OUT }}
+                    transition={prefersReducedMotion
+                      ? { duration: 0 }
+                      : { duration: 0.85, delay: Math.min(index * 0.13, 0.45), ease: EASE_OUT }}
                     className={`relative h-[220px] w-[220px] overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/5 shadow-2xl sm:h-[260px] sm:w-[260px] lg:h-[300px] lg:w-[300px] ${index % 5 === 0
                       ? 'translate-y-8'
                       : index % 4 === 0
@@ -700,10 +721,10 @@ export default function HomePageClient() {
                         aria-hidden="true"
                         fill
                         sizes="(max-width: 640px) 220px, (max-width: 1024px) 260px, 300px"
-                        initial={{ opacity: 0, scale: 1.06 }}
+                        initial={prefersReducedMotion ? false : { opacity: 0, scale: 1.06 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.98 }}
-                        transition={{ duration: prefersReducedMotion ? 0.35 : 1.1, ease: EASE_OUT }}
+                        exit={prefersReducedMotion ? undefined : { opacity: 0, scale: 0.98 }}
+                        transition={prefersReducedMotion ? { duration: 0 } : { duration: 1.1, ease: EASE_OUT }}
                         className="object-cover grayscale brightness-[0.45] contrast-[1.15]"
                       />
                     </AnimatePresence>
@@ -903,7 +924,7 @@ export default function HomePageClient() {
               {...revealInView}
               className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/8 border border-white/12 text-white/80 text-sm font-medium mb-4 backdrop-blur-sm"
             >
-              <span className="w-1.5 h-1.5 rounded-full bg-warm animate-pulse" />
+              <span className="w-1.5 h-1.5 rounded-full bg-warm motion-decorative animate-pulse" />
               Your next event awaits
             </motion.div>
             <motion.h2 {...revealInView} className="font-headline text-5xl md:text-7xl text-white leading-tight">
@@ -928,14 +949,12 @@ export default function HomePageClient() {
               >
                 Create Your Event
               </MotionButton>
-              <motion.a
-                href="#"
-                whileHover={{ y: -2, scale: 1.01 }}
-                whileTap={{ scale: 0.985 }}
+              <MotionButton
+                href="/support"
                 className="w-full md:w-auto bg-transparent border border-white/20 text-white hover:bg-white/8 px-12 py-5 rounded-full font-bold text-xl transition-all"
               >
                 Contact Sales
-              </motion.a>
+              </MotionButton>
             </motion.div>
           </div>
         </section>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 
 // ── UI Mock Cards ─────────────────────────────────────────────────────────────
 
@@ -45,7 +45,7 @@ function PersonalizeCard() {
     <CardShell>
       <p className="text-xs font-label font-semibold text-brand uppercase tracking-widest mb-4">Your Invitation</p>
       <div className="w-full h-32 rounded-2xl bg-gradient-to-br from-brand-container/40 to-secondary-container/40 mb-4 relative">
-        <div className="absolute bottom-4 left-4 right-4 h-8 rounded-lg border-2 border-brand/60 bg-brand/10 flex items-center px-3 animate-pulse">
+        <div className="absolute bottom-4 left-4 right-4 h-8 rounded-lg border-2 border-brand/60 bg-brand/10 flex items-center px-3 motion-decorative animate-pulse">
           <span className="text-xs text-brand font-semibold">Guest Name Zone</span>
         </div>
       </div>
@@ -107,7 +107,7 @@ function CheckInCard() {
     <CardShell className="text-center">
       <p className="text-xs font-label font-semibold text-brand uppercase tracking-widest mb-6">Gate Scanner</p>
       <div className="relative flex items-center justify-center mx-auto w-24 h-24 mb-6">
-        <div className="absolute inset-0 rounded-full border-2 border-brand/30 animate-ping" />
+        <div className="absolute inset-0 rounded-full border-2 border-brand/30 motion-decorative animate-ping" />
         <div className="absolute inset-2 rounded-full border-2 border-brand/50" />
         <div className="w-14 h-14 rounded-full bg-green-100 border-2 border-green-400 flex items-center justify-center">
           <span className="material-symbols-outlined text-green-600 text-2xl">check</span>
@@ -171,14 +171,34 @@ const STEPS: StepDef[] = [
 // ── Main carousel export ──────────────────────────────────────────────────────
 
 export default function HeroScroll() {
+  const prefersReducedMotion = useReducedMotion();
   const [active, setActive] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
   const activeStep = STEPS[active];
 
-  // Auto-advance every 4 seconds; resets if user clicks a dot
+  // Auto-advance every 4 seconds; resets if the user selects a step.
   useEffect(() => {
-    const t = setInterval(() => setActive(p => (p + 1) % STEPS.length), 4000);
-    return () => clearInterval(t);
-  }, [active]);
+    if (prefersReducedMotion || isPaused) return;
+
+    const timer = window.setInterval(() => {
+      setActive((previous) => (previous + 1) % STEPS.length);
+    }, 4000);
+
+    return () => window.clearInterval(timer);
+  }, [active, isPaused, prefersReducedMotion]);
+
+  const stepMotion = prefersReducedMotion
+    ? {
+      initial: false as const,
+      animate: { opacity: 1, y: 0 },
+      transition: { duration: 0 },
+    }
+    : {
+      initial: { opacity: 0, y: 20 },
+      animate: { opacity: 1, y: 0 },
+      exit: { opacity: 0, y: -20 },
+      transition: { duration: 0.35, ease: 'easeOut' as const },
+    };
 
   return (
     <section id="how-it-works" className="py-24 px-6 md:px-12">
@@ -200,10 +220,7 @@ export default function HeroScroll() {
                   <AnimatePresence mode="wait">
                     <motion.div
                       key={active}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -20 }}
-                      transition={{ duration: 0.35, ease: 'easeOut' }}
+                      {...stepMotion}
                       className="w-full"
                     >
                       <div className="w-14 h-14 rounded-2xl bg-brand-container/60 flex items-center justify-center mb-5">
@@ -221,16 +238,39 @@ export default function HeroScroll() {
                     <p className="text-xs uppercase tracking-[0.24em] text-on-surface-variant mb-2">Progress</p>
                     <p className="font-semibold text-on-lp-background">{active + 1} of {STEPS.length} steps</p>
                   </div>
-                  <div className="flex justify-center gap-3">
-                    {STEPS.map((_, i) => (
+                  <div className="flex flex-wrap items-center justify-center gap-3">
+                    <div className="flex justify-center" role="group" aria-label="Choose a host journey step">
+                      {STEPS.map((step, i) => (
+                        <button
+                          key={step.number}
+                          type="button"
+                          onClick={() => setActive(i)}
+                          aria-label={`Show step ${i + 1}: ${step.title}`}
+                          aria-pressed={i === active}
+                          className={`group flex h-11 w-11 items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 ${i === active ? 'text-brand' : 'text-outline-variant hover:text-on-surface-variant'
+                            }`}
+                        >
+                          <span
+                            aria-hidden="true"
+                            className={`block h-2.5 rounded-full bg-current transition-[width,color] duration-300 motion-reduce:transition-none ${i === active ? 'w-8' : 'w-2.5'}`}
+                          />
+                        </button>
+                      ))}
+                    </div>
+                    {!prefersReducedMotion ? (
                       <button
-                        key={i}
-                        onClick={() => setActive(i)}
-                        aria-label={`Step ${i + 1}`}
-                        className={`h-2.5 rounded-full transition-all duration-300 ${i === active ? 'w-8 bg-brand' : 'w-2.5 bg-outline-variant hover:bg-on-surface-variant'
-                          }`}
-                      />
-                    ))}
+                        type="button"
+                        onClick={() => setIsPaused((paused) => !paused)}
+                        aria-label={isPaused ? 'Play automatic step rotation' : 'Pause automatic step rotation'}
+                        aria-pressed={isPaused}
+                        className="inline-flex h-11 items-center gap-2 rounded-full border border-outline-variant/30 bg-white/60 px-3 text-xs font-semibold text-on-surface transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+                      >
+                        <span className="material-symbols-outlined text-base" aria-hidden="true">
+                          {isPaused ? 'play_arrow' : 'pause'}
+                        </span>
+                        {isPaused ? 'Play' : 'Pause'}
+                      </button>
+                    ) : null}
                   </div>
                 </div>
               </div>
@@ -239,10 +279,7 @@ export default function HeroScroll() {
                 <AnimatePresence mode="wait">
                   <motion.div
                     key={active}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    transition={{ duration: 0.35, ease: 'easeOut' }}
+                    {...stepMotion}
                   >
                     {activeStep.ui}
                   </motion.div>

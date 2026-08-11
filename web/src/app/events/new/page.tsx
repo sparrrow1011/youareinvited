@@ -66,35 +66,48 @@ export default function NewEventPage() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="text-xs font-label font-semibold text-on-surface-variant uppercase tracking-wider mb-2 block">
+                <label htmlFor="new-event-name" className="text-xs font-label font-semibold text-on-surface-variant uppercase tracking-wider mb-2 block">
                   Event Name
                 </label>
                 <input
+                  id="new-event-name"
+                  name="event-name"
                   type="text"
+                  autoComplete="off"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required
+                  aria-invalid={error ? true : undefined}
+                  aria-describedby={error ? 'new-event-error' : undefined}
                   placeholder="Sarah & James Wedding"
                   className="w-full h-11 rounded-2xl bg-surface-container border border-outline-variant/30 px-4 text-sm text-on-lp-background placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand/40 transition-all"
                 />
               </div>
               <div>
-                <label className="text-xs font-label font-semibold text-on-surface-variant uppercase tracking-wider mb-2 block">
+                <label htmlFor="new-event-date" className="text-xs font-label font-semibold text-on-surface-variant uppercase tracking-wider mb-2 block">
                   Event Date
                 </label>
                 <input
+                  id="new-event-date"
+                  name="event-date"
                   type="date"
+                  autoComplete="off"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
                   required
+                  aria-invalid={error ? true : undefined}
+                  aria-describedby={error ? 'new-event-error' : undefined}
                   className="w-full h-11 rounded-2xl bg-surface-container border border-outline-variant/30 px-4 text-sm text-on-lp-background focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand/40 transition-all"
                 />
               </div>
               <div>
-                <label className="text-xs font-label font-semibold text-on-surface-variant uppercase tracking-wider mb-2 block">
+                <label htmlFor="new-event-description" className="text-xs font-label font-semibold text-on-surface-variant uppercase tracking-wider mb-2 block">
                   Description <span className="normal-case font-normal">(optional)</span>
                 </label>
                 <textarea
+                  id="new-event-description"
+                  name="description"
+                  autoComplete="off"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={3}
@@ -104,8 +117,8 @@ export default function NewEventPage() {
               </div>
 
               {error && (
-                <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-2xl px-4 py-3">
-                  <span className="material-symbols-outlined text-red-400 text-base mt-0.5 shrink-0">warning</span>
+                <div id="new-event-error" role="alert" className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-2xl px-4 py-3">
+                  <span className="material-symbols-outlined text-red-400 text-base mt-0.5 shrink-0" aria-hidden="true">warning</span>
                   <p className="text-sm text-red-700">{error}</p>
                 </div>
               )}
@@ -116,7 +129,10 @@ export default function NewEventPage() {
                 className="w-full h-12 rounded-full bg-brand text-white font-semibold text-sm hover:bg-brand/90 active:bg-brand/80 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 mt-2"
               >
                 {loading ? (
-                  <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                  <>
+                    <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" aria-hidden="true" />
+                    Creating event…
+                  </>
                 ) : (
                   <>
                     <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>add_circle</span>

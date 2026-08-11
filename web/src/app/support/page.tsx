@@ -316,17 +316,26 @@ export default function SupportPage() {
 
             <form onSubmit={handleContactSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2">Subject</label>
+                <label htmlFor="support-subject" className="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2">Subject</label>
                 <input
+                  id="support-subject"
+                  name="subject"
+                  type="text"
+                  autoComplete="off"
                   value={contactForm.subject}
                   onChange={(event) => setContactForm((prev) => ({ ...prev, subject: event.target.value }))}
+                  required
                   placeholder="Need help setting up guest invitations"
                   className="w-full rounded-2xl border border-outline-variant/20 bg-surface-container px-4 py-3 text-sm text-on-surface outline-none focus:ring-2 focus:ring-brand/30"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2">Event Name</label>
+                <label htmlFor="support-event-name" className="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2">Event Name <span className="normal-case font-normal">(optional)</span></label>
                 <input
+                  id="support-event-name"
+                  name="event-name"
+                  type="text"
+                  autoComplete="off"
                   value={contactForm.eventName}
                   onChange={(event) => setContactForm((prev) => ({ ...prev, eventName: event.target.value }))}
                   placeholder="Spring wedding launch"
@@ -334,11 +343,15 @@ export default function SupportPage() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2">Message</label>
+                <label htmlFor="support-message" className="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2">Message</label>
                 <textarea
+                  id="support-message"
+                  name="message"
+                  autoComplete="off"
                   rows={6}
                   value={contactForm.message}
                   onChange={(event) => setContactForm((prev) => ({ ...prev, message: event.target.value }))}
+                  required
                   placeholder="Describe what is blocked, what you expected, and whether this is urgent for event day."
                   className="w-full rounded-2xl border border-outline-variant/20 bg-surface-container px-4 py-3 text-sm text-on-surface outline-none resize-none focus:ring-2 focus:ring-brand/30"
                 />
@@ -366,17 +379,25 @@ export default function SupportPage() {
 
             <form onSubmit={handleBugSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2">Issue Title</label>
+                <label htmlFor="bug-title" className="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2">Issue Title</label>
                 <input
+                  id="bug-title"
+                  name="issue-title"
+                  type="text"
+                  autoComplete="off"
                   value={bugForm.title}
                   onChange={(event) => setBugForm((prev) => ({ ...prev, title: event.target.value }))}
+                  required
                   placeholder="Bulk import fails with valid CSV"
                   className="w-full rounded-2xl border border-outline-variant/20 bg-white/70 px-4 py-3 text-sm text-on-surface outline-none focus:ring-2 focus:ring-brand/30"
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2">Severity</label>
+                <label htmlFor="bug-severity" className="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2">Severity</label>
                 <select
+                  id="bug-severity"
+                  name="severity"
+                  autoComplete="off"
                   value={bugForm.severity}
                   onChange={(event) => setBugForm((prev) => ({ ...prev, severity: event.target.value }))}
                   className="w-full rounded-2xl border border-outline-variant/20 bg-white/70 px-4 py-3 text-sm text-on-surface outline-none focus:ring-2 focus:ring-brand/30"
@@ -388,31 +409,43 @@ export default function SupportPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2">Steps to Reproduce</label>
+                <label htmlFor="bug-steps" className="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2">Steps to Reproduce</label>
                 <textarea
+                  id="bug-steps"
+                  name="steps-to-reproduce"
+                  autoComplete="off"
                   rows={4}
                   value={bugForm.steps}
                   onChange={(event) => setBugForm((prev) => ({ ...prev, steps: event.target.value }))}
+                  required
                   placeholder="1. Open event page&#10;2. Import CSV&#10;3. Confirm upload..."
                   className="w-full rounded-2xl border border-outline-variant/20 bg-white/70 px-4 py-3 text-sm text-on-surface outline-none resize-none focus:ring-2 focus:ring-brand/30"
                 />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2">Expected Result</label>
+                  <label htmlFor="bug-expected" className="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2">Expected Result</label>
                   <textarea
+                    id="bug-expected"
+                    name="expected-result"
+                    autoComplete="off"
                     rows={3}
                     value={bugForm.expected}
                     onChange={(event) => setBugForm((prev) => ({ ...prev, expected: event.target.value }))}
+                    required
                     className="w-full rounded-2xl border border-outline-variant/20 bg-white/70 px-4 py-3 text-sm text-on-surface outline-none resize-none focus:ring-2 focus:ring-brand/30"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2">Actual Result</label>
+                  <label htmlFor="bug-actual" className="block text-xs font-semibold uppercase tracking-widest text-on-surface-variant mb-2">Actual Result</label>
                   <textarea
+                    id="bug-actual"
+                    name="actual-result"
+                    autoComplete="off"
                     rows={3}
                     value={bugForm.actual}
                     onChange={(event) => setBugForm((prev) => ({ ...prev, actual: event.target.value }))}
+                    required
                     className="w-full rounded-2xl border border-outline-variant/20 bg-white/70 px-4 py-3 text-sm text-on-surface outline-none resize-none focus:ring-2 focus:ring-brand/30"
                   />
                 </div>

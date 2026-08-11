@@ -88,35 +88,47 @@ function LoginForm() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="text-xs font-label font-semibold text-on-surface-variant uppercase tracking-wider mb-2 block">
+            <label htmlFor="login-email" className="text-xs font-label font-semibold text-on-surface-variant uppercase tracking-wider mb-2 block">
               Email
             </label>
             <input
+              id="login-email"
+              name="email"
               type="email"
+              autoComplete="email"
+              spellCheck={false}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              aria-invalid={error ? true : undefined}
+              aria-describedby={error ? 'login-error' : undefined}
               placeholder="you@example.com"
               className="w-full h-11 rounded-2xl bg-surface-container border border-outline-variant/30 px-4 text-sm text-on-lp-background placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand/40 transition-all"
             />
           </div>
           <div>
-            <label className="text-xs font-label font-semibold text-on-surface-variant uppercase tracking-wider mb-2 block">
+            <label htmlFor="login-password" className="text-xs font-label font-semibold text-on-surface-variant uppercase tracking-wider mb-2 block">
               Password
             </label>
             <input
+              id="login-password"
+              name="password"
               type="password"
+              autoComplete="current-password"
+              spellCheck={false}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              aria-invalid={error ? true : undefined}
+              aria-describedby={error ? 'login-error' : undefined}
               placeholder="••••••••"
               className="w-full h-11 rounded-2xl bg-surface-container border border-outline-variant/30 px-4 text-sm text-on-lp-background placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-brand/40 focus:border-brand/40 transition-all"
             />
           </div>
 
           {error && (
-            <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-2xl px-4 py-3">
-              <span className="material-symbols-outlined text-red-400 text-base mt-0.5 shrink-0">warning</span>
+            <div id="login-error" role="alert" className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-2xl px-4 py-3">
+              <span className="material-symbols-outlined text-red-400 text-base mt-0.5 shrink-0" aria-hidden="true">warning</span>
               <p className="text-sm text-red-700">{error}</p>
             </div>
           )}
@@ -127,7 +139,10 @@ function LoginForm() {
             className="w-full h-12 rounded-full bg-brand text-white font-semibold text-sm hover:bg-brand/90 active:bg-brand/80 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 mt-2"
           >
             {loading ? (
-              <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+              <>
+                <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" aria-hidden="true" />
+                Signing in…
+              </>
             ) : (
               <>
                 <span className="material-symbols-outlined text-[18px]" style={{ fontVariationSettings: "'FILL' 1" }}>login</span>

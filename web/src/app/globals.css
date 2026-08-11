@@ -39,4 +39,9 @@ footer[id] {
   html {
     scroll-behavior: auto;
   }
+
+  /* Decorative status accents should remain visible without pulsing or pinging. */
+  .motion-decorative {
+    animation: none !important;
+  }
 }
